@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  Template AWS SAM para a aplicação Floslo
+  Inclui: Lambda API e API Gateway
+
+Globals:
+  Function:
+    Runtime: provided.al2023
+    Timeout: 30
+    MemorySize: 128
+    Handler: bootstrap
+    Architectures: [x86_64]
+    CodeUri: .
+
+Resources:
+  FlosloTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: floslo
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+  
+  FlosloApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Name: floslo-api
+  
+  FlosloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: floslo-api
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FlosloTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref FlosloTable
+          JWT_SECRET: "a6515bce-59bd-426f-95dc-d0684e15136e"
+      Events:
+        GetRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FlosloApi
+            Path: /
+            Method: GET
+        ProxyAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref FlosloApi
+            Path: /{proxy+}
+            Method: ANY
+

@@ -2,3 +2,9 @@
 *.terraform.lock.hcl
 docs/
 desktop.ini
+local-sam.yaml
+api/tmp/
+api/.sam.pid
+api/.aws-sam/
+api/bootstrap
+api/docker/
