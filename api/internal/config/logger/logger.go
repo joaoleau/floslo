@@ -1,72 +1,49 @@
 package logger
 
 import (
+	"log/slog"
 	"os"
 	"strings"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
-var (
-	log *zap.Logger
+var Log *slog.Logger
+
+const (
 	LOG_OUTPUT = "LOG_OUTPUT"
-	LOG_LEVEL = "LOG_LEVEL"
+	LOG_LEVEL  = "LOG_LEVEL"
 )
 
 func init() {
-	logConfig := zap.Config {
-		OutputPaths: []string{getOutputLogs()},
-		Level: zap.NewAtomicLevelAt(getLevelLogs()),
-		Encoding: "json",
-		EncoderConfig: zapcore.EncoderConfig{
-			LevelKey: "level",
-			TimeKey: "time",
-			MessageKey: "message",
-			EncodeTime: zapcore.ISO8601TimeEncoder,
-			EncodeLevel: zapcore.LowercaseLevelEncoder,
-			EncodeCaller: zapcore.ShortCallerEncoder,
-		},
-	}
+	var level slog.Level
 
-	log, _ = logConfig.Build()
-}
-
-func Info(message string, tags...zap.Field) {
-	log.Info(message, tags...)
-	log.Sync()
-}
-
-func Warning(warningMessage string, tags...zap.Field) {
-	log.Warn(warningMessage, tags...)
-	log.Sync()
-}
-
-func Error(message string, err error, tags...zap.Field) {
-	tags = append(tags, zap.NamedError("error", err))
-	log.Error(message, tags...)
-	log.Sync()
-}
-
-func getOutputLogs() string {
-	output := strings.ToLower(strings.TrimSpace(os.Getenv(LOG_OUTPUT)))
-	if output == "" {
-		return "stdout"
-	}
-	return output
-}
-
-func getLevelLogs() zapcore.Level {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(LOG_LEVEL))) {
-	case "info":
-		return zapcore.InfoLevel
-	case "warning":
-		return zapcore.WarnLevel
-	case "error":
-		return zapcore.ErrorLevel
 	case "debug":
-		return zapcore.DebugLevel
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
 	default:
-		return zapcore.InfoLevel
+		level = slog.LevelInfo
 	}
+
+	output := os.Stdout
+
+	if strings.ToLower(os.Getenv(LOG_OUTPUT)) == "stderr" {
+		output = os.Stderr
+	}
+
+	handler := slog.NewJSONHandler(output, &slog.HandlerOptions{
+		Level: level,
+	})
+
+	Log = slog.New(handler)
+}
+
+func String(key, value string) slog.Attr {
+	return slog.String(key, value)
+}
+
+func Any(key string, value any) slog.Attr {
+	return slog.Any(key, value)
 }

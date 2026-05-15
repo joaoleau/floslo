@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/repository"
 
 	"github.com/joaoleau/floslo/internal/config/logger"
-	"go.uber.org/zap"
 )
 
 type UserService struct {
@@ -23,29 +23,41 @@ func NewUserService(userRepository *repository.UserRepository) *UserService {
 func (s *UserService) GetUserByUsername(ctx context.Context, username string) (*model.User, error){	
 	user, err := s.userRepository.GetUserByUsername(ctx, username)
 	if err != nil {
-		logger.Error("failed to get user: ", err)
+		logger.Log.Error("failed to get user: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
-	logger.Info("user found: ", zap.String("username", user.Username))
+	logger.Log.Info("user found: ", logger.String("username", user.Username))
 	return user, nil
 }
 
-func (s *UserService) UpdateUserByUsername(ctx context.Context, username string, user *model.User) (*model.User, error) {
+func (s *UserService) UpdateUserByUsername(ctx context.Context, username string, update *model.UpdateUser) (*model.User, error) {
+	user, err := s.userRepository.GetUserByUsername(ctx, username)
+	if err != nil {
+		logger.Log.Error("failed to get user: ", logger.Any("error", err))
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if update.Email != nil {
+		user.Email = *update.Email
+	}
+	if update.Password != nil {
+		user.Password = *update.Password
+	}
+	user.UpdatedAt = time.Now().UTC()
 	updatedUser, err := s.userRepository.UpdateUserByUsername(ctx, username, user)
 	if err != nil {
-		logger.Error("failed to update user: ", err)
+		logger.Log.Error("failed to update user: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to update user: %w", err)
 	}
-	logger.Info("user updated: ", zap.String("username", updatedUser.Username))
+	logger.Log.Info("user updated: ", logger.String("username", updatedUser.Username))
 	return updatedUser, nil
 }
 
 func (s *UserService) DeleteUserByUsername(ctx context.Context, username string) error {
 	err := s.userRepository.DeleteUserByUsername(ctx, username)
 	if err != nil {
-		logger.Error("failed to delete user: ", err)
+		logger.Log.Error("failed to delete user: ", logger.Any("error", err))
 		return fmt.Errorf("failed to delete user: %w", err)
 	}
-	logger.Info("user deleted: ", zap.String("username", username))
+	logger.Log.Info("user deleted: ", logger.String("username", username))
 	return nil
 }

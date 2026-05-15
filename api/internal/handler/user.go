@@ -49,7 +49,9 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseWithError(w, http.StatusBadRequest, err)
 		return
 	}
-	updatedUser, err := h.userService.UpdateUserByUsername(r.Context(), username, input.ToModel())
+	user := input.ToModel()
+	user.Username = &username
+	updatedUser, err := h.userService.UpdateUserByUsername(r.Context(), username, user)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -57,6 +59,8 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	utils.ResponseWithData(w, http.StatusOK, dto.UserResponseDTO{
 		Username: updatedUser.Username,
 		Email:    updatedUser.Email,
+		CreatedAt: updatedUser.CreatedAt,
+		UpdatedAt: updatedUser.UpdatedAt,
 	})
 }
 

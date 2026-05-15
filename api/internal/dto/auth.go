@@ -28,12 +28,6 @@ func (dto *RegisterRequestDTO) ToModel() *model.User {
 	}
 }
 
-type UserResponseDTO struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
-
-
 type LoginResponseDTO struct {
 	Token string `json:"token"`
 	RefreshToken string `json:"refresh_token"`

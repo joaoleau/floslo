@@ -6,22 +6,21 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/joaoleau/floslo/internal/config"
 	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/repository"
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/joaoleau/floslo/internal/config/logger"
-	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
 	userRepository *repository.UserRepository
+	jwtSecret 	[]byte
 }
 
-func NewAuthService(userRepository *repository.UserRepository) *AuthService {
+func NewAuthService(userRepository *repository.UserRepository, jwtSecret []byte) *AuthService {
 	return &AuthService{
 		userRepository: userRepository,
+		jwtSecret:      jwtSecret,
 	}
 }
 
@@ -43,13 +42,14 @@ func (s *AuthService) Register(ctx context.Context, user *model.User) error {
 
 	user.Password = string(hash)
 	user.SetKeys()
-	
+	user.CreatedAt = time.Now().UTC()
+	user.UpdatedAt = time.Now().UTC()
 	err = s.userRepository.NewUser(ctx, user)
 	if err != nil {
-		logger.Error("failed to create user: ", err)
+		logger.Log.Error("failed to create user: ", logger.Any("error", err))
 		return fmt.Errorf("failed to create user: %w", err)
 	}
-	logger.Info("user created: ", zap.String("username", user.Username))
+	logger.Log.Info("user created: ", logger.String("username", user.Username))
 	return nil
 }
 
@@ -64,12 +64,12 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		return "", "", fmt.Errorf("invalid credentials")
 	}
 
-	access, err := generateAccessToken(user.Username)
+	access, err := generateAccessToken(s.jwtSecret, user.Username)
 	if err != nil {
 		return "", "", err
 	}
 
-	refresh, err := generateRefreshToken(user.Username)
+	refresh, err := generateRefreshToken(s.jwtSecret, user.Username)
 	if err != nil {
 		return "", "", err
 	}
@@ -82,7 +82,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (string
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
-		return config.LoadJWTSecret()
+		return s.jwtSecret, nil
 	})
 
 	if err != nil || !token.Valid {
@@ -103,34 +103,28 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (string
 		return "", fmt.Errorf("invalid subject")
 	}
 
-	return generateAccessToken(username)
+	return generateAccessToken(s.jwtSecret, username)
 }
 
 
-func generateAccessToken(username string) (string, error) {
-	jwtSecret, err := config.LoadJWTSecret()
-	if err != nil {
-		return "", err
-	}
-
+func generateAccessToken(jwtSecret []byte, username string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  username,
 		"type": "access",
+		"iss":  "floslo",
+		"aud":  "floslo-app",
 		"exp":  time.Now().Add(15 * time.Minute).Unix(),
 	})
 
 	return token.SignedString(jwtSecret)
 }
 
-func generateRefreshToken(username string) (string, error) {
-	jwtSecret, err := config.LoadJWTSecret()
-	if err != nil {
-		return "", err
-	}
-
+func generateRefreshToken(jwtSecret []byte, username string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  username,
 		"type": "refresh",
+		"iss":  "floslo",
+		"aud":  "floslo-app",
 		"exp":  time.Now().Add(7 * 24 * time.Hour).Unix(),
 	})
 

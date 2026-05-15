@@ -1,20 +1,22 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
-Description: >
-  Template AWS SAM para a aplicação Floslo
-  Inclui: Lambda API e API Gateway
+Description: Floslo API
 
 Globals:
   Function:
-    Runtime: provided.al2023
-    Timeout: 30
+    Runtime: provided.al2
+    Timeout: 60
     MemorySize: 128
-    Handler: bootstrap
-    Architectures: [x86_64]
-    CodeUri: .
+    Architectures:
+      - x86_64
 
 Resources:
+
+  #########################################################
+  # DYNAMO
+  #########################################################
+
   FlosloTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -30,35 +32,260 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
-  
-  FlosloApi:
-    Type: AWS::Serverless::Api
+
+  #########################################################
+  # S3 DOCUMENTS
+  #########################################################
+
+  FlosloBucket:
+    Type: AWS::S3::Bucket
     Properties:
-      StageName: dev
-      Name: floslo-api
-  
+      BucketName: floslo-us-east-1-tenants
+
+  #########################################################
+  # S3 VECTOR BUCKET
+  #########################################################
+
+  FlosloVectorBucket:
+    Type: AWS::S3Vectors::VectorBucket
+    Properties:
+      VectorBucketName: floslo-us-east-1-vectors
+
+  #########################################################
+  # BEDROCK ROLE
+  #########################################################
+
+  BedrockKnowledgeBaseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: floslo-bedrock-kb-role
+
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - bedrock.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+      Policies:
+        - PolicyName: BedrockKBPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+
+              # leitura documentos
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt FlosloBucket.Arn
+                  - !Sub "${FlosloBucket.Arn}/*"
+
+              # embedding model
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+
+              # s3 vectors
+              - Effect: Allow
+                Action:
+                  - s3vectors:PutVectors
+                  - s3vectors:GetVectors
+                  - s3vectors:QueryVectors
+                Resource: "*"
+
+  #########################################################
+  # KNOWLEDGE BASE
+  #########################################################
+
+  FlosloVectorIndex:
+    Type: AWS::S3Vectors::Index
+    DependsOn:
+      - FlosloVectorBucket
+
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+    Properties:
+      IndexName: floslo-index
+      DataType: float32
+      Dimension: 1024
+      DistanceMetric: cosine
+      VectorBucketName: floslo-us-east-1-vectors
+      MetadataConfiguration:
+        NonFilterableMetadataKeys:
+          - AMAZON_BEDROCK_TEXT
+          - AMAZON_BEDROCK_METADATA
+
+  FlosloKnowledgeBase:
+    Type: AWS::Bedrock::KnowledgeBase
+    DependsOn: BedrockKnowledgeBaseRole
+    Properties:
+      Name: floslo-kb
+
+      RoleArn: !GetAtt BedrockKnowledgeBaseRole.Arn
+
+      KnowledgeBaseConfiguration:
+        Type: VECTOR
+
+        VectorKnowledgeBaseConfiguration:
+          EmbeddingModelArn: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+
+      StorageConfiguration:
+        Type: S3_VECTORS
+
+        S3VectorsConfiguration:
+          IndexArn: !GetAtt FlosloVectorIndex.IndexArn
+
+  #########################################################
+  # DATASOURCE
+  #########################################################
+
+  FlosloDataSource:
+    Type: AWS::Bedrock::DataSource
+    Properties:
+      Name: floslo-datasource
+      KnowledgeBaseId: !Ref FlosloKnowledgeBase
+      VectorIngestionConfiguration:
+        ChunkingConfiguration:
+          ChunkingStrategy: FIXED_SIZE
+          FixedSizeChunkingConfiguration:
+            MaxTokens: 500
+            OverlapPercentage: 15
+      DataSourceConfiguration:
+        Type: S3
+        S3Configuration:
+          BucketArn: !GetAtt FlosloBucket.Arn
+
+  #########################################################
+  # API
+  #########################################################
+
+  FlosloApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+
+  #########################################################
+  # LAMBDA
+  #########################################################
+
   FlosloFunction:
     Type: AWS::Serverless::Function
+
+    Metadata:
+      SkipBuild: True
+
     Properties:
+      CodeUri: cmd/api/build
+      Handler: bootstrap
       FunctionName: floslo-api
+
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref FlosloTable
+            TableName: floslo
+
+        - S3CrudPolicy:
+            BucketName: floslo-us-east-1-tenants
+
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lambda/floslo/*
+
+            - Effect: Allow
+              Action:
+                - bedrock:StartIngestionJob
+                - bedrock:GetIngestionJob
+              Resource: !GetAtt FlosloKnowledgeBase.KnowledgeBaseArn
+
       Environment:
         Variables:
-          TABLE_NAME: !Ref FlosloTable
-          JWT_SECRET: "a6515bce-59bd-426f-95dc-d0684e15136e"
+          DYNAMO_TABLE: floslo
+          BUCKET_NAME: floslo-us-east-1-tenants
+          PARAMETER_JWT_SECRET: "/lambda/floslo/jwt_secret"
+          KNOWLEDGEBASE_ID: !Ref FlosloKnowledgeBase
+          DATASOURCE_ID: !Ref FlosloDataSource
+          MODEL_ID: nao-e-necessario
+
       Events:
-        GetRoot:
-          Type: Api
+        Proxy:
+          Type: HttpApi
           Properties:
-            RestApiId: !Ref FlosloApi
-            Path: /
-            Method: GET
-        ProxyAll:
-          Type: Api
-          Properties:
-            RestApiId: !Ref FlosloApi
-            Path: /{proxy+}
+            ApiId: !Ref FlosloApi
+            Path: /api/{proxy+}
             Method: ANY
 
+  FlosloRAGFunction:
+    Type: AWS::Serverless::Function
+
+    Metadata:
+      SkipBuild: True
+
+    Properties:
+      CodeUri: cmd/rag/build
+      Handler: bootstrap
+      FunctionName: floslo-rag
+
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: floslo
+
+        - S3CrudPolicy:
+            BucketName: floslo-us-east-1-tenants
+
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lambda/floslo/*
+
+            - Effect: Allow
+              Action:
+                - bedrock:StartIngestionJob
+                - bedrock:GetIngestionJob
+                - bedrock:Retrieve
+              Resource:
+                - !GetAtt FlosloKnowledgeBase.KnowledgeBaseArn
+
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
+
+      Environment:
+        Variables:
+          DYNAMO_TABLE: floslo
+          BUCKET_NAME: floslo-us-east-1-tenants
+          PARAMETER_JWT_SECRET: "/lambda/floslo/jwt_secret"
+          KNOWLEDGEBASE_ID: !Ref FlosloKnowledgeBase
+          DATASOURCE_ID: !Ref FlosloDataSource
+          MODEL_ID: amazon.nova-lite-v1:0
+
+      Events:
+        Proxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref FlosloApi
+            Path: /rag/{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${FlosloApi}.execute-api.${AWS::Region}.amazonaws.com
+
+  KnowledgeBaseId:
+    Value: !Ref FlosloKnowledgeBase
+
+  DataSourceId:
+    Value: !Ref FlosloDataSource
