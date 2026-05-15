@@ -1,3 +1,0 @@
-.aws-sam/
-./cmd/api/build/*
-./cmd/rag/build/*

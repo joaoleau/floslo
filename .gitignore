@@ -8,3 +8,6 @@ api/.sam.pid
 api/.aws-sam/
 api/bootstrap
 api/docker/
+.aws-sam/
+cmd/api/build/*
+cmd/rag/build/*
