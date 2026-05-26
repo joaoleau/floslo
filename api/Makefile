@@ -6,3 +6,6 @@ build-rag:
 
 sync:
 	sam sync --stack-name floslo
+
+sync-code:
+	sam sync --code --stack-name floslo

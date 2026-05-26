@@ -133,14 +133,14 @@ func (s *StorageService) PutObject(ctx context.Context, key string, content []by
 	return nil
 }
 
-func (s *StorageService) CreateInitialMetadata(ctx context.Context, username string, documentName string) (model.ObjectMetadata, error) {
-	return model.ObjectMetadata{
-		MetadataAttributes: &model.ObjectMetadataContent{
-			User: username,
-			Schedulers: make([]string, 0),
-		},
-	}, nil
-}
+// func (s *StorageService) CreateInitialMetadata(ctx context.Context, username string, documentName string) (model.ObjectMetadata, error) {
+// 	return model.ObjectMetadata{
+// 		MetadataAttributes: &model.ObjectMetadataContent{
+// 			User: username,
+// 			Schedulers: make([]string, 0),
+// 		},
+// 	}, nil
+// }
 
 func (s *StorageService) GetObjectMetadata(ctx context.Context, metadataKey string) (model.ObjectMetadata, error) {
 	data, err := s.GetObject(ctx, metadataKey)

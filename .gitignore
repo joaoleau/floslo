@@ -11,3 +11,4 @@ api/docker/
 .aws-sam/
 cmd/api/build/*
 cmd/rag/build/*
+processor/venv/

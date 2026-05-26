@@ -31,35 +31,18 @@ func (h *StorageHandler) UploadObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	presign, err := h.StorageService.PresignPutObject(r.Context(), username, input.ObjectName, int64(15))
-	if err != nil {
-		utils.ResponseWithError(w, http.StatusInternalServerError, err)
-		return
-	}
-	metadataPresign, err := h.StorageService.PresignPutObject(r.Context(), username, input.ObjectName+"metadata.json", int64(360))
-	if err != nil {
-		utils.ResponseWithError(w, http.StatusInternalServerError, err)
-		return
-	}
-	metadataPresignData, err := h.StorageService.CreateInitialMetadata(r.Context(), username, input.ObjectName)
+	presign, err := h.StorageService.PresignPutObject(r.Context(), username, input.ObjectName, int64(360))
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.ResponseWithData(w, http.StatusOK, dto.FullPresignObjectResponseDTO{
-		Object: dto.PresignObjectResponseDTO{
+	utils.ResponseWithData(w, http.StatusOK, dto.PresignObjectResponseDTO{
 			URL: presign.URL,
 			Method: presign.Method,
 			SignedHeader: presign.SignedHeader,
 		},
-		Metadata: dto.PresignMetadataResponseDTO{
-			URL: metadataPresign.URL,
-			Method: metadataPresign.Method,
-			SignedHeader: metadataPresign.SignedHeader,
-			ObjectMetadata: metadataPresignData,
-		},
-	})
+	)
 }
 
 func (h *StorageHandler) DownloadObject(w http.ResponseWriter, r *http.Request) {

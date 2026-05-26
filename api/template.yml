@@ -39,8 +39,38 @@ Resources:
 
   FlosloBucket:
     Type: AWS::S3::Bucket
+
+    DependsOn:
+      - FlosloDocumentQueuePolicy
+
     Properties:
       BucketName: floslo-us-east-1-tenants
+
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pdf
+
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .txt
+
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .md
 
   #########################################################
   # S3 VECTOR BUCKET
@@ -50,6 +80,37 @@ Resources:
     Type: AWS::S3Vectors::VectorBucket
     Properties:
       VectorBucketName: floslo-us-east-1-vectors
+
+  #########################################################
+  # SQS DOCUMENT PROCESSING
+  #########################################################
+
+  FlosloDocumentQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: floslo-document-processing
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 1209600
+
+  FlosloDocumentQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref FlosloDocumentQueue
+
+      PolicyDocument:
+        Version: "2012-10-17"
+
+        Statement:
+          - Effect: Allow
+
+            Principal:
+              Service: s3.amazonaws.com
+
+            Action:
+              - sqs:SendMessage
+
+            Resource: !GetAtt FlosloDocumentQueue.Arn
 
   #########################################################
   # BEDROCK ROLE
@@ -279,6 +340,59 @@ Resources:
             ApiId: !Ref FlosloApi
             Path: /rag/{proxy+}
             Method: ANY
+
+  FlosloDocumentProcessorFunction:
+    Type: AWS::Serverless::Function
+
+    Properties:
+      Runtime: python3.13
+      CodeUri: processor/
+      Handler: main.lambda_handler
+      FunctionName: floslo-document-processor
+      Timeout: 300
+      MemorySize: 1024
+
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: floslo
+
+        - S3CrudPolicy:
+            BucketName: floslo-us-east-1-tenants
+
+        - SQSPollerPolicy:
+            QueueName: !GetAtt FlosloDocumentQueue.QueueName
+
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+
+            - Effect: Allow
+              Action:
+                - s3vectors:PutVectors
+                - s3vectors:GetVectors
+                - s3vectors:QueryVectors
+                - s3vectors:DeleteVectors
+              Resource: "*"
+
+      Environment:
+        Variables:
+          BUCKET_NAME: floslo-us-east-1-tenants
+          DYNAMO_TABLE: floslo
+          VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
+          VECTOR_INDEX_ARN: !GetAtt FlosloVectorIndex.IndexArn
+          MODEL_ID: amazon.titan-embed-text-v2:0
+
+      Events:
+        DocumentQueue:
+          Type: SQS
+
+          Properties:
+            Queue: !GetAtt FlosloDocumentQueue.Arn
+            BatchSize: 5
+            MaximumBatchingWindowInSeconds: 10
 
 Outputs:
   ApiUrl:

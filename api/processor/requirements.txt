@@ -1,0 +1,4 @@
+pypdf
+langdetect
+yake
+langchain-text-splitters

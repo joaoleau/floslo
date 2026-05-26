@@ -22,7 +22,6 @@ const (
 	DynamoTable = "DYNAMO_TABLE"
 	BucketName  = "BUCKET_NAME"
 	JWTSecret   = "PARAMETER_JWT_SECRET"
-	Environment = "ENVIRONMENT"
 	KnowledgeBaseId = "KNOWLEDGEBASE_ID"
 	DataSourceId = "DATASOURCE_ID"
 	ModelId = "MODEL_ID"
@@ -35,7 +34,6 @@ type Config struct {
 	S3Client     *s3.Client
 	BucketName   string
 	JWTSecret    []byte
-	
 	BedrockClient	 *bedrockagent.Client
 	BedrockAgentRuntimeClient *bedrockagentruntime.Client
 	BedrockRuntimeClient *bedrockruntime.Client
@@ -45,8 +43,6 @@ type Config struct {
 }
 
 func NewConfig(ctx context.Context) (*Config, error) {
-	env := os.Getenv(Environment)
-
 	dynamoTable := os.Getenv(DynamoTable)
 	if dynamoTable == "" {
 		return nil, fmt.Errorf("DYNAMO_TABLE environment variable is required")
@@ -76,7 +72,6 @@ func NewConfig(ctx context.Context) (*Config, error) {
 
 	dynamoClient := dynamodb.NewFromConfig(cfg)
 
-	//RAG
 	knowledgeBaseId := os.Getenv(KnowledgeBaseId)
 	if knowledgeBaseId == "" {
 		return nil, fmt.Errorf("KNOWLEDGEBASE_ID environment variable is required")
@@ -95,9 +90,8 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	bedrockClient := bedrockagent.NewFromConfig(cfg)
 	bedrockAgentRuntimeClient := bedrockagentruntime.NewFromConfig(cfg)
 	bedrockRuntimeClient := bedrockruntime.NewFromConfig(cfg)
-	//
 
-	logger.Log.Info("config initialized successfully", logger.String("environment", env), logger.String("dynamo_table", dynamoTable), logger.String("bucket_name", bucketName))
+	logger.Log.Info("config initialized successfully", logger.String("dynamo_table", dynamoTable), logger.String("bucket_name", bucketName))
 	return &Config{
 		DynamoTable:  dynamoTable,
 		DynamoClient: dynamoClient,
