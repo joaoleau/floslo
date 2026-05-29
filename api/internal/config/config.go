@@ -10,9 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	
-	"github.com/aws/aws-sdk-go-v2/service/bedrockagent"
-	"github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime"
+	"github.com/aws/aws-sdk-go-v2/service/s3vectors"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 
 	"github.com/joaoleau/floslo/internal/config/logger"
@@ -21,10 +19,11 @@ import (
 const (
 	DynamoTable = "DYNAMO_TABLE"
 	BucketName  = "BUCKET_NAME"
+	VectorBucketName = "VECTOR_BUCKET_NAME"
+	VectorIndexName = "VECTOR_INDEX_NAME"
 	JWTSecret   = "PARAMETER_JWT_SECRET"
-	KnowledgeBaseId = "KNOWLEDGEBASE_ID"
-	DataSourceId = "DATASOURCE_ID"
-	ModelId = "MODEL_ID"
+	GenerateModelId = "GENERATE_MODEL_ID"
+	EmbeddingModelId = "EMBEDDING_MODEL_ID"
 )
 
 type Config struct {
@@ -32,14 +31,14 @@ type Config struct {
 	DynamoClient *dynamodb.Client
 	SSMClient    *ssm.Client
 	S3Client     *s3.Client
+	S3VectorsClient *s3vectors.Client
 	BucketName   string
+	VectorBucketName string
+	VectorIndexName string
 	JWTSecret    []byte
-	BedrockClient	 *bedrockagent.Client
-	BedrockAgentRuntimeClient *bedrockagentruntime.Client
 	BedrockRuntimeClient *bedrockruntime.Client
-	KnowledgeBaseId string
-	DataSourceId string
-	ModelId string
+	GenerateModelId string
+	EmbeddingModelId string
 }
 
 func NewConfig(ctx context.Context) (*Config, error) {
@@ -51,6 +50,16 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	bucketName := os.Getenv(BucketName)
 	if bucketName == "" {
 		return nil, fmt.Errorf("BUCKET_NAME environment variable is required")
+	}
+
+	vectorBucketName := os.Getenv(VectorBucketName)
+	if vectorBucketName == "" {
+		return nil, fmt.Errorf("VECTOR_BUCKET_NAME environment variable is required")
+	}
+
+	vectorIndexName := os.Getenv(VectorIndexName)
+	if vectorIndexName == "" {
+		return nil, fmt.Errorf("VECTOR_INDEX_NAME environment variable is required")
 	}
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
@@ -72,40 +81,34 @@ func NewConfig(ctx context.Context) (*Config, error) {
 
 	dynamoClient := dynamodb.NewFromConfig(cfg)
 
-	knowledgeBaseId := os.Getenv(KnowledgeBaseId)
-	if knowledgeBaseId == "" {
-		return nil, fmt.Errorf("KNOWLEDGEBASE_ID environment variable is required")
+	generateModelId := os.Getenv(GenerateModelId)
+	if generateModelId == "" {
+		return nil, fmt.Errorf("GENERATE_MODEL_ID environment variable is required")
 	}
 
-	dataSourceId := os.Getenv(DataSourceId)
-	if dataSourceId == "" {
-		return nil, fmt.Errorf("DATASOURCE_ID environment variable is required")
+	embeddingModelId := os.Getenv(EmbeddingModelId)
+	if embeddingModelId == "" {
+		return nil, fmt.Errorf("EMBEDDING_MODEL_ID environment variable is required")
 	}
 
-	modelId := os.Getenv(ModelId)
-	if modelId == "" {
-		return nil, fmt.Errorf("MODEL_ID environment variable is required")
-	}	
-
-	bedrockClient := bedrockagent.NewFromConfig(cfg)
-	bedrockAgentRuntimeClient := bedrockagentruntime.NewFromConfig(cfg)
 	bedrockRuntimeClient := bedrockruntime.NewFromConfig(cfg)
+	s3Client := s3.NewFromConfig(cfg)
+	s3VectorsClient := s3vectors.NewFromConfig(cfg)
 
 	logger.Log.Info("config initialized successfully", logger.String("dynamo_table", dynamoTable), logger.String("bucket_name", bucketName))
 	return &Config{
 		DynamoTable:  dynamoTable,
 		DynamoClient: dynamoClient,
 		SSMClient:    ssmClient,
-		S3Client:     s3.NewFromConfig(cfg),
+		S3Client:     s3Client,
+		S3VectorsClient: s3VectorsClient,
 		BucketName:   bucketName,
+		VectorBucketName: vectorBucketName,
+		VectorIndexName: vectorIndexName,
 		JWTSecret:    jwtSecret,
-		
-		BedrockClient: bedrockClient,
-		BedrockAgentRuntimeClient: bedrockAgentRuntimeClient,
 		BedrockRuntimeClient: bedrockRuntimeClient,
-		KnowledgeBaseId: knowledgeBaseId,
-		DataSourceId: dataSourceId,
-		ModelId: modelId,
+		GenerateModelId: generateModelId,
+		EmbeddingModelId: embeddingModelId,
 
 	}, nil
 }

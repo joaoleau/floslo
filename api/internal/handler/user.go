@@ -20,25 +20,26 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 }
 
 func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
 
-	user, err := h.userService.GetUserByUsername(r.Context(), username)
+	user, err := h.userService.GetUserByUserId(r.Context(), userId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 	utils.ResponseWithData(w, http.StatusOK, dto.UserResponseDTO{
+		Id:       user.Id,
 		Username: user.Username,
 		Email:    user.Email,
 	})
 }
 
 func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
@@ -50,13 +51,14 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := input.ToModel()
-	user.Username = &username
-	updatedUser, err := h.userService.UpdateUserByUsername(r.Context(), username, user)
+	user.Username = &userId
+	updatedUser, err := h.userService.UpdateUserByUserId(r.Context(), userId, user)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 	utils.ResponseWithData(w, http.StatusOK, dto.UserResponseDTO{
+		Id:       updatedUser.Id,
 		Username: updatedUser.Username,
 		Email:    updatedUser.Email,
 		CreatedAt: updatedUser.CreatedAt,
@@ -65,13 +67,13 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
 
-	err := h.userService.DeleteUserByUsername(r.Context(), username)
+	err := h.userService.DeleteUserByUserId(r.Context(), userId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return

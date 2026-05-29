@@ -45,8 +45,8 @@ func (r *SchedulerRepository) NewScheduler(ctx context.Context, scheduler *model
 	return nil
 }
 
-func (r *SchedulerRepository) ListSchedulers(ctx context.Context, username string) ([]*model.Scheduler, error) {
-	keyCond := expression.Key("PK").Equal(expression.Value("USER#" + username)).And(
+func (r *SchedulerRepository) ListSchedulers(ctx context.Context, userId string) ([]*model.Scheduler, error) {
+	keyCond := expression.Key("PK").Equal(expression.Value("USER#" + userId)).And(
 		expression.Key("SK").BeginsWith("SCHEDULER#"),
 	)
 	expr, err := expression.NewBuilder().WithKeyCondition(keyCond).Build()
@@ -79,9 +79,9 @@ func (r *SchedulerRepository) ListSchedulers(ctx context.Context, username strin
 	return schedulers, nil
 }
 
-func (r *SchedulerRepository) GetSchedulerById(ctx context.Context, username string, schedulerId string) (*model.Scheduler, error) {
+func (r *SchedulerRepository) GetSchedulerById(ctx context.Context, userId string, schedulerId string) (*model.Scheduler, error) {
 	key, err := attributevalue.MarshalMap(map[string]string{
-		"PK": "USER#" + username,
+		"PK": "USER#" + userId,
 		"SK": "SCHEDULER#" + schedulerId,
 	})
 	if err != nil {
@@ -117,7 +117,7 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 		Set(expression.Name("start_time"), expression.Value(scheduler.StartTime)).
 		Set(expression.Name("snooze_duration"), expression.Value(scheduler.SnoozeDuration)).
 		Set(expression.Name("alarm_sound"), expression.Value(scheduler.AlarmSound)).
-		Set(expression.Name("document_names"), expression.Value(scheduler.DocumentNames)).
+		Set(expression.Name("object_ids"), expression.Value(scheduler.ObjectIds)).
 		Set(expression.Name("enabled"), expression.Value(scheduler.Enabled)).
 		Set(expression.Name("updated_at"), expression.Value(time.Now().UTC().Format(time.RFC3339)))
 	expr, err := expression.NewBuilder().WithUpdate(update).Build()
@@ -149,9 +149,9 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 	return &updatedScheduler, nil
 }
 
-func (r *SchedulerRepository) DeleteScheduler(ctx context.Context, username string, schedulerId string) error {
+func (r *SchedulerRepository) DeleteScheduler(ctx context.Context, userId string, schedulerId string) error {
 	key, err := attributevalue.MarshalMap(map[string]string{
-		"PK": "USER#" + username,
+		"PK": "USER#" + userId,
 		"SK": "SCHEDULER#" + schedulerId,
 	})
 	if err != nil {

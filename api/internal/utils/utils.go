@@ -3,9 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"net/http"
-	"crypto/rand"
-	"encoding/base64"
 	"github.com/joaoleau/floslo/internal/model"
+	"github.com/google/uuid"
 )
 
 type ResponseBody struct {
@@ -78,16 +77,20 @@ func WeekdaysToStrings(days []model.Weekday) []string {
 	return result
 }
 
+func GenerateID(prefix string) string {
+	id := uuid.NewString()
 
-func GenerateID(prefix string) (string, error) {
-	bytes := make([]byte, 9)
-
-	_, err := rand.Read(bytes)
-	if err != nil {
-		return "", err
+	if prefix == "" {
+		return id
 	}
 
-	id := base64.RawURLEncoding.EncodeToString(bytes)
+	return prefix + "_" + id
+}
 
-	return prefix + "_" + id, nil
+func MapSlice[T any, U any](input []T, mapper func(T) U) []U {
+	result := make([]U, len(input))	
+	for i, item := range input {
+		result[i] = mapper(item)
+	}
+	return result
 }

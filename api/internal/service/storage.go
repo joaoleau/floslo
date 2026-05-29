@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -15,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/joaoleau/floslo/internal/config/logger"
-	"github.com/joaoleau/floslo/internal/model"
 )
 
 type StorageService struct {
@@ -32,8 +30,8 @@ func NewStorageService(bucketName string, s3Client *s3.Client) *StorageService {
 	}
 }
 
-func (s *StorageService) PresignGetObject(ctx context.Context, username string, objectName string, lifetimeSecs int64)  (*v4.PresignedHTTPRequest, error) { 
-	objectKey := fmt.Sprintf("tenants/%s/context/%s", username,	objectName)
+func (s *StorageService) PresignGetObject(ctx context.Context, userId string, objectName string, lifetimeSecs int64)  (*v4.PresignedHTTPRequest, error) { 
+	objectKey := fmt.Sprintf("tenants/%s/context/%s", userId,	objectName)
 	
 	request, err := s.S3PresignClient.PresignGetObject(ctx, &s3.GetObjectInput{ 
 		Bucket: aws.String(s.BucketName), 
@@ -47,8 +45,8 @@ func (s *StorageService) PresignGetObject(ctx context.Context, username string, 
 	return request, err
 }
 
-func (s *StorageService) PresignPutObject(ctx context.Context, username string, objectName string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) { 
-	objectKey := fmt.Sprintf("tenants/%s/context/%s", username,	objectName)
+func (s *StorageService) PresignPutObject(ctx context.Context, userId string, objectName string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) { 
+	objectKey := fmt.Sprintf("tenants/%s/context/%s", userId,	objectName)
 	
 	request, err := s.S3PresignClient.PresignPutObject(ctx, &s3.PutObjectInput{ 
 		Bucket: aws.String(s.BucketName), 
@@ -62,8 +60,8 @@ func (s *StorageService) PresignPutObject(ctx context.Context, username string, 
 	return request, err
 }
 
-func (s *StorageService) DeleteObject(ctx context.Context, username string, objectName string) error {
-	objectKey := fmt.Sprintf("tenants/%s/context/%s", username,	objectName)
+func (s *StorageService) DeleteObject(ctx context.Context, userId string, objectName string) error {
+	objectKey := fmt.Sprintf("tenants/%s/context/%s", userId,	objectName)
 	
 	_, err := s.S3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
         Bucket: aws.String(s.BucketName),
@@ -98,8 +96,8 @@ func (s *StorageService) GetObject(ctx context.Context, key string) ([]byte, err
 	return buf.Bytes(), nil
 }
 
-func (s *StorageService) ListObjects(ctx context.Context, username string) ([]string, error) {
-	prefix := fmt.Sprintf("tenants/%s/context/", username)
+func (s *StorageService) ListObjects(ctx context.Context, userId string) ([]string, error) {
+	prefix := fmt.Sprintf("tenants/%s/context/", userId)
 	outputs, err := s.S3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
 		Bucket: aws.String(s.BucketName),
 		Prefix: aws.String(prefix),
@@ -129,91 +127,6 @@ func (s *StorageService) PutObject(ctx context.Context, key string, content []by
 	if err != nil {
 		logger.Log.Error("Couldn't put object %v:%v.",s.BucketName, key, logger.Any("error", err))
 		return fmt.Errorf("put object %s/%s: %w", s.BucketName, key, err)
-	}
-	return nil
-}
-
-// func (s *StorageService) CreateInitialMetadata(ctx context.Context, username string, documentName string) (model.ObjectMetadata, error) {
-// 	return model.ObjectMetadata{
-// 		MetadataAttributes: &model.ObjectMetadataContent{
-// 			User: username,
-// 			Schedulers: make([]string, 0),
-// 		},
-// 	}, nil
-// }
-
-func (s *StorageService) GetObjectMetadata(ctx context.Context, metadataKey string) (model.ObjectMetadata, error) {
-	data, err := s.GetObject(ctx, metadataKey)
-	if err != nil {
-		logger.Log.Error("failed to get document from storage: ", logger.Any("error", err), logger.String("metadataKey", metadataKey))
-		return model.ObjectMetadata{}, fmt.Errorf("failed to get metadata from storage: %w", err)
-	}
-	var metadata model.ObjectMetadata
-	err = json.Unmarshal(data, &metadata)
-	if err != nil {
-		logger.Log.Error("failed to unmarshal document metadata: ", logger.Any("error", err), logger.String("metadataKey", metadataKey))
-		return model.ObjectMetadata{}, fmt.Errorf("failed to unmarshal metadata: %w", err)
-	}
-	return metadata, nil
-}
-
-func (s *StorageService) UpdateObjectMetadata(ctx context.Context, metadataKey string, data []byte) (error) {
-	err := s.PutObject(ctx, metadataKey, data)
-	if err != nil {
-		logger.Log.Error("failed to update document metadata in storage: ", logger.Any("error", err), logger.String("metadata", metadataKey))
-		return fmt.Errorf("failed to update document metadata in storage: %w", err)
-	}
-	logger.Log.Info("document metadata updated: ", logger.String("metadata", metadataKey))
-	return nil
-}
-
-func (s *StorageService) AddSchedulerOnObjectMetadata(ctx context.Context, username string, documentName string, scheduler string) error {
-	metadataKey := fmt.Sprintf("tenants/%s/context/%s.metadata.json", username,	documentName)
-	metadata, err := s.GetObjectMetadata(ctx, metadataKey)
-	if err != nil {
-		return err
-	}
-
-	metadata.MetadataAttributes.Schedulers = append(metadata.MetadataAttributes.Schedulers, scheduler)
-	updatedMetadata, err := json.Marshal(metadata)
-	if err != nil {
-		logger.Log.Error("failed to marshal updated document metadata: ", logger.Any("error", err), logger.String("document", documentName))
-		return fmt.Errorf("failed to marshal updated document metadata: %w", err)
-	}
-	err = s.UpdateObjectMetadata(ctx, metadataKey, updatedMetadata)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *StorageService) DeleteSchedulerOnObjectMetadata(ctx context.Context, username string, documentName string, scheduler string) error {
-	metadataKey := fmt.Sprintf("tenants/%s/context/%s.metadata.json", username,	documentName)
-	metadata, err := s.GetObjectMetadata(ctx, metadataKey)
-	if err != nil {
-		return err
-	}
-	found := false
-	updatedSchedulers := make([]string, 0)
-	for _, s := range metadata.MetadataAttributes.Schedulers {
-		if s == scheduler {
-			continue
-		}
-		updatedSchedulers = append(updatedSchedulers, s)
-	}
-	if !found {
-		return nil
-	}
-	metadata.MetadataAttributes.Schedulers = updatedSchedulers
-	updatedMetadata, err := json.Marshal(metadata)
-	if err != nil {
-		logger.Log.Error("failed to marshal updated document metadata: ", logger.Any("error", err), logger.String("document", documentName))
-		return fmt.Errorf("failed to marshal updated document metadata: %w", err)
-	}
-	err = s.UpdateObjectMetadata(ctx, metadataKey, updatedMetadata)
-	if err != nil {
-		return err
 	}
 	return nil
 }

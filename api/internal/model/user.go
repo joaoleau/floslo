@@ -2,12 +2,16 @@ package model
 
 import (
 	"time"
+	"strings"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 type User struct {
 	PK       string `dynamodbav:"PK"`
 	SK       string `dynamodbav:"SK"`
+	GSI1PK string `dynamodbav:"GSI1PK"`
+	GSI1SK string `dynamodbav:"GSI1SK"`
+	Id       string `dynamodbav:"id"`
 	Username string `dynamodbav:"username"`
 	Password string `dynamodbav:"password"`
 	Email    string `dynamodbav:"email"`
@@ -23,8 +27,11 @@ func (u *User) GetKey() map[string]types.AttributeValue {
 }
 
 func (u *User) SetKeys() {
-	u.PK = "USER#" + u.Username
+	u.PK = "USER#" + u.Id
 	u.SK = "PROFILE"
+
+	u.GSI1PK = "USERNAME#" + strings.ToLower(u.Username)
+	u.GSI1SK = "PROFILE"
 }
 
 func (u *User) CheckPassword(password string) bool {

@@ -21,6 +21,7 @@ var adapter *proxy.ChiLambdaV2
 type Repositories struct {
 	UserRepository *irepository.UserRepository
 	SchedulerRepository *irepository.SchedulerRepository
+	SchedulerObjectLinkRepository *irepository.SchedulerObjectLinkRepository
 }
 
 type Services struct {
@@ -28,7 +29,6 @@ type Services struct {
 	AuthService *iservice.AuthService
 	StorageService *iservice.StorageService
 	SchedulerService *iservice.SchedulerService
-	KnowledgeBaseService *iservice.KnowledgeBaseService
 }
 
 type Handlers struct {
@@ -110,7 +110,7 @@ func setupServices(cfg *config.Config, repos *Repositories) *Services {
 		UserService: iservice.NewUserService(repos.UserRepository),
 		AuthService: iservice.NewAuthService(repos.UserRepository, cfg.JWTSecret),
 		StorageService: storageService,
-		SchedulerService: iservice.NewSchedulerService(repos.SchedulerRepository, storageService),
+		SchedulerService: iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository,storageService),
 	}
 }
 
@@ -118,5 +118,6 @@ func setupRepositories(db *dynamodb.Client, table string) *Repositories {
 	return &Repositories{
 		UserRepository: irepository.NewUserRepository(db, table),
 		SchedulerRepository: irepository.NewSchedulerRepository(db, table),
+		SchedulerObjectLinkRepository: irepository.NewSchedulerObjectLinkRepository(db, table),
 	}
 }
