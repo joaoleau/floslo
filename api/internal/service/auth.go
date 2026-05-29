@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joaoleau/floslo/internal/model"
+	"github.com/joaoleau/floslo/internal/utils"
 	"github.com/joaoleau/floslo/internal/repository"
 	"github.com/joaoleau/floslo/internal/config/logger"
 	"golang.org/x/crypto/bcrypt"
@@ -40,6 +41,7 @@ func (s *AuthService) Register(ctx context.Context, user *model.User) error {
 		return err
 	}
 
+	user.Id = utils.GenerateID("usr")
 	user.Password = string(hash)
 	user.SetKeys()
 	user.CreatedAt = time.Now().UTC()
@@ -64,12 +66,12 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		return "", "", fmt.Errorf("invalid credentials")
 	}
 
-	access, err := generateAccessToken(s.jwtSecret, user.Username)
+	access, err := generateAccessToken(s.jwtSecret, user.Id)
 	if err != nil {
 		return "", "", err
 	}
 
-	refresh, err := generateRefreshToken(s.jwtSecret, user.Username)
+	refresh, err := generateRefreshToken(s.jwtSecret, user.Id)
 	if err != nil {
 		return "", "", err
 	}
@@ -98,18 +100,18 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (string
 		return "", fmt.Errorf("invalid token type")
 	}
 
-	username, ok := claims["sub"].(string)
+	userId, ok := claims["sub"].(string)
 	if !ok {
 		return "", fmt.Errorf("invalid subject")
 	}
 
-	return generateAccessToken(s.jwtSecret, username)
+	return generateAccessToken(s.jwtSecret, userId)
 }
 
 
-func generateAccessToken(jwtSecret []byte, username string) (string, error) {
+func generateAccessToken(jwtSecret []byte, userId string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":  username,
+		"sub":  userId,
 		"type": "access",
 		"iss":  "floslo",
 		"aud":  "floslo-app",
@@ -119,9 +121,9 @@ func generateAccessToken(jwtSecret []byte, username string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
-func generateRefreshToken(jwtSecret []byte, username string) (string, error) {
+func generateRefreshToken(jwtSecret []byte, userId string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":  username,
+		"sub":  userId,
 		"type": "refresh",
 		"iss":  "floslo",
 		"aud":  "floslo-app",

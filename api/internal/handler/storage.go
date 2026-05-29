@@ -20,7 +20,7 @@ func NewStorageHandler(storageService *service.StorageService) *StorageHandler {
 }
 
 func (h *StorageHandler) UploadObject(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
@@ -31,7 +31,7 @@ func (h *StorageHandler) UploadObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	presign, err := h.StorageService.PresignPutObject(r.Context(), username, input.ObjectName, int64(360))
+	presign, err := h.StorageService.PresignPutObject(r.Context(), userId, input.ObjectName, int64(360))
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -46,7 +46,7 @@ func (h *StorageHandler) UploadObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StorageHandler) DownloadObject(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
@@ -57,7 +57,7 @@ func (h *StorageHandler) DownloadObject(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	
-	presign, err := h.StorageService.PresignGetObject(r.Context(), username, input.ObjectName, int64(360))
+	presign, err := h.StorageService.PresignGetObject(r.Context(), userId, input.ObjectName, int64(360))
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -70,7 +70,7 @@ func (h *StorageHandler) DownloadObject(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *StorageHandler) DeleteObject(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
@@ -80,7 +80,7 @@ func (h *StorageHandler) DeleteObject(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseWithError(w, http.StatusBadRequest, err)
 		return
 	}
-	err = h.StorageService.DeleteObject(r.Context(), username, input.ObjectName)
+	err = h.StorageService.DeleteObject(r.Context(), userId, input.ObjectName)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -89,12 +89,12 @@ func (h *StorageHandler) DeleteObject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StorageHandler) ListObjects(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
-	objectNames, err := h.StorageService.ListObjects(r.Context(), username)
+	objectNames, err := h.StorageService.ListObjects(r.Context(), userId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusBadRequest, err)
 		return

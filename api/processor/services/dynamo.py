@@ -4,23 +4,17 @@ from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 @dataclass(slots=True)
-class ObjectRecord:
-    object_name: str
-    bucket: str
+class Object:
+    id: str
+    name: str
+    key: str
     user_id: str
-    vector_ids: list[str]
     tags: list[str]
-
-
-@dataclass(slots=True)
-class ObjectResult:
-    object_name: str
-    vector_ids: list[str]
-    tags: list[str]
+    status: str
     created_at: str
 
 
@@ -35,220 +29,99 @@ class DynamoService:
         self.client = config.dynamodb_client
         self.table_name = config.dynamodb_table_name
 
-
     def _build_pk(self, user_id: str) -> str:
         return f"USER#{user_id}"
 
-    def _build_sk(self, object_name: str) -> str:
-        return (f"OBJECT#{object_name}")
+    def _build_sk(self, object_id: str) -> str:
+        return f"OBJECT#{object_id}"
 
-    def save_object(self, record: ObjectRecord) -> None:
+    def save_object(self, record: Object) -> None:
+        if record is None:
+            logger.warning("Attempted to save a None record. Operation skipped.")
+            return
 
-        logger.debug(
-            f"Saving object metadata "
-            f"for object_name="
-            f"{record.object_name}"
-        )
-
+        if record.user_id is None or record.id is None:
+            logger.warning("Record must have both user_id and id. Operation skipped.")
+            return
+        
         item = {
-            "PK": self._build_pk(
-                record.user_id
-            ),
-            "SK": self._build_sk(
-                object_name=record.object_name
-            ),
-            "object_name": record.object_name,
-            "vector_ids": record.vector_ids,
+            "PK": self._build_pk(record.user_id),
+            "SK": self._build_sk(record.id),
+            "id": record.id,
+            "name": record.name,
+            "key": record.key,
+            "user_id": record.user_id,
             "tags": record.tags,
-            "created_at": datetime.now(
-                UTC
-            ).isoformat()
+            "status": record.status,
+            "created_at": record.created_at if record.created_at else datetime.now(UTC).isoformat()
         }
 
         try:
             self.client.put_item(
                 TableName=self.table_name,
-                Item={
-                    key: self._serialize_value(value)
-                    for key, value in item.items()
-                }
+                Item={key: self._serialize_value(value) for key, value in item.items()}
             )
-
-            logger.info(
-                f"Successfully saved "
-                f"object metadata "
-                f"for object_name="
-                f"{record.object_name}"
-            )
-
-        except Exception as e:
-            logger.exception(
-                f"Failed saving object metadata. "
-                f"Error={e}"
-            )
+            logger.info(f"Successfully saved object metadata for object_id={record.id}")
+        except Exception:
+            logger.exception(f"Failed saving object metadata for object_id={record.id}")
             raise
 
-    def get_object(self, object_name: str, user_id: str) -> ObjectResult | None:
-        logger.debug(
-            f"Fetching object metadata "
-            f"for object_name="
-            f"{object_name}"
-        )
-
+    def get_object(self, object_id: str, user_id: str) -> Object | None:
         try:
             response = self.client.get_item(
-                TableName=self.table_name,
+                TableName=self.table_name, 
                 Key={
-                    "PK": {
-                        "S": self._build_pk(
-                            user_id
-                        )
-                    },
-
-                    "SK": {
-                        "S": self._build_sk(
-                            object_name=object_name
-                        )
-                    }
+                    "PK": {"S": self._build_pk(user_id)},
+                    "SK": {"S": self._build_sk(object_id)}
                 }
             )
 
-            item = response.get(
-                "Item"
-            )
-
+            item = response.get("Item")
             if not item:
-                logger.warning(
-                    f"Object metadata "
-                    f"not found for "
-                    f"object_name={object_name}"
-                )
-
+                logger.warning(f"Object with id={object_id} not found for user_id={user_id}")
                 return None
 
-            parsed_item = {
-                key: self._deserialize_value(
-                    value
-                )
-                for key, value in item.items()
-            }
-
-            logger.info(
-                f"Successfully fetched "
-                f"object metadata "
-                f"for object_name="
-                f"{object_name}"
+            return Object(
+                id=self._deserialize_value(item["id"]),
+                name=self._deserialize_value(item["name"]),
+                key=self._deserialize_value(item["key"]),
+                user_id=self._deserialize_value(item["user_id"]),
+                tags=self._deserialize_value(item["tags"]),
+                status=self._deserialize_value(item["status"]),
+                created_at=self._deserialize_value(item["created_at"])
             )
-
-            return ObjectResult(
-                object_name=parsed_item[
-                    "object_name"
-                ],
-                vector_ids=parsed_item[
-                    "vector_ids"
-                ],
-                tags=parsed_item[
-                    "tags"
-                ],
-                created_at=parsed_item[
-                    "created_at"
-                ]
-            )
-
-        except Exception as e:
-            logger.exception(
-                f"Failed fetching "
-                f"object metadata. "
-                f"Error={e}"
-            )
+        except Exception:
+            logger.exception(f"Failed retrieving object metadata for object_id={object_id}")
             raise
 
-    def delete_object(self, object_name: str, user_id: str) -> None:
-        logger.debug(
-            f"Deleting object metadata "
-            f"for object_name="
-            f"{object_name}"
-        )
-
+    def delete_object(self, object_id: str, user_id: str) -> None:
         try:
             self.client.delete_item(
-                TableName=self.table_name,
+                TableName=self.table_name, 
                 Key={
-                    "PK": {
-                        "S": self._build_pk(
-                            user_id
-                        )
-                    },
-
-                    "SK": {
-                        "S": self._build_sk(
-                            object_name=object_name
-                        )
-                    }
+                    "PK": {"S": self._build_pk(user_id)},
+                    "SK": {"S": self._build_sk(object_id)}
                 }
             )
-
-            logger.info(
-                f"Successfully deleted "
-                f"object metadata "
-                f"for object_name="
-                f"{object_name}"
-            )
-
-        except Exception as e:
-            logger.exception(
-                f"Failed deleting "
-                f"object metadata. "
-                f"Error={e}"
-            )
+            logger.info(f"Successfully deleted object metadata for object_id={object_id}") # Corrigido: usando object_id
+        except Exception:
+            logger.exception(f"Failed deleting object metadata for object_id={object_id}")
             raise
 
-    def _serialize_value(
-        self,
-        value: Any
-    ) -> dict:
-
+    def _serialize_value(self, value: Any) -> dict:
         if isinstance(value, str):
             return {"S": value}
-
         if isinstance(value, int):
             return {"N": str(value)}
-
         if isinstance(value, list):
-            return {
-                "L": [
-                    self._serialize_value(
-                        item
-                    )
-                    for item in value
-                ]
-            }
+            return {"L": [self._serialize_value(item) for item in value]}
+        raise TypeError(f"Unsupported DynamoDB type: {type(value)}")
 
-        raise TypeError(
-            f"Unsupported DynamoDB type: "
-            f"{type(value)}"
-        )
-
-    def _deserialize_value(
-        self,
-        value: dict
-    ) -> Any:
-
+    def _deserialize_value(self, value: dict) -> Any:
         if "S" in value:
             return value["S"]
-
         if "N" in value:
             return int(value["N"])
-
         if "L" in value:
-            return [
-                self._deserialize_value(
-                    item
-                )
-                for item in value["L"]
-            ]
-
-        raise TypeError(
-            f"Unsupported DynamoDB value: "
-            f"{value}"
-        )
+            return [self._deserialize_value(item) for item in value["L"]]
+        raise TypeError(f"Unsupported DynamoDB value: {value}")

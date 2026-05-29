@@ -21,7 +21,7 @@ func NewSchedulerHandler(schedulerService *service.SchedulerService) *SchedulerH
 }
 
 func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
@@ -34,7 +34,7 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 	}
 
 	scheduler := input.ToModel()
-	err = h.SchedulerService.CreateScheduler(r.Context(), username, scheduler)
+	err = h.SchedulerService.CreateScheduler(r.Context(), userId, scheduler)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -47,7 +47,7 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 		StartTime:        scheduler.StartTime,
 		SnoozeDuration:   scheduler.SnoozeDuration,
 		AlarmSound:       scheduler.AlarmSound,
-		DocumentNames:     scheduler.DocumentNames,
+		ObjectIds:   scheduler.ObjectIds,
 		Enabled:          scheduler.Enabled,
 		CreatedAt:        scheduler.CreatedAt,
 		UpdatedAt:        scheduler.UpdatedAt,
@@ -55,13 +55,13 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
 	schedulerId := chi.URLParam(r, "schedulerId")
-	scheduler, err := h.SchedulerService.GetSchedulerById(r.Context(), username, schedulerId)
+	scheduler, err := h.SchedulerService.GetSchedulerById(r.Context(), userId, schedulerId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusNotFound, err)
 		return
@@ -74,7 +74,7 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 		StartTime:        scheduler.StartTime,
 		SnoozeDuration:   scheduler.SnoozeDuration,
 		AlarmSound:       scheduler.AlarmSound,
-		DocumentNames:     scheduler.DocumentNames,
+		ObjectIds:   	  scheduler.ObjectIds,
 		Enabled:          scheduler.Enabled,
 		CreatedAt:        scheduler.CreatedAt,
 		UpdatedAt:        scheduler.UpdatedAt,
@@ -82,12 +82,12 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *SchedulerHandler) ListSchedulers(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
-	schedulers, err := h.SchedulerService.ListSchedulers(r.Context(), username)
+	schedulers, err := h.SchedulerService.ListSchedulers(r.Context(), userId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -99,7 +99,7 @@ func (h *SchedulerHandler) ListSchedulers(w http.ResponseWriter, r *http.Request
 }
 
 func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Request) {
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
@@ -112,7 +112,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 	}
 	scheduler := input.ToModel()
 	scheduler.Id = schedulerId
-	updateScheduler, err := h.SchedulerService.UpdateScheduler(r.Context(), username, scheduler)
+	updateScheduler, err := h.SchedulerService.UpdateScheduler(r.Context(), userId, scheduler)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -124,7 +124,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 		StartTime:        updateScheduler.StartTime,
 		SnoozeDuration:   updateScheduler.SnoozeDuration,
 		AlarmSound:       updateScheduler.AlarmSound,
-		DocumentNames:     updateScheduler.DocumentNames,
+		ObjectIds:   updateScheduler.ObjectIds,
 		Enabled:          updateScheduler.Enabled,
 		CreatedAt:        updateScheduler.CreatedAt,
 		UpdatedAt:        updateScheduler.UpdatedAt,
@@ -133,12 +133,12 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 
 func (h *SchedulerHandler) DeleteSchedulerById(w http.ResponseWriter, r *http.Request) {
 	schedulerId := chi.URLParam(r, "schedulerId")
-	username, ok := r.Context().Value(middleware.UsernameKey).(string)
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
-	err := h.SchedulerService.DeleteScheduler(r.Context(), username, schedulerId)
+	err := h.SchedulerService.DeleteScheduler(r.Context(), userId, schedulerId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return

@@ -12,7 +12,7 @@ type CreateSchedulerRequestDTO struct {
 	StartTime      string   `json:"start_time"`
 	SnoozeDuration int      `json:"snooze_duration"`
 	AlarmSound     string   `json:"alarm_sound"`
-	DocumentNames   []string `json:"document_names"`
+	ObjectIds   []string `json:"object_ids"`
 	Enabled        bool     `json:"enabled"`
 }
 
@@ -29,7 +29,7 @@ func (dto *CreateSchedulerRequestDTO) ToModel() *model.Scheduler {
 		StartTime:      dto.StartTime,
 		SnoozeDuration: dto.SnoozeDuration,
 		AlarmSound:     dto.AlarmSound,
-		DocumentNames:   dto.DocumentNames,
+		ObjectIds:   dto.ObjectIds,
 		Enabled:          dto.Enabled,
 	}
 }
@@ -41,7 +41,7 @@ type SchedulerResponseDTO struct {
 	StartTime      string   `json:"start_time"`
 	SnoozeDuration int      `json:"snooze_duration"`
 	AlarmSound     string   `json:"alarm_sound"`
-	DocumentNames   []string `json:"document_names"`
+	ObjectIds   []string `json:"object_ids"`
 	Enabled        bool     `json:"enabled"`
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
@@ -54,7 +54,7 @@ type GetSchedulerResponseDTO struct {
 	StartTime      string   `json:"start_time"`
 	SnoozeDuration int      `json:"snooze_duration"`
 	AlarmSound     string   `json:"alarm_sound"`
-	DocumentNames   []string `json:"document_names"`
+	ObjectIds   []string `json:"object_ids"`
 	Enabled        bool     `json:"enabled"`
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
@@ -66,7 +66,7 @@ type UpdateSchedulerRequestDTO struct {
 	StartTime      *string   `json:"start_time"`
 	SnoozeDuration *int      `json:"snooze_duration"`
 	AlarmSound     *string   `json:"alarm_sound"`
-	DocumentNames   *[]string `json:"document_names"`
+	ObjectIds   *[]string `json:"object_ids"`
 	Enabled        *bool     `json:"enabled"`
 }
 
@@ -87,7 +87,7 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() *model.UpdateScheduler {
 		StartTime:       dto.StartTime,
 		SnoozeDuration:  dto.SnoozeDuration,
 		AlarmSound:      dto.AlarmSound,
-		DocumentNames:    dto.DocumentNames,
+		ObjectIds:    dto.ObjectIds,
 		Enabled:         dto.Enabled,
 	}
 }
@@ -106,7 +106,7 @@ func ToSchedulerResponseDTOList(schedulers []*model.Scheduler) []*SchedulerRespo
 			StartTime:      scheduler.StartTime,
 			SnoozeDuration: scheduler.SnoozeDuration,
 			AlarmSound:     scheduler.AlarmSound,
-			DocumentNames:   scheduler.DocumentNames,
+			ObjectIds:   scheduler.ObjectIds,
 			Enabled:        scheduler.Enabled,
 			CreatedAt:      scheduler.CreatedAt,
 			UpdatedAt:      scheduler.UpdatedAt,

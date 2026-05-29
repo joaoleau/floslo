@@ -1,5 +1,6 @@
 import logging
 from dataclasses import dataclass
+import re
 from typing import Iterator
 from .utils import normalize_text
 
@@ -30,15 +31,21 @@ class TagExtractionResult:
 
 @dataclass(slots=True)
 class TagServiceData:
-    max_keywords: int = 15
+    max_keywords: int = 7
     keyword_ngram_size: int = 3
     min_text_length: int = 50
+    max_keyword_score: float = 0.08
+    min_keyword_length: int = 4
+    max_keyword_words: int = 4
 
 class TagService:
     def __init__(self, config: TagServiceData):
         self.max_keywords = config.max_keywords
         self.keyword_ngram_size = config.keyword_ngram_size
         self.min_text_length = config.min_text_length
+        self.max_keyword_score = config.max_keyword_score
+        self.min_keyword_length = config.min_keyword_length
+        self.max_keyword_words = config.max_keyword_words
 
     def get_tags(self, text: str) -> TagExtractionResult:
         logger.debug(f"Starting tag extraction. Original text length: {len(text)} characters.")
@@ -85,16 +92,28 @@ class TagService:
         )
 
         keywords = kw_extractor.extract_keywords(text)
+        keywords = self._remove_redundant_keywords(keywords)
         logger.debug(f"Yake returned {len(keywords)} raw keywords/phrases.")
 
         seen = set()
 
         for keyword, score in keywords:
+            
+            if score > self.max_keyword_score:
+                logger.debug(
+                    f"Skipping keyword '{keyword}' due to low score ({score:.4f} > {self.max_keyword_score})."
+                )
+                continue
+            
             original_keyword = keyword
             keyword = keyword.strip().lower()
 
             if not keyword:
                 logger.debug(f"Skipping empty keyword (original was: '{original_keyword}')")
+                continue
+
+            if not self._is_valid_keyword(keyword):
+                logger.debug(f"Skipping invalid keyword: '{keyword}' (original was: '{original_keyword}')")
                 continue
 
             if keyword in seen:
@@ -132,3 +151,35 @@ class TagService:
         except Exception as e:
             logger.exception(f"Failed to detect language due to exception: {e}. Falling back to default 'en'.")
             return "en"
+
+    def _remove_redundant_keywords(self,tags: list[tuple[str, float]]) -> list[tuple[str, float]]:
+        final_tags: list[tuple[str, float]] = []
+        sorted_tags = sorted(
+            tags,
+            key=lambda tag: len(tag[0]),
+            reverse=True
+        )
+
+        for keyword, score in sorted_tags:
+            if any(keyword in existing_keyword for existing_keyword, _ in final_tags):
+                logger.debug(f"Skipping redundant keyword: '{keyword}'")
+                continue
+
+            final_tags.append((keyword, score))
+
+        return final_tags
+
+    def _is_valid_keyword(self, keyword: str) -> bool:
+        if len(keyword) < self.min_keyword_length:
+            return False
+
+        if len(keyword.split()) > self.max_keyword_words:
+            return False
+
+        if re.search(r"\d{3,}", keyword):
+            return False
+
+        if not re.search(r"[a-zA-ZÀ-ÿ]", keyword):
+            return False
+
+        return True

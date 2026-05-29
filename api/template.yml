@@ -22,26 +22,49 @@ Resources:
     Properties:
       TableName: floslo
       BillingMode: PAY_PER_REQUEST
+
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S
+
         - AttributeName: SK
           AttributeType: S
+
+        - AttributeName: GSI1PK
+          AttributeType: S
+
+        - AttributeName: GSI1SK
+          AttributeType: S
+
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
+
         - AttributeName: SK
           KeyType: RANGE
 
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+
+          Projection:
+            ProjectionType: ALL
+
   #########################################################
-  # S3 DOCUMENTS
+  # S3 OBJECTS
   #########################################################
 
   FlosloBucket:
     Type: AWS::S3::Bucket
 
     DependsOn:
-      - FlosloDocumentQueuePolicy
+      - FlosloObjectQueuePolicy
 
     Properties:
       BucketName: floslo-us-east-1-tenants
@@ -49,7 +72,7 @@ Resources:
       NotificationConfiguration:
         QueueConfigurations:
           - Event: s3:ObjectCreated:*
-            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Queue: !GetAtt FlosloObjectQueue.Arn
             Filter:
               S3Key:
                 Rules:
@@ -57,7 +80,7 @@ Resources:
                     Value: .pdf
 
           - Event: s3:ObjectCreated:*
-            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Queue: !GetAtt FlosloObjectQueue.Arn
             Filter:
               S3Key:
                 Rules:
@@ -65,7 +88,7 @@ Resources:
                     Value: .txt
 
           - Event: s3:ObjectCreated:*
-            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Queue: !GetAtt FlosloObjectQueue.Arn
             Filter:
               S3Key:
                 Rules:
@@ -82,21 +105,21 @@ Resources:
       VectorBucketName: floslo-us-east-1-vectors
 
   #########################################################
-  # SQS DOCUMENT PROCESSING
+  # SQS OBJECT PROCESSING
   #########################################################
 
-  FlosloDocumentQueue:
+  FlosloObjectQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: floslo-document-processing
+      QueueName: floslo-object-processing
       VisibilityTimeout: 300
       MessageRetentionPeriod: 1209600
 
-  FlosloDocumentQueuePolicy:
+  FlosloObjectQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
       Queues:
-        - !Ref FlosloDocumentQueue
+        - !Ref FlosloObjectQueue
 
       PolicyDocument:
         Version: "2012-10-17"
@@ -110,63 +133,15 @@ Resources:
             Action:
               - sqs:SendMessage
 
-            Resource: !GetAtt FlosloDocumentQueue.Arn
+            Resource: !GetAtt FlosloObjectQueue.Arn
 
   #########################################################
-  # BEDROCK ROLE
-  #########################################################
-
-  BedrockKnowledgeBaseRole:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: floslo-bedrock-kb-role
-
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - bedrock.amazonaws.com
-            Action:
-              - sts:AssumeRole
-
-      Policies:
-        - PolicyName: BedrockKBPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-
-              # leitura documentos
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:ListBucket
-                Resource:
-                  - !GetAtt FlosloBucket.Arn
-                  - !Sub "${FlosloBucket.Arn}/*"
-
-              # embedding model
-              - Effect: Allow
-                Action:
-                  - bedrock:InvokeModel
-                Resource:
-                  - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
-
-              # s3 vectors
-              - Effect: Allow
-                Action:
-                  - s3vectors:PutVectors
-                  - s3vectors:GetVectors
-                  - s3vectors:QueryVectors
-                Resource: "*"
-
-  #########################################################
-  # KNOWLEDGE BASE
+  # VECTOR INDEX
   #########################################################
 
   FlosloVectorIndex:
     Type: AWS::S3Vectors::Index
+
     DependsOn:
       - FlosloVectorBucket
 
@@ -179,50 +154,6 @@ Resources:
       Dimension: 1024
       DistanceMetric: cosine
       VectorBucketName: floslo-us-east-1-vectors
-      MetadataConfiguration:
-        NonFilterableMetadataKeys:
-          - AMAZON_BEDROCK_TEXT
-          - AMAZON_BEDROCK_METADATA
-
-  FlosloKnowledgeBase:
-    Type: AWS::Bedrock::KnowledgeBase
-    DependsOn: BedrockKnowledgeBaseRole
-    Properties:
-      Name: floslo-kb
-
-      RoleArn: !GetAtt BedrockKnowledgeBaseRole.Arn
-
-      KnowledgeBaseConfiguration:
-        Type: VECTOR
-
-        VectorKnowledgeBaseConfiguration:
-          EmbeddingModelArn: !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
-
-      StorageConfiguration:
-        Type: S3_VECTORS
-
-        S3VectorsConfiguration:
-          IndexArn: !GetAtt FlosloVectorIndex.IndexArn
-
-  #########################################################
-  # DATASOURCE
-  #########################################################
-
-  FlosloDataSource:
-    Type: AWS::Bedrock::DataSource
-    Properties:
-      Name: floslo-datasource
-      KnowledgeBaseId: !Ref FlosloKnowledgeBase
-      VectorIngestionConfiguration:
-        ChunkingConfiguration:
-          ChunkingStrategy: FIXED_SIZE
-          FixedSizeChunkingConfiguration:
-            MaxTokens: 500
-            OverlapPercentage: 15
-      DataSourceConfiguration:
-        Type: S3
-        S3Configuration:
-          BucketArn: !GetAtt FlosloBucket.Arn
 
   #########################################################
   # API
@@ -234,7 +165,7 @@ Resources:
       StageName: $default
 
   #########################################################
-  # LAMBDA
+  # API LAMBDA
   #########################################################
 
   FlosloFunction:
@@ -264,18 +195,25 @@ Resources:
 
             - Effect: Allow
               Action:
-                - bedrock:StartIngestionJob
-                - bedrock:GetIngestionJob
-              Resource: !GetAtt FlosloKnowledgeBase.KnowledgeBaseArn
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
+
+            - Effect: Allow
+              Action:
+                - s3vectors:QueryVectors
+              Resource: "*"
 
       Environment:
         Variables:
           DYNAMO_TABLE: floslo
           BUCKET_NAME: floslo-us-east-1-tenants
           PARAMETER_JWT_SECRET: "/lambda/floslo/jwt_secret"
-          KNOWLEDGEBASE_ID: !Ref FlosloKnowledgeBase
-          DATASOURCE_ID: !Ref FlosloDataSource
-          MODEL_ID: nao-e-necessario
+          VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
+          VECTOR_INDEX_NAME: floslo-index
+          EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
+          GENERATE_MODEL_ID: amazon.nova-lite-v1:0
 
       Events:
         Proxy:
@@ -284,6 +222,10 @@ Resources:
             ApiId: !Ref FlosloApi
             Path: /api/{proxy+}
             Method: ANY
+
+  #########################################################
+  # RAG LAMBDA
+  #########################################################
 
   FlosloRAGFunction:
     Type: AWS::Serverless::Function
@@ -312,26 +254,26 @@ Resources:
 
             - Effect: Allow
               Action:
-                - bedrock:StartIngestionJob
-                - bedrock:GetIngestionJob
-                - bedrock:Retrieve
+                - bedrock:InvokeModel
               Resource:
-                - !GetAtt FlosloKnowledgeBase.KnowledgeBaseArn
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
 
             - Effect: Allow
               Action:
-                - bedrock:InvokeModel
-              Resource:
-                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
+                - s3vectors:QueryVectors
+                - s3vectors:GetVectors
+              Resource: "*"
 
       Environment:
         Variables:
           DYNAMO_TABLE: floslo
           BUCKET_NAME: floslo-us-east-1-tenants
           PARAMETER_JWT_SECRET: "/lambda/floslo/jwt_secret"
-          KNOWLEDGEBASE_ID: !Ref FlosloKnowledgeBase
-          DATASOURCE_ID: !Ref FlosloDataSource
-          MODEL_ID: amazon.nova-lite-v1:0
+          VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
+          VECTOR_INDEX_NAME: floslo-index
+          EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
+          GENERATE_MODEL_ID: amazon.nova-lite-v1:0
 
       Events:
         Proxy:
@@ -341,14 +283,18 @@ Resources:
             Path: /rag/{proxy+}
             Method: ANY
 
-  FlosloDocumentProcessorFunction:
+  #########################################################
+  # OBJECT PROCESSOR
+  #########################################################
+
+  FlosloObjectProcessorFunction:
     Type: AWS::Serverless::Function
 
     Properties:
       Runtime: python3.13
       CodeUri: processor/
       Handler: main.lambda_handler
-      FunctionName: floslo-document-processor
+      FunctionName: floslo-object-processor
       Timeout: 300
       MemorySize: 1024
 
@@ -360,7 +306,7 @@ Resources:
             BucketName: floslo-us-east-1-tenants
 
         - SQSPollerPolicy:
-            QueueName: !GetAtt FlosloDocumentQueue.QueueName
+            QueueName: !GetAtt FlosloObjectQueue.QueueName
 
         - Statement:
             - Effect: Allow
@@ -383,23 +329,17 @@ Resources:
           DYNAMO_TABLE: floslo
           VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
           VECTOR_INDEX_ARN: !GetAtt FlosloVectorIndex.IndexArn
-          MODEL_ID: amazon.titan-embed-text-v2:0
+          EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
 
       Events:
-        DocumentQueue:
+        ObjectQueue:
           Type: SQS
 
           Properties:
-            Queue: !GetAtt FlosloDocumentQueue.Arn
+            Queue: !GetAtt FlosloObjectQueue.Arn
             BatchSize: 5
             MaximumBatchingWindowInSeconds: 10
 
 Outputs:
   ApiUrl:
     Value: !Sub https://${FlosloApi}.execute-api.${AWS::Region}.amazonaws.com
-
-  KnowledgeBaseId:
-    Value: !Ref FlosloKnowledgeBase
-
-  DataSourceId:
-    Value: !Ref FlosloDataSource

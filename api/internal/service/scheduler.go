@@ -13,17 +13,19 @@ import (
 
 type SchedulerService struct {
 	SchedulerRepository  *repository.SchedulerRepository
+	SchedulerObjectLinkRepository *repository.SchedulerObjectLinkRepository
 	StorageService       *StorageService
 }
 
-func NewSchedulerService(schedulerRepo *repository.SchedulerRepository, storageService *StorageService) *SchedulerService {
+func NewSchedulerService(schedulerRepo *repository.SchedulerRepository, schedulerObjectLinkRepo *repository.SchedulerObjectLinkRepository, storageService *StorageService) *SchedulerService {
 	return &SchedulerService{
 		SchedulerRepository:  schedulerRepo,
+		SchedulerObjectLinkRepository: schedulerObjectLinkRepo,
 		StorageService:       storageService,
 	}
 }
 
-func (s *SchedulerService) CreateScheduler(ctx context.Context, username string, scheduler *model.Scheduler) error {
+func (s *SchedulerService) CreateScheduler(ctx context.Context, userId string, scheduler *model.Scheduler) error {
 	if scheduler.Name == "" {
 		return fmt.Errorf("scheduler name is required")
 	}
@@ -44,30 +46,32 @@ func (s *SchedulerService) CreateScheduler(ctx context.Context, username string,
 	if scheduler.AlarmSound == "" {
 		return fmt.Errorf("alarm sound is required")
 	}
-	if len(scheduler.DocumentNames) == 0 {
+	if len(scheduler.ObjectIds) == 0 {
 		return fmt.Errorf("at least one document key is required")
 
 	}
 
-	id, err := utils.GenerateID("sch")
-	if err != nil {
-		return fmt.Errorf("failed to generate scheduler ID: %w", err)
-	}
-	scheduler.Id = id
-	scheduler.SetKeys(username)
+	scheduler.Id = utils.GenerateID("sch")
+	scheduler.SetKeys(userId)
 	scheduler.CreatedAt = time.Now().UTC()
 	scheduler.UpdatedAt = time.Now().UTC()
-	err = s.SchedulerRepository.NewScheduler(ctx, scheduler)
+	err := s.SchedulerRepository.NewScheduler(ctx, scheduler)
 	if err != nil {
 		logger.Log.Error("failed to create scheduler: ", logger.Any("error", err))
 		return fmt.Errorf("failed to create scheduler: %w", err)
 	}
 
-	for _, documentName := range scheduler.DocumentNames {
-		err = s.StorageService.AddSchedulerOnObjectMetadata(ctx, username, documentName, scheduler.Id)
+	for _, objectId := range scheduler.ObjectIds {
+		schedulerObjectLink := &model.SchedulerObjectLink{
+			UserId: userId,
+			SchedulerId: scheduler.Id,
+			ObjectId: objectId,
+		}
+		schedulerObjectLink.SetKeys()
+		err = s.SchedulerObjectLinkRepository.CreateLink(ctx, schedulerObjectLink)
 		if err != nil {
-			logger.Log.Error("failed to add scheduler on metatada: ", logger.Any("error", err))
-			return fmt.Errorf("failed to add scheduler on metatada: %w", err)
+			logger.Log.Error("failed to add scheduler on metadata: ", logger.Any("error", err))
+			return fmt.Errorf("failed to add scheduler on metadata: %w", err)
 		}
 	}
 
@@ -75,8 +79,8 @@ func (s *SchedulerService) CreateScheduler(ctx context.Context, username string,
 	return nil
 }
 
-func (s *SchedulerService) GetSchedulerById(ctx context.Context, username string, schedulerId string) (*model.Scheduler, error) {
-	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, username, schedulerId)
+func (s *SchedulerService) GetSchedulerById(ctx context.Context, userId string, schedulerId string) (*model.Scheduler, error) {
+	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, userId, schedulerId)
 	if err != nil {
 		logger.Log.Error("failed to get scheduler: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to get scheduler: %w", err)
@@ -85,8 +89,8 @@ func (s *SchedulerService) GetSchedulerById(ctx context.Context, username string
 	return scheduler, nil
 }
 
-func (s *SchedulerService) ListSchedulers(ctx context.Context, username string) ([]*model.Scheduler, error) {
-	schedulers, err := s.SchedulerRepository.ListSchedulers(ctx, username)
+func (s *SchedulerService) ListSchedulers(ctx context.Context, userId string) ([]*model.Scheduler, error) {
+	schedulers, err := s.SchedulerRepository.ListSchedulers(ctx, userId)
 	if err != nil {
 		logger.Log.Error("failed to list schedulers: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to list schedulers: %w", err)
@@ -95,8 +99,8 @@ func (s *SchedulerService) ListSchedulers(ctx context.Context, username string) 
 	return schedulers, nil
 }
 
-func (s *SchedulerService) UpdateScheduler(ctx context.Context, username string, update *model.UpdateScheduler) (*model.Scheduler, error) {
-	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, username, update.Id)
+func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, update *model.UpdateScheduler) (*model.Scheduler, error) {
+	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, userId, update.Id)
 	if err != nil {
 		logger.Log.Error("failed to get scheduler: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to get scheduler: %w", err)
@@ -116,13 +120,27 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, username string,
 	if update.AlarmSound != nil {
 		scheduler.AlarmSound = *update.AlarmSound
 	}
-	if update.DocumentNames != nil {
-		scheduler.DocumentNames = *update.DocumentNames
-		for _, documentName := range scheduler.DocumentNames {
-			err = s.StorageService.AddSchedulerOnObjectMetadata(ctx, username, documentName, scheduler.Id)
+	if update.ObjectIds != nil {
+		scheduler.ObjectIds = *update.ObjectIds
+		toAdd, toRemove := s.diffObjects(scheduler.ObjectIds, *update.ObjectIds)
+		for _, objectId := range toAdd {
+			schedulerObjectLink := &model.SchedulerObjectLink{
+				UserId: userId,
+				SchedulerId: scheduler.Id,
+				ObjectId: objectId,
+			}
+			schedulerObjectLink.SetKeys()
+			err = s.SchedulerObjectLinkRepository.CreateLink(ctx, schedulerObjectLink)
+
 			if err != nil {
-				logger.Log.Error("failed to add scheduler on metatada: ", logger.Any("error", err))
-				return nil, fmt.Errorf("failed to add scheduler on metatada: %w", err)
+				return nil, err
+			}
+		}
+		for _, objectId := range toRemove {
+			err = s.SchedulerObjectLinkRepository.DeleteLink(ctx, userId, objectId, scheduler.Id)
+			if err != nil {
+				logger.Log.Error("failed to remove scheduler from metadata: ", logger.Any("error", err))
+				return nil, fmt.Errorf("failed to remove scheduler from metadata: %w", err)
 			}
 		}
 	}
@@ -140,25 +158,55 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, username string,
 	return updatedScheduler, nil
 }
 
-func (s *SchedulerService) DeleteScheduler(ctx context.Context, username string, schedulerId string) error {
-	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, username, schedulerId)
+func (s *SchedulerService) diffObjects(oldObjs, newObjs []string) ([]string, []string) {
+	oldMap := make(map[string]bool)
+	newMap := make(map[string]bool)
+
+	for _, v := range oldObjs {
+		oldMap[v] = true
+	}
+
+	for _, v := range newObjs {
+		newMap[v] = true
+	}
+
+	var toAdd []string
+	var toRemove []string
+
+	for _, v := range newObjs {
+		if !oldMap[v] {
+			toAdd = append(toAdd, v)
+		}
+	}
+
+	for _, v := range oldObjs {
+		if !newMap[v] {
+			toRemove = append(toRemove, v)
+		}
+	}
+
+	return toAdd, toRemove
+}
+
+func (s *SchedulerService) DeleteScheduler(ctx context.Context, userId string, schedulerId string) error {
+	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, userId, schedulerId)
 	if err != nil {
 		logger.Log.Error("failed to get scheduler: ", logger.Any("error", err))
 		return fmt.Errorf("failed to get scheduler: %w", err)
 	}
 
-	err = s.SchedulerRepository.DeleteScheduler(ctx, username, schedulerId)
+	err = s.SchedulerRepository.DeleteScheduler(ctx, userId, schedulerId)
 	if err != nil {
 		logger.Log.Error("failed to delete scheduler: ", logger.Any("error", err))
 		return fmt.Errorf("failed to delete scheduler: %w", err)
 	}
 	logger.Log.Info("scheduler deleted: ", logger.String("scheduler_id", schedulerId))
 
-	for _, documentName := range scheduler.DocumentNames {
-		err = s.StorageService.DeleteSchedulerOnObjectMetadata(ctx, username, documentName, scheduler.Id)
+	for _, objectId := range scheduler.ObjectIds {
+		err = s.SchedulerObjectLinkRepository.DeleteLink(ctx, userId, objectId, schedulerId)
 		if err != nil {
-			logger.Log.Error("failed to delete scheduler on metatada: ", logger.Any("error", err))
-			return fmt.Errorf("failed to delete scheduler on metatada: %w", err)
+			logger.Log.Error("failed to delete scheduler on metadata: ", logger.Any("error", err))
+			return fmt.Errorf("failed to delete scheduler on metadata: %w", err)
 		}
 	}
 	return nil

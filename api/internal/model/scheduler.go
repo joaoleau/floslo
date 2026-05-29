@@ -38,13 +38,13 @@ func (w Weekday) String() string {
 type Scheduler struct {
 	PK       string `dynamodbav:"PK"`
 	SK       string `dynamodbav:"SK"`
-	Id string `dynamodbav:"scheduler_id"`
+	Id string `dynamodbav:"id"`
 	Name string `dynamodbav:"name"`
 	WeekDays []Weekday `dynamodbav:"weekdays"`
 	StartTime string `dynamodbav:"start_time"`
 	SnoozeDuration int `dynamodbav:"snooze_duration"`
 	AlarmSound string `dynamodbav:"alarm_sound"`
-	DocumentNames []string `dynamodbav:"document_names"`
+	ObjectIds []string `dynamodbav:"object_ids"`
 	Enabled bool `dynamodbav:"enabled"`
 	CreatedAt time.Time `dynamodbav:"created_at"`
 	UpdatedAt time.Time `dynamodbav:"updated_at"`
@@ -57,8 +57,8 @@ func (s *Scheduler) GetKey() map[string]types.AttributeValue {
 	}
 }
 
-func (s *Scheduler) SetKeys(username string) {
-	s.PK = "USER#" + username
+func (s *Scheduler) SetKeys(userId string) {
+	s.PK = "USER#" + userId
 	s.SK = "SCHEDULER#" + s.Id
 }
 
@@ -69,6 +69,6 @@ type UpdateScheduler struct {
 	StartTime       *string
 	SnoozeDuration  *int
 	AlarmSound      *string
-	DocumentNames   *[]string
+	ObjectIds   *[]string
 	Enabled         *bool
 }

@@ -11,7 +11,7 @@ import (
 
 type contextKey string
 
-const UsernameKey contextKey = "username"
+const UserIdKey contextKey = "user_id"
 
 func JWTMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -47,45 +47,14 @@ func JWTMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 				return
 			}
 
-			username, ok := claims["sub"].(string)
+			user_id, ok := claims["sub"].(string)
 			if !ok {
 				http.Error(w, "invalid subject", http.StatusUnauthorized)
 				return
 			}
-			ctx := context.WithValue(r.Context(),UsernameKey,username)
+			ctx := context.WithValue(r.Context(),UserIdKey,user_id)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
-
-// type contextKey string
-
-// const UsernameKey contextKey = "username"
-
-// func InjectUserMiddleware(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-// 		// isso depende do adapter (pode variar)
-// 		logger.Log.Debug("injecting user into context", logger.Any("context", r.Context()))
-// 		logger.Log.Info("injecting user into context", logger.Any("authorizer", r.Context().Value("authorizer")))
-// 		authorizer := r.Context().Value("authorizer")
-
-// 		claims, ok := authorizer.(map[string]interface{})
-// 		if !ok {
-// 			logger.Log.Error("failed to extract claims from authorizer", logger.Any("authorizer", authorizer))
-// 			http.Error(w, "unauthorized", http.StatusUnauthorized)
-// 			return
-// 		}
-
-// 		username, ok := claims["sub"].(string)
-// 		if !ok {
-// 			logger.Log.Error("failed to extract username from claims", logger.Any("claims", claims))
-// 			http.Error(w, "unauthorized", http.StatusUnauthorized)
-// 			return
-// 		}
-
-// 		ctx := context.WithValue(r.Context(), UsernameKey, username)
-// 		next.ServeHTTP(w, r.WithContext(ctx))
-// 	})
-// }

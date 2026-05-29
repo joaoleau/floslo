@@ -12,10 +12,12 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime v1.51.10
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.50.6
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.3
+	github.com/aws/aws-sdk-go-v2/service/s3vectors v1.7.0
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.68.6
 	github.com/awslabs/aws-lambda-go-api-proxy v0.16.2
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/google/uuid v1.6.0
 	golang.org/x/crypto v0.18.0
 )
 
