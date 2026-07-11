@@ -12,3 +12,4 @@ api/docker/
 cmd/api/build/*
 cmd/rag/build/*
 processor/venv/
+mobile/node_modules
