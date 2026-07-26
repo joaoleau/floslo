@@ -6,10 +6,48 @@ local-sam.yaml
 api/tmp/
 api/.sam.pid
 api/.aws-sam/
-api/bootstrap
+api/cmd/api/build
+api/cmd/rag/build
 api/docker/
 .aws-sam/
-cmd/api/build/*
-cmd/rag/build/*
-processor/venv/
+processor/venv/*
+
 mobile/node_modules
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# Expo
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+mobile/ios
+mobile/android
