@@ -30,26 +30,36 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
           .join(' ')}
       >
         <CardHeader className="flex-row items-center justify-between px-4">
-          <Text className="flex-1 text-sm font-normal text-brand-100">{scheduler.name}</Text>
+          <Text className="flex-1 text-sm font-normal text-brand-100" numberOfLines={1}>
+            {scheduler.name}
+          </Text>
+          
           <View className="flex-row gap-1">
-            {scheduler.challengeType === 'QUIZ' && (
-              <>
-                <Badge className="rounded-full bg-background border border-brand-100">
-                  <Ionicons name="document" size={16} color="red" />
-                  <Text className="text-sm text-brand-100">
-                    {scheduler.challenge.questionCount}
-                  </Text>
-                </Badge>
-                {scheduler.challenge.difficulties.length > 0 && (
-                  <Badge className="rounded-full bg-background border border-brand-100">
-                    <Ionicons name="flame" size={16} color="rgb(219, 86, 33)" />
-                    <Text className="text-sm text-brand-100">
-                      {scheduler.challenge.difficulties[0].charAt(0)}
-                    </Text>
-                  </Badge>
-                )}
-              </>
+            {/* Badge indicando a quantidade de objetos/materiais de estudo */}
+            
+            {scheduler.objectIds && scheduler.objectIds.length > 0 && (
+              <Badge className="rounded-full bg-background border border-brand-100 flex-row items-center">
+                <Ionicons name="document-text" size={16} color="#bg-brand-100" />
+                <Text className="text-sm text-brand-100 ml-1">
+                  {scheduler.objectIds.length}
+                </Text>
+              </Badge>
             )}
+
+            {/* Badges iterando sobre os desafios ativos */}
+            {scheduler.challengers?.map((challenger, index) => {
+              if (challenger.challengeType === 'QUIZ') {
+                return (
+                  <View key={`quiz-${index}`} className="flex-row gap-1">
+                    <Badge className="rounded-full bg-background border border-brand-100 flex-row items-center">
+                      <Ionicons name="school-outline" size={16} color="red" />
+                    </Badge>
+                  </View>
+                );
+              }
+              // Caso existam outros tipos de desafios no futuro, você pode tratá-los aqui
+              return null;
+            })}
           </View>
         </CardHeader>
 

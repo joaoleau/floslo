@@ -1,6 +1,6 @@
-import { ObjectItem } from '@/types/Object';
+import { ObjectType } from '@/types/domain/Object';
 
-export const mockObjects: ObjectItem[] = [
+export const mockObjects: ObjectType[] = [
   {
     id: 'obj_01',
     name: 'Clean Code',

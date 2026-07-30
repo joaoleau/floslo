@@ -2,19 +2,21 @@ import { Sound } from '@/types/domain/Scheduler';
 
 export const mockSounds: Sound[] = [
   {
-    name: 'Radar',
-    uri: 'content://media/internal/audio/media/42',
+    name: 'twinkling_holiday_cheer',
   },
   {
-    name: 'Bell',
-    uri: 'content://media/internal/audio/media/43',
+    name: 'dark_horror_scary',
   },
   {
-    name: 'Digital',
-    uri: 'content://media/internal/audio/media/44',
+    name: 'heart_of_hope_pop_fireworks',
   },
   {
-    name: 'Crystal',
-    uri: 'content://media/internal/audio/media/45',
+    name: 'heart_of_hope_pop_wave_groove',
   },
+  {
+    name: 'rington_malibu'
+  },
+  {
+    name: 'chic_pop'
+  }
 ];
