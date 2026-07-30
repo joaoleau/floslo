@@ -5,13 +5,13 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
-import { authService } from '@/services/authService';
+import { useResetPasswordMutation } from '@/hooks/useAuth';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const resetPasswordMutation = useResetPasswordMutation();
 
   async function handleReset() {
     if (!email) {
@@ -19,14 +19,11 @@ export default function ResetPasswordScreen() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      await authService.resetPassword(email);
+      await resetPasswordMutation.mutateAsync(email);
       setIsSuccess(true);
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Falha ao enviar e-mail');
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -57,10 +54,14 @@ export default function ResetPasswordScreen() {
 
           <Pressable
             onPress={handleReset}
-            disabled={isLoading}
-            className={`w-full py-4 rounded-xl items-center ${isLoading ? 'bg-brand-500/50' : 'bg-brand-500'}`}
+            disabled={resetPasswordMutation.isPending}
+            className={`w-full py-4 rounded-xl items-center ${resetPasswordMutation.isPending ? 'bg-brand-500/50' : 'bg-brand-500'}`}
           >
-            {isLoading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Enviar Link</Text>}
+            {resetPasswordMutation.isPending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-bold text-lg">Enviar Link</Text>
+            )}
           </Pressable>
         </View>
       ) : (

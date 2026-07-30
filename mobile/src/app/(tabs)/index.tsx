@@ -1,41 +1,32 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-// Trocamos useEffect por useFocusEffect do Expo Router
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { Screen } from '@/components/common/Screen';
 import { AnimatedHeader } from '@/components/common/AnimatedHeader';
 import { HeaderAction } from '@/components/common/HeaderAction';
+import { ErrorState } from '@/components/common/ErrorState';
 import { SchedulerCard } from '@/components/scheduler/SchedulerCard';
 
-import { schedulerService } from '@/services/schedulerService';
-import { Scheduler } from '@/types/domain/Scheduler'; // Atualizado para a pasta de domínio
+import { useSchedulersQuery, useToggleSchedulerMutation } from '@/hooks/useSchedulers';
+import { queryKeys } from '@/lib/queryKeys';
 
 export default function Home() {
   const router = useRouter();
   const scrollY = useSharedValue(0);
+  const queryClient = useQueryClient();
 
-  const [schedulers, setSchedulers] = useState<Scheduler[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: schedulers = [], isPending, isError, error, refetch } = useSchedulersQuery();
+  const toggleMutation = useToggleSchedulerMutation();
 
-  // useFocusEffect + useCallback garante que a tela recarregue
-  // sempre que o usuário voltar da tela de "Criar Alarme"
+  // Force a refresh whenever we come back from create/edit, matching the
+  // previous useFocusEffect-based refetch behavior.
   useFocusEffect(
     useCallback(() => {
-      async function loadData() {
-        try {
-          const data = await schedulerService.getAll();
-          setSchedulers(data);
-        } catch (error) {
-          console.error('Erro ao buscar schedulers:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-
-      loadData();
-    }, []),
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedulers.all });
+    }, [queryClient])
   );
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -46,23 +37,6 @@ export default function Home() {
 
   function handleCreateScheduler() {
     router.push('/(scheduler)/create');
-  }
-
-  async function handleToggle(id: string, enabled: boolean) {
-    setSchedulers((prev) =>
-      // Atualizado de schedulerId para id
-      prev.map((item) => (item.id === id ? { ...item, enabled } : item)),
-    );
-
-    try {
-      await schedulerService.toggleStatus(id, enabled);
-    } catch (error) {
-      console.error('Falha ao atualizar', error);
-      setSchedulers((prev) =>
-        // Atualizado de schedulerId para id
-        prev.map((item) => (item.id === id ? { ...item, enabled: !enabled } : item)),
-      );
-    }
   }
 
   return (
@@ -76,14 +50,15 @@ export default function Home() {
         rightAction={<HeaderAction icon="add" onPress={handleCreateScheduler} />}
       />
 
-      {isLoading ? (
+      {isPending ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#FFFFFF" />
         </View>
+      ) : isError ? (
+        <ErrorState message={error?.message} onRetry={() => refetch()} />
       ) : (
         <Animated.FlatList
           data={schedulers}
-          // Atualizado de schedulerId para id
           keyExtractor={(item) => item.id}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
@@ -95,12 +70,10 @@ export default function Home() {
               onPress={() =>
                 router.push({
                   pathname: '/(scheduler)/[id]',
-                  // Atualizado de schedulerId para id
                   params: { id: item.id },
                 })
               }
-              // Atualizado de schedulerId para id
-              onToggle={(enabled) => handleToggle(item.id, enabled)}
+              onToggle={(enabled) => toggleMutation.mutate({ id: item.id, enabled })}
             />
           )}
         />

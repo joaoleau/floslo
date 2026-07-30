@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/joaoleau/floslo/internal/middleware"
+	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/service"
 	"github.com/joaoleau/floslo/internal/utils"
 	"github.com/joaoleau/floslo/internal/dto"
@@ -45,9 +46,18 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 		Name:             scheduler.Name,
 		WeekDays:         utils.WeekdaysToStrings(scheduler.WeekDays),
 		StartTime:        scheduler.StartTime,
-		SnoozeDuration:   scheduler.SnoozeDuration,
 		AlarmSound:       scheduler.AlarmSound,
+		Vibration:        scheduler.Vibration,
 		ObjectIds:   scheduler.ObjectIds,
+		Challengers: utils.MapSlice(scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
+			return dto.ChallengerDTO{
+				ChallengeType: c.ChallengeType,
+				Challenge: dto.QuizChallengeConfigDTO{
+					Difficulty:    c.Challenge.Difficulty,
+					QuestionCount: c.Challenge.QuestionCount,
+				},
+			}
+		}),
 		Enabled:          scheduler.Enabled,
 		CreatedAt:        scheduler.CreatedAt,
 		UpdatedAt:        scheduler.UpdatedAt,
@@ -60,7 +70,7 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
-	schedulerId := chi.URLParam(r, "schedulerId")
+	schedulerId := chi.URLParam(r, "id")
 	scheduler, err := h.SchedulerService.GetSchedulerById(r.Context(), userId, schedulerId)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusNotFound, err)
@@ -72,9 +82,18 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 		Name:             scheduler.Name,
 		WeekDays:         utils.WeekdaysToStrings(scheduler.WeekDays),
 		StartTime:        scheduler.StartTime,
-		SnoozeDuration:   scheduler.SnoozeDuration,
 		AlarmSound:       scheduler.AlarmSound,
+		Vibration:        scheduler.Vibration,
 		ObjectIds:   	  scheduler.ObjectIds,
+		Challengers: utils.MapSlice(scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
+			return dto.ChallengerDTO{
+				ChallengeType: c.ChallengeType,
+				Challenge: dto.QuizChallengeConfigDTO{
+					Difficulty:    c.Challenge.Difficulty,
+					QuestionCount: c.Challenge.QuestionCount,
+				},
+			}
+		}),
 		Enabled:          scheduler.Enabled,
 		CreatedAt:        scheduler.CreatedAt,
 		UpdatedAt:        scheduler.UpdatedAt,
@@ -104,7 +123,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 		return
 	}
-	schedulerId := chi.URLParam(r, "schedulerId")
+	schedulerId := chi.URLParam(r, "id")
 	input, err := utils.Deserialize[dto.UpdateSchedulerRequestDTO](r)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusBadRequest, err)
@@ -122,9 +141,18 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 		Name:             updateScheduler.Name,
 		WeekDays:         utils.WeekdaysToStrings(updateScheduler.WeekDays),
 		StartTime:        updateScheduler.StartTime,
-		SnoozeDuration:   updateScheduler.SnoozeDuration,
 		AlarmSound:       updateScheduler.AlarmSound,
+		Vibration:        updateScheduler.Vibration,
 		ObjectIds:   updateScheduler.ObjectIds,
+		Challengers: utils.MapSlice(updateScheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
+			return dto.ChallengerDTO{
+				ChallengeType: c.ChallengeType,
+				Challenge: dto.QuizChallengeConfigDTO{
+					Difficulty:    c.Challenge.Difficulty,
+					QuestionCount: c.Challenge.QuestionCount,
+				},
+			}
+		}),
 		Enabled:          updateScheduler.Enabled,
 		CreatedAt:        updateScheduler.CreatedAt,
 		UpdatedAt:        updateScheduler.UpdatedAt,
@@ -132,7 +160,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 }
 
 func (h *SchedulerHandler) DeleteSchedulerById(w http.ResponseWriter, r *http.Request) {
-	schedulerId := chi.URLParam(r, "schedulerId")
+	schedulerId := chi.URLParam(r, "id")
 	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {
 		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))

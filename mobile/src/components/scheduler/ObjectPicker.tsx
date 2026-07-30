@@ -6,14 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
-
-interface ObjectItem {
-  id: string;
-  name: string;
-}
+import { ObjectType } from '@/types/domain/Object';
 
 interface ObjectPickerProps {
-  objects: ObjectItem[];
+  objects: ObjectType[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
 }
@@ -43,7 +39,7 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
   return (
     <View className="gap-3">
       <Button
-        className="h-10 rounded-3xl justify-start border border-bg-brand-100 bg-white"
+        className="h-10 rounded-3xl justify-start border border-brand-100 bg-white"
         onPress={() => setOpen(true)}
       >
         <Ionicons name="add-circle-outline" size={18} color="#33405C" />

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"fmt"
 	"github.com/joaoleau/floslo/internal/middleware"
+	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/service"
 	"github.com/joaoleau/floslo/internal/utils"
 	"github.com/joaoleau/floslo/internal/dto"
@@ -44,35 +45,46 @@ func (h *RAGHandler) RetrieveAndGenerate(w http.ResponseWriter, r *http.Request)
 			Name: resp.Scheduler.Name,
 			WeekDays: utils.WeekdaysToStrings(resp.Scheduler.WeekDays),
 			StartTime: resp.Scheduler.StartTime,
-			SnoozeDuration: resp.Scheduler.SnoozeDuration,
 			AlarmSound: resp.Scheduler.AlarmSound,
+			Vibration: resp.Scheduler.Vibration,
 			ObjectIds: resp.Scheduler.ObjectIds,
+			Challengers: utils.MapSlice(resp.Scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
+				return dto.ChallengerDTO{
+					ChallengeType: c.ChallengeType,
+					Challenge: dto.QuizChallengeConfigDTO{
+						Difficulty:    c.Challenge.Difficulty,
+						QuestionCount: c.Challenge.QuestionCount,
+					},
+				}
+			}),
 			Enabled: resp.Scheduler.Enabled,
 			CreatedAt: resp.Scheduler.CreatedAt,
 			UpdatedAt: resp.Scheduler.UpdatedAt,
 		},
-		Quiz: dto.GeneratedQuizDTO{
-			Question: resp.Quiz.Question,
-			Alternatives: utils.MapSlice(resp.Quiz.Alternatives, func(a service.QuizAlternative) dto.QuizAlternativeDTO {
-				return dto.QuizAlternativeDTO{
-					Id: a.Id,
-					Text: a.Text,
-					Correct: a.Correct,
-				}
-			}),
-			Explanation: resp.Quiz.Explanation,
-			Difficulty: resp.Quiz.Difficulty,
-			Tag: resp.Quiz.Tag,
-			SourceChunks: utils.MapSlice(resp.Quiz.SourceChunks, func(c service.RetrievedChunk) dto.ChunkDTO {
-				return dto.ChunkDTO{
-					Content: c.Content,
-					Score: c.Score,
-					ObjectKey: c.ObjectKey,
-					Page: c.Page,
-					ChunkIndex: c.ChunkIndex,
-					Language: c.Language,
-				}
-			}),
-		},
+		Quizzes: utils.MapSlice(resp.Quizzes, func(quiz *service.GeneratedQuiz) dto.GeneratedQuizDTO {
+			return dto.GeneratedQuizDTO{
+				Question: quiz.Question,
+				Alternatives: utils.MapSlice(quiz.Alternatives, func(a service.QuizAlternative) dto.QuizAlternativeDTO {
+					return dto.QuizAlternativeDTO{
+						Id: a.Id,
+						Text: a.Text,
+						Correct: a.Correct,
+					}
+				}),
+				Explanation: quiz.Explanation,
+				Difficulty: quiz.Difficulty,
+				Tag: quiz.Tag,
+				SourceChunks: utils.MapSlice(quiz.SourceChunks, func(c service.RetrievedChunk) dto.ChunkDTO {
+					return dto.ChunkDTO{
+						Content: c.Content,
+						Score: c.Score,
+						ObjectKey: c.ObjectKey,
+						Page: c.Page,
+						ChunkIndex: c.ChunkIndex,
+						Language: c.Language,
+					}
+				}),
+			}
+		}),
 	})
 }

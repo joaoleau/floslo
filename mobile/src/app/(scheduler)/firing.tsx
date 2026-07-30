@@ -5,14 +5,14 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import notifee, { AndroidCategory } from '@notifee/react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { useAudioPlayer } from 'expo-audio'; 
-import * as Application from 'expo-application'; 
+import { useAudioPlayer } from 'expo-audio';
+import * as Application from 'expo-application';
 import { VolumeManager } from 'react-native-volume-manager';
 
 import { Text } from '@/components/ui/text';
 import { QuizChallenge } from '@/components/challenges/QuizChallenge';
 import { RAG } from '@/types/domain/RAG';
-import { firingService } from '@/services/firingService';
+import { useRagQuery } from '@/hooks/useFiring';
 
 // ==========================================
 // COMPONENTE DE CONTEÚDO
@@ -23,11 +23,9 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
   const [currentTime, setCurrentTime] = useState('');
   const [muteCountdown, setMuteCountdown] = useState(0);
 
-  const soundName = ragData.scheduler.alarmSound?.name || 'chic_pop';
+  const soundName = ragData.scheduler.alarmSound || 'chic_pop';
   const packageName = Application.applicationId;
-  const audioUri = Platform.OS === 'android' 
-    ? `android.resource://${packageName}/raw/${soundName}`
-    : '';
+  const audioUri = Platform.OS === 'android' ? `android.resource://${packageName}/raw/${soundName}` : '';
 
   const player = useAudioPlayer({ uri: audioUri });
 
@@ -49,12 +47,10 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
   // ==========================================
   useEffect(() => {
     const onBackPress = () => {
-      console.log('[Anti-Cheat] Usuário tentou usar o botão de voltar!');
       // Retornar 'true' significa: "Eu já lidei com esse clique, não faça nada, Android".
-      return true; 
+      return true;
     };
-    
-    // CORREÇÃO: Usando a forma moderna do BackHandler
+
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backHandler.remove();
   }, []);
@@ -65,8 +61,6 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
-        console.log('[Anti-Cheat] Usuário tentou fugir minimizando o app! Disparando Notifee.');
-        
         // Recria a notificação do Notifee IMEDIATAMENTE para tocar no background
         await notifee.displayNotification({
           id: schedulerId,
@@ -74,18 +68,16 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
           body: 'O alarme ainda está tocando. Resolva o desafio!',
           data: { schedulerId },
           android: {
-            channelId: `alarm_${schedulerId}_${soundName}`, 
-            category: AndroidCategory.ALARM, // CORREÇÃO: Sem o notifee. na frente
+            channelId: `alarm_${schedulerId}_${soundName}`,
+            category: AndroidCategory.ALARM,
             ongoing: true,
             loopSound: true,
-            fullScreenAction: { id: 'default' }, 
-            // CORREÇÃO: Garante que ao clicar ele força o app a abrir
-            pressAction: { id: 'default', launchActivity: 'default' }, 
+            fullScreenAction: { id: 'default' },
+            pressAction: { id: 'default', launchActivity: 'default' },
           },
         });
       } else if (nextAppState === 'active') {
         // Quando ele se arrepender e abrir o app de novo, cancelamos a notificação chata do Android
-        console.log('[Anti-Cheat] Usuário voltou para a tela.');
         await notifee.cancelNotification(schedulerId);
       }
     });
@@ -142,11 +134,11 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
   function handleMute() {
     if (muteCountdown > 0) return;
     setMuteCountdown(10);
-    player.pause(); 
+    player.pause();
   }
 
   function stopAlarm() {
-    player.pause(); 
+    player.pause();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -155,47 +147,55 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
   }
 
   function handleChallengeSuccess() {
-    if (currentChallengeIndex + 1 < ragData.challenges.length) {
+    if (currentChallengeIndex + 1 < ragData.quizzes.length) {
       setCurrentChallengeIndex((prev) => prev + 1);
     } else {
       stopAlarm();
     }
   }
 
-  const currentChallenge = ragData.challenges[currentChallengeIndex];
-  const total = ragData.challenges?.length || 1;
+  const currentQuiz = ragData.quizzes[currentChallengeIndex];
+  const total = ragData.quizzes.length || 1;
   const progressPercentage = (currentChallengeIndex / total) * 100;
 
   return (
     <View className="flex-1 justify-center items-center bg-brand-100 p-5 relative">
-      
       {/* BARREIRA 3: Bloqueia arrastar para voltar ou gestos do Expo Router */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
-      <Pressable onPress={handleMute} className="absolute top-14 left-6 flex-row items-center bg-black/20 px-3 py-2 rounded-full">
-        <Ionicons name={muteCountdown > 0 ? "volume-mute" : "volume-high"} size={24} color="white" />
+      <Pressable
+        onPress={handleMute}
+        className="absolute top-14 left-6 flex-row items-center bg-black/20 px-3 py-2 rounded-full"
+      >
+        <Ionicons name={muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
         {muteCountdown > 0 && <Text className="text-white font-bold ml-2">{muteCountdown}s</Text>}
       </Pressable>
 
       <Text className="text-7xl font-bold text-white mb-2 tracking-widest mt-10">{currentTime}</Text>
-      <Text className="text-lg text-brand-50 mb-6 font-medium text-center px-4">{ragData.scheduler.name || 'Seu alarme está tocando'}</Text>
+      <Text className="text-lg text-brand-50 mb-6 font-medium text-center px-4">
+        {ragData.scheduler.name || 'Seu alarme está tocando'}
+      </Text>
 
-      <View className="w-full max-w-sm mb-8">
-        <View className="flex-row justify-between mb-2">
-          <Text className="text-brand-50 font-medium text-sm">Progresso do Desafio</Text>
-          <Text className="text-brand-50 font-bold text-sm">{currentChallengeIndex} de {total}</Text>
+      {total > 1 && (
+        <View className="w-full max-w-sm mb-8">
+          <View className="flex-row justify-between mb-2">
+            <Text className="text-brand-50 font-medium text-sm">Progresso do Desafio</Text>
+            <Text className="text-brand-50 font-bold text-sm">
+              {currentChallengeIndex} de {total}
+            </Text>
+          </View>
+          <View className="w-full h-2 bg-brand-50/30 rounded-full overflow-hidden">
+            <View className="h-full bg-white rounded-full transition-all" style={{ width: `${progressPercentage}%` }} />
+          </View>
         </View>
-        <View className="w-full h-2 bg-brand-50/30 rounded-full overflow-hidden">
-          <View className="h-full bg-white rounded-full transition-all" style={{ width: `${progressPercentage}%` }} />
-        </View>
-      </View>
+      )}
 
-      {currentChallenge && currentChallenge.challengeType === 'QUIZ' && (
-        <QuizChallenge 
-          key={`quiz-${currentChallengeIndex}`} 
-          challenge={currentChallenge}
+      {currentQuiz && (
+        <QuizChallenge
+          key={`quiz-${currentChallengeIndex}`}
+          quiz={currentQuiz}
           currentIndex={currentChallengeIndex}
-          totalChallenges={total}
+          totalQuizzes={total}
           onSuccess={handleChallengeSuccess}
         />
       )}
@@ -211,28 +211,10 @@ function FiringScreenContent({ ragData, schedulerId }: { ragData: RAG; scheduler
 // 2. TELA PRINCIPAL (Busca os dados e gerencia o Loading)
 // ==========================================
 export default function FiringScreen() {
-  const { schedulerId } = useLocalSearchParams();
-  const [ragData, setRagData] = useState<RAG | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { schedulerId } = useLocalSearchParams<{ schedulerId: string }>();
+  const { data: ragData, isPending } = useRagQuery(schedulerId);
 
-  useEffect(() => {
-    async function fetchChallengeData() {
-      try {
-        if (schedulerId && typeof schedulerId === 'string') {
-          const data = await firingService.getBySchedulerId(schedulerId);
-          setRagData(data);
-        }
-      } catch (error) {
-        console.error('[Firing] Erro ao buscar desafios:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchChallengeData();
-  }, [schedulerId]);
-
-  if (isLoading || !ragData) {
+  if (isPending || !ragData) {
     return (
       <View className="flex-1 justify-center items-center bg-brand-100">
         <ActivityIndicator size="large" color="#ffffff" />
@@ -241,5 +223,5 @@ export default function FiringScreen() {
     );
   }
 
-  return <FiringScreenContent ragData={ragData} schedulerId={schedulerId as string} />;
+  return <FiringScreenContent ragData={ragData} schedulerId={schedulerId} />;
 }

@@ -5,16 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Text } from '@/components/ui/text';
 
 import { ObjectTags } from '@/components/object/ObjectTags';
-
-export interface ObjectCardData {
-  id: string;
-  name: string;
-  extension: string;
-  tags: string[];
-}
+import { ObjectType } from '@/types/domain/Object';
 
 interface ObjectCardProps {
-  object: ObjectCardData;
+  object: ObjectType;
   onPress?: () => void;
 }
 

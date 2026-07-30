@@ -39,7 +39,7 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
             
             {scheduler.objectIds && scheduler.objectIds.length > 0 && (
               <Badge className="rounded-full bg-background border border-brand-100 flex-row items-center">
-                <Ionicons name="document-text" size={16} color="#bg-brand-100" />
+                <Ionicons name="document-text" size={16} color="#33405C" />
                 <Text className="text-sm text-brand-100 ml-1">
                   {scheduler.objectIds.length}
                 </Text>

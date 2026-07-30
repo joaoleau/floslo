@@ -40,15 +40,25 @@ func (s *SchedulerService) CreateScheduler(ctx context.Context, userId string, s
 	if scheduler.StartTime == "" {
 		return fmt.Errorf("start time is required")
 	}
-	if scheduler.SnoozeDuration < 0 {
-		return fmt.Errorf("snooze duration must be non-negative")
-	}
 	if scheduler.AlarmSound == "" {
 		return fmt.Errorf("alarm sound is required")
 	}
 	if len(scheduler.ObjectIds) == 0 {
 		return fmt.Errorf("at least one document key is required")
 
+	}
+	for _, challenger := range scheduler.Challengers {
+		if challenger.ChallengeType != "QUIZ" {
+			return fmt.Errorf("invalid challenge type: %s", challenger.ChallengeType)
+		}
+		if challenger.Challenge.QuestionCount < 1 || challenger.Challenge.QuestionCount > 10 {
+			return fmt.Errorf("question count must be between 1 and 10")
+		}
+		switch challenger.Challenge.Difficulty {
+		case "easy", "medium", "hard":
+		default:
+			return fmt.Errorf("invalid difficulty: %s", challenger.Challenge.Difficulty)
+		}
 	}
 
 	scheduler.Id = utils.GenerateID("sch")
@@ -114,11 +124,11 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, u
 	if update.StartTime != nil {
 		scheduler.StartTime = *update.StartTime
 	}
-	if update.SnoozeDuration != nil {
-		scheduler.SnoozeDuration = *update.SnoozeDuration
-	}
 	if update.AlarmSound != nil {
 		scheduler.AlarmSound = *update.AlarmSound
+	}
+	if update.Vibration != nil {
+		scheduler.Vibration = *update.Vibration
 	}
 	if update.ObjectIds != nil {
 		scheduler.ObjectIds = *update.ObjectIds
@@ -143,6 +153,9 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, u
 				return nil, fmt.Errorf("failed to remove scheduler from metadata: %w", err)
 			}
 		}
+	}
+	if update.Challengers != nil {
+		scheduler.Challengers = *update.Challengers
 	}
 	if update.Enabled != nil {
 		scheduler.Enabled = *update.Enabled

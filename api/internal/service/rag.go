@@ -12,7 +12,7 @@ import (
 
 type RetrieveAndGenerateResponse struct {
 	Scheduler *model.Scheduler `json:"scheduler"`
-	Quiz *GeneratedQuiz `json:"quiz"`
+	Quizzes []*GeneratedQuiz `json:"quizzes"`
 }
 
 type RAGService struct {
@@ -59,8 +59,15 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 		logger.String("tag", tag),
 	)
 	query := s.generateQuery(tag)
-	
-	chunks, err := s.VectorService.RetrieveRelevantChunks(ctx,userId, object.Key, query, 7)
+
+	count, difficulty := s.resolveChallengeConfig(scheduler.Challengers)
+
+	topK := 3 + count*3
+	if topK < 7 {
+		topK = 7
+	}
+
+	chunks, err := s.VectorService.RetrieveRelevantChunks(ctx,userId, object.Key, query, int32(topK))
 	if err != nil {
 		return nil, err
 	}
@@ -68,43 +75,73 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 		return nil, fmt.Errorf("no chunks found")
 	}
 
-	selected := s.diversifyChunks(chunks)
+	selected := s.diversifyChunks(chunks, count)
 	contextText := s.buildContext(selected)
-	quiz, err := s.GenerationService.GenerateQuiz(
+	quizzes, err := s.GenerationService.GenerateQuizzes(
 		ctx,
 		query,
 		tag,
 		contextText,
+		count,
+		difficulty,
 	)
 
 	if err != nil {
 		return nil, err
 	}
-	quiz.SourceChunks = selected
+	for _, quiz := range quizzes {
+		quiz.SourceChunks = selected
+	}
 	return &RetrieveAndGenerateResponse{
 		Scheduler: scheduler,
-		Quiz: quiz,
+		Quizzes: quizzes,
 	}, nil
 }
 
-func (s *RAGService) diversifyChunks(chunks []RetrievedChunk) []RetrievedChunk {
-	if len(chunks) <= 5 {
+func (s *RAGService) resolveChallengeConfig(challengers []model.Challenger) (int, string) {
+	count := 1
+	difficulty := "medium"
+
+	for _, challenger := range challengers {
+		if challenger.ChallengeType == "QUIZ" {
+			count = challenger.Challenge.QuestionCount
+			difficulty = challenger.Challenge.Difficulty
+			break
+		}
+	}
+
+	if count < 1 {
+		count = 1
+	}
+	if count > 10 {
+		count = 10
+	}
+
+	return count, difficulty
+}
+
+func (s *RAGService) diversifyChunks(chunks []RetrievedChunk, count int) []RetrievedChunk {
+	anchorSize := 3
+	if len(chunks) < anchorSize {
+		anchorSize = len(chunks)
+	}
+
+	extraSize := 2 * count
+
+	if len(chunks) <= anchorSize+extraSize {
 		return chunks
 	}
 
-	selected := []RetrievedChunk{
-		chunks[0],
-		chunks[1],
-		chunks[2],
-	}
+	selected := make([]RetrievedChunk, anchorSize)
+	copy(selected, chunks[:anchorSize])
 
-	remaining := chunks[3:]
+	remaining := chunks[anchorSize:]
 
 	rand.Shuffle(len(remaining), func(i, j int) {
 		remaining[i], remaining[j] = remaining[j], remaining[i]
 	})
 
-	selected = append(selected, remaining[:2]...)
+	selected = append(selected, remaining[:extraSize]...)
 
 	return selected
 }

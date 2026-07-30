@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, useColorScheme, ActivityIndicator, View } from 'react-native';
-import { DarkTheme, DefaultTheme, ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-router';
+import { AppState, useColorScheme } from 'react-native'; // Removido View e ActivityIndicator
+import { ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import notifee, { EventType, AndroidCategory } from '@notifee/react-native';
+import { QueryClientProvider } from '@tanstack/react-query';
+
 import { authService } from '@/services/authService';
+import { onSessionExpired } from '@/api/http/client'; 
+import { queryClient } from '@/lib/queryClient';
+import { NAV_THEME } from '@/lib/theme';
+
+// IMPORTANTE: Importe o seu userService (ajuste o caminho de acordo com o seu projeto)
+import { userService } from '@/services/userService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,7 +40,7 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
         category: AndroidCategory.ALARM,
         ongoing: true, 
         loopSound: true, 
-        autoCancel: false, // Proíbe o Android de calar o som ao clicar
+        autoCancel: false, 
         fullScreenAction: { id: 'default', launchActivity: 'default' },
         pressAction: { id: 'default', launchActivity: 'default' },
       },
@@ -44,30 +52,40 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   
-  // Escuta o estado do roteador para saber se ele já está pronto
   const navigationState = useRootNavigationState(); 
-  
-  // Trava para evitar que o app tente navegar duas vezes seguidas
   const isNavigating = useRef(false);
-
-  // Estado para controlar o carregamento inicial da autenticação
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // Expulsa o usuário caso o interceptor do Axios avise que a sessão morreu
+  useEffect(() => {
+    onSessionExpired(async () => {
+      await authService.logout(); 
+      router.replace('/(auth)/login');
+    });
+  }, [router]);
 
   // ==========================================
   // EFEITO 1: CHECAR AUTENTICAÇÃO E ROTA INICIAL
   // ==========================================
   useEffect(() => {
-    // Só executa quando o Router estiver pronto
     if (!navigationState?.key) return;
 
     async function checkAuthAndRedirect() {
       try {
         const token = await authService.getAccessToken();
-        await SplashScreen.hideAsync();
         
         if (token) {
-          router.replace('/(tabs)');
+          try {
+            // SUBSTITUIÇÃO AQUI: Usando o seu userService lindamente!
+            await userService.getMe(); 
+            router.replace('/(tabs)');
+          } catch (apiError) {
+            console.log('[Auth] Token inválido ou usuário deletado. Limpando...');
+            await authService.logout();
+            router.replace('/(auth)/login');
+          }
         } else {
+          // Sem token salvo
           router.replace('/(auth)/login');
         }
       } catch (error) {
@@ -75,17 +93,18 @@ export default function RootLayout() {
         router.replace('/(auth)/login');
       } finally {
         setIsAuthLoading(false);
+        // Oculta o Splash Nativo para revelar a tela final
+        await SplashScreen.hideAsync();
       }
     }
 
     checkAuthAndRedirect();
-  }, [navigationState?.key]);
+  }, [navigationState?.key, router]);
 
   // ==========================================
   // EFEITO 2: NAVEGAR PARA O ALARME
   // ==========================================
   useEffect(() => {
-    // Só prossegue se o roteador estiver montado e a auth resolvida
     if (!navigationState?.key || isAuthLoading) return;
 
     async function handleAlarmNavigation() {
@@ -95,14 +114,12 @@ export default function RootLayout() {
         let targetSchedulerId = null;
         let targetChallengeType = null;
 
-        // 1. Checa se o app abriu através do clique na notificação (Cold Boot)
         const initialNotification = await notifee.getInitialNotification();
         if (initialNotification?.notification.android?.category === AndroidCategory.ALARM) {
           targetSchedulerId = initialNotification.notification.data?.schedulerId;
           targetChallengeType = initialNotification.notification.data?.challengeType;
         }
 
-        // 2. Se não foi por clique, checa se tem um alarme tocando na barra
         if (!targetSchedulerId) {
           const activeNotifications = await notifee.getDisplayedNotifications();
           const ringingAlarm = activeNotifications.find(
@@ -114,7 +131,6 @@ export default function RootLayout() {
           }
         }
 
-        // SE ACHOU UM ALARME, NAVEGA COM SEGURANÇA!
         if (targetSchedulerId) {
           isNavigating.current = true;
           
@@ -133,17 +149,14 @@ export default function RootLayout() {
       }
     }
 
-    // Chama a navegação (caso o app tenha acabado de abrir)
     handleAlarmNavigation();
 
-    // Escuta quando o app vai e volta de segundo plano
     const appStateSubscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState === 'active') {
         handleAlarmNavigation();
       }
     });
 
-    // Escuta cliques quando o app já está rodando em tela
     const notifeeSubscription = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS && detail.notification?.android?.category === AndroidCategory.ALARM) {
         const payload = detail.notification.data;
@@ -163,25 +176,18 @@ export default function RootLayout() {
       appStateSubscription.remove();
       notifeeSubscription();
     };
-  }, [navigationState?.key, isAuthLoading]); 
-
-  // Previne a renderização desnecessária enquanto a checagem de Auth rola
-  if (isAuthLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#ffffff" />
-      </View>
-    );
-  }
+  }, [navigationState?.key, isAuthLoading, router]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-         <Stack.Screen name="(tabs)" />
-         <Stack.Screen name="(auth)" />
-         <Stack.Screen name="(object)" />
-         <Stack.Screen name="(scheduler)" />
-      </Stack>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={colorScheme === 'dark' ? NAV_THEME.dark : NAV_THEME.light}>
+        <Stack screenOptions={{ headerShown: false }}>
+           <Stack.Screen name="(tabs)" />
+           <Stack.Screen name="(auth)" />
+           <Stack.Screen name="(object)" />
+           <Stack.Screen name="(scheduler)" />
+        </Stack>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

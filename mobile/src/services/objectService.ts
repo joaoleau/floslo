@@ -1,44 +1,37 @@
-import { mockObjects } from '@/api/mock/objects';
-import { ObjectType } from '@/types/domain/Object';
-import { ObjectDTO } from '@/types/api/ObjectDTO';
+import { objectsApi } from '@/api/objects';
+import { storageApi } from '@/api/storage';
 import { objectMapper } from '@/mappers/objectMapper';
+import { ObjectType } from '@/types/domain/Object';
 
 export const objectService = {
   async getAll(): Promise<ObjectType[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const apiResponse = mockObjects as unknown as ObjectDTO[];
-        const mappedData = apiResponse.map(objectMapper.toDomain);
-
-        resolve(mappedData);
-      }, 600);
-    });
-  },
-
-  async deleteObject(id: string): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`[Service] Objeto ${id} deletado`);
-        resolve();
-      }, 300);
-    });
+    const { objects } = await objectsApi.list();
+    return objects.map(objectMapper.toDomain);
   },
 
   async getById(id: string): Promise<ObjectType | undefined> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const raw = mockObjects.find((o) => o.id === id) as unknown as ObjectDTO;
-        resolve(raw ? objectMapper.toDomain(raw) : undefined);
-      }, 500);
-    });
+    try {
+      const raw = await objectsApi.getById(id);
+      return objectMapper.toDomain(raw);
+    } catch {
+      return undefined;
+    }
   },
 
-  async update(id: string, tags: string[]): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        console.log(`[Service] Objeto ${id} atualizado com tags:`, tags);
-        resolve();
-      }, 500);
-    });
+  async update(id: string, tags: string[]): Promise<ObjectType> {
+    const updated = await objectsApi.updateTags(id, tags);
+    return objectMapper.toDomain(updated);
+  },
+
+  async deleteObject(id: string): Promise<void> {
+    // The storage-delete endpoint keys off the original S3 filename, not the
+    // object's DynamoDB id, so look it up first.
+    const raw = await objectsApi.getById(id);
+    await storageApi.deleteObject(raw.name);
+  },
+
+  async upload(file: { uri: string; name: string; mimeType?: string }): Promise<void> {
+    const presign = await storageApi.getUploadUrl(file.name);
+    await storageApi.uploadFileToPresignedUrl(presign, file.uri, file.mimeType);
   },
 };

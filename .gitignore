@@ -20,6 +20,8 @@ mobile/.expo/
 mobile/dist/
 mobile/web-build/
 mobile/expo-env.d.ts
+mobile/.agents/
+mobile/skills-lock.json
 
 # Native
 .kotlin/

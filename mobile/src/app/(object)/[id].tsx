@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,36 +15,26 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 import { ObjectTagsList } from '@/components/object/ObjectTagsList';
-import { objectService } from '@/services/objectService';
-import { ObjectType } from '@/types/domain/Object';
+import { useObjectQuery, useUpdateObjectTagsMutation, useDeleteObjectMutation } from '@/hooks/useObjects';
 
 export default function ObjectDetails() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [object, setObject] = useState<ObjectType | null>(null);
+  const { data: object, isPending, isError } = useObjectQuery(id);
+  const updateTagsMutation = useUpdateObjectTagsMutation();
+  const deleteMutation = useDeleteObjectMutation();
+
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [loadedObjectId, setLoadedObjectId] = useState<string | null>(null);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    async function loadObject() {
-      try {
-        const data = await objectService.getById(id);
-        if (data) {
-          setObject(data);
-          setTags(data.tags);
-        }
-      } catch (error) {
-        Alert.alert('Erro', 'Falha ao buscar o objeto.');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadObject();
-  }, [id]);
+  // Reset local tag state when a (new) object finishes loading, without a
+  // setState-in-effect cascade — see https://react.dev/learn/you-might-not-need-an-effect
+  if (object && object.id !== loadedObjectId) {
+    setLoadedObjectId(object.id);
+    setTags(object.tags);
+  }
 
   function addTag() {
     const tag = newTag.trim();
@@ -58,45 +48,37 @@ export default function ObjectDetails() {
     setTags(tags.filter((item) => item !== tag));
   }
 
-  // 4. Salvar as alterações e voltar
   async function handleSave() {
     if (!object) return;
-    setIsSaving(true);
     try {
-      await objectService.update(object.id, tags);
-      router.back(); // Volta para a tela anterior
-    } catch (error) {
+      await updateTagsMutation.mutateAsync({ id: object.id, tags });
+      router.back();
+    } catch {
       Alert.alert('Erro', 'Falha ao salvar as alterações.');
-      setIsSaving(false); // Só desativa o loading se der erro
     }
   }
 
-  // 5. Deletar e voltar
-  async function handleDelete() {
+  function handleDelete() {
     if (!object) return;
 
-    Alert.alert(
-      'Excluir Objeto',
-      'Tem certeza que deseja excluir? Esta ação não pode ser desfeita.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await objectService.deleteObject(object.id);
-              router.back();
-            } catch (error) {
-              Alert.alert('Erro', 'Falha ao excluir o objeto.');
-            }
-          },
+    Alert.alert('Excluir Objeto', 'Tem certeza que deseja excluir? Esta ação não pode ser desfeita.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteMutation.mutateAsync(object.id);
+            router.back();
+          } catch {
+            Alert.alert('Erro', 'Falha ao excluir o objeto.');
+          }
         },
-      ],
-    );
+      },
+    ]);
   }
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <Screen>
         <Header title="Editar Objeto" />
@@ -107,7 +89,7 @@ export default function ObjectDetails() {
     );
   }
 
-  if (!object) {
+  if (isError || !object) {
     return (
       <Screen>
         <Header title="Erro" />
@@ -123,8 +105,7 @@ export default function ObjectDetails() {
       <Header
         title="Editar Objeto"
         rightAction={
-          // Substitui o ícone por um loading se estiver salvando
-          isSaving ? (
+          updateTagsMutation.isPending ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <HeaderAction icon="checkmark" onPress={handleSave} />
@@ -132,11 +113,7 @@ export default function ObjectDetails() {
         }
       />
 
-      {/* KeyboardAvoidingView impede que o teclado cubra o Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <View className="flex-1 gap-4 p-4">
           <Card className="flex-1 rounded-3xl bg-white p-5 gap-4">
             <View className="flex-row items-center justify-between">
@@ -154,14 +131,13 @@ export default function ObjectDetails() {
                 value={newTag}
                 onChangeText={setNewTag}
                 placeholder="Digite uma nova tag"
-                onSubmitEditing={addTag} // Permite adicionar apertando "Enter" no teclado
+                onSubmitEditing={addTag}
               />
               <Button onPress={addTag} className="bg-brand-100">
                 <Ionicons name="add" size={18} color="white" />
               </Button>
             </View>
 
-            {/* Troquei o h-80 por flex-1 para ocupar o espaço disponível dinamicamente */}
             <View className="flex-1">
               <ObjectTagsList tags={tags} onRemoveTag={removeTag} />
             </View>
@@ -169,6 +145,7 @@ export default function ObjectDetails() {
 
           <Button
             onPress={handleDelete}
+            disabled={deleteMutation.isPending}
             className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
           >
             <Ionicons name="trash-outline" size={20} color="white" />

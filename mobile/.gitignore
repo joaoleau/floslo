@@ -4,3 +4,13 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# dependencies
+node_modules/
+
+# expo
+.expo/
+
+# env
+.env
+.env*.local

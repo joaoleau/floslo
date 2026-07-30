@@ -35,6 +35,16 @@ func (w Weekday) String() string {
 	return string(w)
 }
 
+type QuizChallengeConfig struct {
+	Difficulty    string `dynamodbav:"difficulty"`
+	QuestionCount int    `dynamodbav:"question_count"`
+}
+
+type Challenger struct {
+	ChallengeType string              `dynamodbav:"challenge_type"`
+	Challenge     QuizChallengeConfig `dynamodbav:"challenge"`
+}
+
 type Scheduler struct {
 	PK       string `dynamodbav:"PK"`
 	SK       string `dynamodbav:"SK"`
@@ -42,9 +52,10 @@ type Scheduler struct {
 	Name string `dynamodbav:"name"`
 	WeekDays []Weekday `dynamodbav:"weekdays"`
 	StartTime string `dynamodbav:"start_time"`
-	SnoozeDuration int `dynamodbav:"snooze_duration"`
 	AlarmSound string `dynamodbav:"alarm_sound"`
+	Vibration bool `dynamodbav:"vibration"`
 	ObjectIds []string `dynamodbav:"object_ids"`
+	Challengers []Challenger `dynamodbav:"challengers"`
 	Enabled bool `dynamodbav:"enabled"`
 	CreatedAt time.Time `dynamodbav:"created_at"`
 	UpdatedAt time.Time `dynamodbav:"updated_at"`
@@ -67,8 +78,9 @@ type UpdateScheduler struct {
 	Name            *string
 	WeekDays        *[]Weekday
 	StartTime       *string
-	SnoozeDuration  *int
 	AlarmSound      *string
+	Vibration       *bool
 	ObjectIds   *[]string
+	Challengers *[]Challenger
 	Enabled         *bool
 }

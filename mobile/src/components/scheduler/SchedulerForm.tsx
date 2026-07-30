@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
 
-import { Scheduler, Challenger } from '@/types/domain/Scheduler';
+import { Scheduler, Challenger, QuizDifficulty } from '@/types/domain/Scheduler';
 import { ObjectType } from '@/types/domain/Object';
 import { soundSelectionService } from '@/services/soundSelectionService';
 
@@ -34,7 +34,7 @@ const DEFAULT_SCHEDULER: Scheduler = {
   name: '',
   weekDays: [],
   startTime: '08:30',
-  alarmSound: { name: '' },
+  alarmSound: '',
   objectIds: [],
   enabled: true,
   vibration: true,
@@ -43,12 +43,23 @@ const DEFAULT_SCHEDULER: Scheduler = {
   challengers: [],
 };
 
+const DIFFICULTY_OPTIONS: { value: QuizDifficulty; label: string }[] = [
+  { value: 'easy', label: 'Fácil' },
+  { value: 'medium', label: 'Médio' },
+  { value: 'hard', label: 'Difícil' },
+];
+
+const DIFFICULTY_LABELS: Record<QuizDifficulty, string> = {
+  easy: 'Fácil',
+  medium: 'Médio',
+  hard: 'Difícil',
+};
+
 type ModalStep = 'SELECT_TYPE' | 'CONFIGURE_CHALLENGE';
 
 export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
   function SchedulerForm({ initialValues, availableObjects, onSubmit, onDelete }, ref) {
     const router = useRouter();
-    const difficulties = ['Fácil', 'Médio', 'Difícil'];
 
     const [scheduler, setScheduler] = useState<Scheduler>(initialValues ?? DEFAULT_SCHEDULER);
     
@@ -61,7 +72,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
     useEffect(() => {
       const unsubscribe = soundSelectionService.subscribe((soundObject) => {
-        update('alarmSound', soundObject);
+        update('alarmSound', soundObject.name);
       });
 
       return () => {
@@ -105,7 +116,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
       if (type === 'QUIZ') {
         setTempChallenger({
           challengeType: 'QUIZ',
-          challenge: { difficulty: 'Médio', questionCount: 5 },
+          challenge: { difficulty: 'medium', questionCount: 5 },
         });
       }
       setModalStep('CONFIGURE_CHALLENGE');
@@ -157,7 +168,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
               />
 
               <View className="h-10 flex-row items-center rounded-md border border-zinc-300 px-4">
-                <Ionicons name="radio-outline" size={20} color="bg-brand-100" />
+                <Ionicons name="radio-outline" size={20} color="#33405C" />
                 <Text className="ml-3 flex-1">Vibração</Text>
                 <Switch
                   checked={scheduler.vibration}
@@ -169,11 +180,9 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 onPress={() => router.push('/(scheduler)/sounds')}
                 className="h-10 flex-row items-center gap-3 rounded-md border border-zinc-300 px-4"
               >
-                <Ionicons name="musical-notes-outline" size={20} color="bg-brand-100" />
-                <Text className="flex-1 text-zinc-500">
-                  {scheduler.alarmSound.name || 'Selecionar som'}
-                </Text>
-                <Ionicons name="chevron-forward" size={18} color="bg-brand-100" />
+                <Ionicons name="musical-notes-outline" size={20} color="#33405C" />
+                <Text className="flex-1 text-zinc-500">{scheduler.alarmSound || 'Selecionar som'}</Text>
+                <Ionicons name="chevron-forward" size={18} color="#33405C" />
               </Pressable>
             </View>
           </Card>
@@ -182,7 +191,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
             <View className="flex-row items-center justify-between">
               <Text className="text-lg font-semibold text-zinc-800">Desafios</Text>
               <Pressable onPress={openChallengeModal}>
-                <Ionicons name="add-circle" size={28} color="bg-brand-100" />
+                <Ionicons name="add-circle" size={28} color="#33405C" />
               </Pressable>
             </View>
 
@@ -202,7 +211,8 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                         {item.challengeType === 'QUIZ' ? 'Questionário (Quiz)' : item.challengeType}
                       </Text>
                       <Text className="text-sm text-zinc-500 mt-1">
-                        Dificuldade: {item.challenge.difficulty} • {item.challenge.questionCount} questões
+                        Dificuldade: {DIFFICULTY_LABELS[item.challenge.difficulty]} • {item.challenge.questionCount}{' '}
+                        questões
                       </Text>
                     </View>
                     <Pressable onPress={() => handleRemoveChallenger(index)} className="p-2">
@@ -246,7 +256,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                     <View className="flex-row justify-between items-center mb-2">
                       <Text className="text-xl font-bold text-zinc-800">Novo Desafio</Text>
                       <Pressable onPress={() => setChallengeModalVisible(false)}>
-                        <Ionicons name="close" size={24} color="bg-brand-50" />
+                        <Ionicons name="close" size={24} color="#55575c" />
                       </Pressable>
                     </View>
                     <Text className="text-zinc-500 mb-2">Escolha o tipo de desafio para este alarme:</Text>
@@ -262,7 +272,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                         }`}
                       >
                         <View className="bg-brand-100/10 p-2 rounded-full">
-                          <Ionicons name="school-outline" size={24} color={hasQuiz ? "bg-brand-50" : "bg-brand-100"} />
+                          <Ionicons name="school-outline" size={24} color={hasQuiz ? '#55575c' : '#33405C'} />
                         </View>
                         <View className="flex-1">
                           <Text className={`font-semibold ${hasQuiz ? 'text-zinc-500' : 'text-zinc-800'}`}>
@@ -286,7 +296,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                   <>
                     <View className="flex-row justify-between items-center mb-2">
                       <Pressable onPress={() => setModalStep('SELECT_TYPE')} className="p-1 -ml-1">
-                        <Ionicons name="arrow-back" size={24} color="bg-brand-100" />
+                        <Ionicons name="arrow-back" size={24} color="#33405C" />
                       </Pressable>
                       <Text className="text-xl font-bold text-zinc-800">Configurar Quiz</Text>
                       <View style={{ width: 24 }} />
@@ -295,15 +305,15 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                     <View className="gap-2 mt-2">
                       <Text className="font-medium text-zinc-700">Dificuldade</Text>
                       <View className="flex-row gap-2">
-                        {difficulties.map((level) => {
-                          const selected = tempChallenger.challenge!.difficulty === level;
+                        {DIFFICULTY_OPTIONS.map((option) => {
+                          const selected = tempChallenger.challenge!.difficulty === option.value;
                           return (
                             <Pressable
-                              key={level}
-                              onPress={() => 
+                              key={option.value}
+                              onPress={() =>
                                 setTempChallenger({
                                   ...tempChallenger,
-                                  challenge: { ...tempChallenger.challenge!, difficulty: level }
+                                  challenge: { ...tempChallenger.challenge!, difficulty: option.value },
                                 })
                               }
                               className={`h-10 flex-1 items-center justify-center rounded-xl border ${
@@ -311,7 +321,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                               }`}
                             >
                               <Text className={selected ? 'font-semibold text-white' : 'text-zinc-700'}>
-                                {level}
+                                {option.label}
                               </Text>
                             </Pressable>
                           );
