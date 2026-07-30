@@ -4,13 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 
-export interface SoundCardData {
-  uri: string;
-  name: string;
-}
+import { Sound } from '@/types/domain/Scheduler';
 
 interface SoundCardProps {
-  sound: SoundCardData;
+  sound: Sound;
   selected?: boolean;
   onPress?: () => void;
 }

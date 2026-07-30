@@ -1,12 +1,89 @@
-import { View, Text, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 
-export default function Upload() {
+// Usando seus componentes customizados!
+import { Text } from '@/components/ui/text'; 
+import { Input } from '@/components/ui/input';
+
+import { authService } from '@/services/authService';
+
+export default function LoginScreen() {
+  const router = useRouter();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleLogin() {
+    if (!username || !password) {
+      Alert.alert('Atenção', 'Preencha usuário e senha.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authService.login({ username, password });
+      router.replace('/(tabs)'); 
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Falha ao fazer login');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
-    <View className="flex-1 items-center justify-center">
-      <Text className="text-lg font-bold">Upload</Text>
-      <Pressable className="mt-4 rounded bg-blue-500 px-4 py-2">
-        <Text className="text-white">Upload File</Text>
-      </Pressable>
-    </View>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      className="flex-1 bg-brand-100 justify-center px-6"
+    >
+      <View className="items-center mb-10">
+        <Text className="text-4xl font-bold text-white mb-2">Floslo</Text>
+        <Text className="text-brand-50 text-center">Entre para continuar acordando na hora certa.</Text>
+      </View>
+
+      <View className="w-full space-y-4">
+        <Input
+          placeholder="Nome de usuário"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+          className="h-12 bg-white/10 text-white border-white/20 mb-4" 
+        />
+
+        <Input
+          placeholder="Senha"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          className="h-12 bg-white/10 text-white border-white/20"
+        />
+
+        <Pressable 
+          onPress={() => router.push('/(auth)/reset-password')}
+          className="self-end mt-2"
+        >
+          <Text className="text-brand-50 text-sm font-medium">Esqueceu a senha?</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={handleLogin}
+          disabled={isLoading}
+          className={`w-full py-4 rounded-xl items-center mt-6 ${isLoading ? 'bg-brand-500/50' : 'bg-brand-500'}`}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white font-bold text-lg">Entrar</Text>
+          )}
+        </Pressable>
+      </View>
+
+      <View className="flex-row justify-center mt-8">
+        <Text className="text-brand-50">Não tem uma conta? </Text>
+        <Pressable onPress={() => router.push('/(auth)/register')}>
+          <Text className="text-white font-bold">Cadastre-se</Text>
+        </Pressable>
+      </View>
+    </KeyboardAvoidingView>
   );
 }

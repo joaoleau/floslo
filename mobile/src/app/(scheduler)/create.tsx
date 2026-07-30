@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,27 @@ export default function CreateScheduler() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Calcula a hora inicial (atual) e monta o objeto base do alarme
+  const initialScheduler = useMemo<Scheduler>(() => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    return {
+      id: '',
+      name: '',
+      weekDays: [],
+      startTime: `${hours}:${minutes}`,
+      alarmSound: { name: '' },
+      objectIds: [],
+      challengers: [],
+      enabled: true,
+      vibration: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }, []);
+
   // Busca apenas a lista de objetos para o form
   useEffect(() => {
     async function fetchObjects() {
@@ -46,9 +67,15 @@ export default function CreateScheduler() {
   async function handleSubmit(scheduler: Scheduler) {
     setIsSaving(true);
     try {
-      await schedulerService.create(scheduler);
+      const payload = {
+        ...scheduler,
+        id: scheduler.id || `sch_${Date.now()}`,
+      };
+      
+      await schedulerService.create(payload);
       router.back();
     } catch (error) {
+      console.error(error);
       Alert.alert('Erro', 'Falha ao criar o alarme.');
       setIsSaving(false);
     }
@@ -83,6 +110,7 @@ export default function CreateScheduler() {
           >
             <SchedulerForm
               ref={formRef}
+              initialValues={initialScheduler} // <-- Passando o valor inicial aqui
               availableObjects={availableObjects}
               onSubmit={handleSubmit}
             />

@@ -8,13 +8,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Academia',
     week_days: ['monday', 'wednesday', 'friday'],
     start_time: '07:00',
-    alarm_sound: { name: 'Classic', uri: 'classic.mp3' },
+    alarm_sound: { name: 'Classic' },
     object_ids: ['obj_01', 'obj_02'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 3,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 3,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -25,13 +29,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Estudar React Native',
     week_days: ['tuesday', 'thursday'],
     start_time: '20:00',
-    alarm_sound: { name: 'Digital', uri: 'digital.mp3' },
+    alarm_sound: { name: 'Digital' },
     object_ids: ['obj_30'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: false,
     vibration: false,
     created_at: '2026-07-13T18:30:00Z',
@@ -42,13 +50,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Ler Livro',
     week_days: ['sunday'],
     start_time: '09:00',
-    alarm_sound: { name: 'Birds', uri: 'birds.mp3' },
+    alarm_sound: { name: 'Birds' },
     object_ids: ['obj_04'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 5,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 5,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -59,13 +71,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Beber Água',
     week_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
     start_time: '10:30',
-    alarm_sound: { name: 'Water', uri: 'water.mp3' },
+    alarm_sound: { name: 'Water' },
     object_ids: ['obj_05'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -76,13 +92,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Reunião',
     week_days: ['monday'],
     start_time: '14:00',
-    alarm_sound: { name: 'Meeting', uri: 'meeting.mp3' },
+    alarm_sound: { name: 'Meeting' },
     object_ids: ['obj_06'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -93,13 +113,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Estudar Backend',
     week_days: ['tuesday', 'friday'],
     start_time: '19:00',
-    alarm_sound: { name: 'Focus', uri: 'focus.mp3' },
+    alarm_sound: { name: 'Focus' },
     object_ids: ['obj_07', 'obj_08'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: false,
     vibration: false,
     created_at: '2026-07-13T18:30:00Z',
@@ -110,13 +134,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Correr',
     week_days: ['saturday'],
     start_time: '06:30',
-    alarm_sound: { name: 'Nature', uri: 'nature.mp3' },
+    alarm_sound: { name: 'Nature' },
     object_ids: ['obj_09'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -127,13 +155,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Meditação',
     week_days: ['everyday'],
     start_time: '22:00',
-    alarm_sound: { name: 'Zen', uri: 'zen.mp3' },
+    alarm_sound: { name: 'Zen' },
     object_ids: ['obj_10'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -144,13 +176,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Curso de Inglês',
     week_days: ['wednesday'],
     start_time: '18:00',
-    alarm_sound: { name: 'Bell', uri: 'bell.mp3' },
+    alarm_sound: { name: 'Bell' },
     object_ids: ['obj_11'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: false,
     vibration: false,
     created_at: '2026-07-13T18:30:00Z',
@@ -161,13 +197,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Almoço',
     week_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
     start_time: '12:00',
-    alarm_sound: { name: 'Chime', uri: 'chime.mp3' },
+    alarm_sound: { name: 'Chime' },
     object_ids: [],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -178,13 +218,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Dormir',
     week_days: ['everyday'],
     start_time: '23:30',
-    alarm_sound: { name: 'Sleep', uri: 'sleep.mp3' },
+    alarm_sound: { name: 'Sleep' },
     object_ids: ['obj_12'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -195,13 +239,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Revisar Anotações',
     week_days: ['thursday'],
     start_time: '16:00',
-    alarm_sound: { name: 'Notification', uri: 'notification.mp3' },
+    alarm_sound: { name: 'Notification' },
     object_ids: ['obj_13', 'obj_14'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: false,
     vibration: false,
     created_at: '2026-07-13T18:30:00Z',
@@ -212,13 +260,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Passear com o Cachorro',
     week_days: ['saturday', 'sunday'],
     start_time: '08:00',
-    alarm_sound: { name: 'Dog', uri: 'dog.mp3' },
+    alarm_sound: { name: 'Dog' },
     object_ids: [],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',
@@ -229,13 +281,17 @@ export const schedulersMock: SchedulerDTO[] = [
     name: 'Planejamento Semanal',
     week_days: ['sunday'],
     start_time: '21:00',
-    alarm_sound: { name: 'Planning', uri: 'planning.mp3' },
+    alarm_sound: { name: 'Planning' },
     object_ids: ['obj_15'],
-    challenge_type: 'QUIZ',
-    challenge: {
-      difficulties: ['Fácil'],
-      question_count: 10,
-    },
+    challengers: [
+      {
+        challenge_type: 'QUIZ',
+        challenge: {
+          difficulty: 'Fácil',
+          question_count: 10,
+        },
+      },
+    ],
     is_enabled: true,
     vibration: true,
     created_at: '2026-07-13T18:30:00Z',

@@ -1,23 +1,32 @@
-import { FlatList } from 'react-native';
 import { useState } from 'react';
+import { FlatList } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
 import { HeaderAction } from '@/components/common/HeaderAction';
-
 import { SoundCard } from '@/components/scheduler/SoundCard';
-
 import { mockSounds } from '@/api/mock/sounds';
+import { soundSelectionService } from '@/services/soundSelectionService';
 
-export default function Sound() {
-  const [selectedSound, setSelectedSound] = useState('Radar');
+export default function SoundScreen() {
+  const router = useRouter();
+  const { currentSound } = useLocalSearchParams();
+  
+  const [selectedSoundName, setSelectedSoundName] = useState(
+    typeof currentSound === 'string' ? currentSound : 'Radar'
+  );
 
   function handleSave() {
-    console.log('Som selecionado:', selectedSound);
+    const chosenSound = mockSounds.find((s) => s.name === selectedSoundName) || mockSounds[0];
 
-    // futuramente:
-    // salvar no scheduler
-    // router.back()
+    console.log('[SoundScreen] Som escolhido:', chosenSound);
+
+    // 1. Envia o som direto para o serviço global
+    soundSelectionService.selectSound(chosenSound);
+
+    // 2. Volta para a tela anterior (Create ou Edit, tanto faz)
+    router.back();
   }
 
   return (
@@ -30,17 +39,14 @@ export default function Sound() {
       <FlatList
         data={mockSounds}
         keyExtractor={(item) => item.name}
-
         renderItem={({ item }) => (
           <SoundCard
             sound={item}
-            selected={selectedSound === item.name}
-            onPress={() => setSelectedSound(item.name)}
+            selected={selectedSoundName === item.name}
+            onPress={() => setSelectedSoundName(item.name)}
           />
         )}
-
         contentContainerClassName="w-full px-4 pt-2 pb-4 gap-2"
-
         showsVerticalScrollIndicator={false}
       />
     </Screen>

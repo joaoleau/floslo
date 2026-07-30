@@ -1,12 +1,85 @@
-import { View, Text, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function Upload() {
+import { Text } from '@/components/ui/text';
+import { Input } from '@/components/ui/input';
+import { authService } from '@/services/authService';
+
+export default function RegisterScreen() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleRegister() {
+    if (!email || !username || !password) {
+      Alert.alert('Atenção', 'Preencha todos os campos.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authService.register({ email, username, password });
+      Alert.alert('Sucesso!', 'Conta criada com sucesso.');
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Falha ao criar conta');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
-    <View className="flex-1 items-center justify-center">
-      <Text className="text-lg font-bold">Upload</Text>
-      <Pressable className="mt-4 rounded bg-blue-500 px-4 py-2">
-        <Text className="text-white">Upload File</Text>
-      </Pressable>
-    </View>
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 bg-brand-100">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
+        
+        <Pressable onPress={() => router.back()} className="absolute top-14 left-6 z-10">
+          <Ionicons name="arrow-back" size={28} color="white" />
+        </Pressable>
+
+        <View className="mb-8 mt-20">
+          <Text className="text-3xl font-bold text-white mb-2">Criar Conta</Text>
+          <Text className="text-brand-50">Junte-se ao Floslo e revolucione suas manhãs.</Text>
+        </View>
+
+        <View className="w-full">
+          <Input
+            placeholder="E-mail"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            className="h-12 bg-white/10 text-white border-white/20 mb-4"
+          />
+
+          <Input
+            placeholder="Nome de usuário"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            className="h-12 bg-white/10 text-white border-white/20 mb-4"
+          />
+
+          <Input
+            placeholder="Senha"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            className="h-12 bg-white/10 text-white border-white/20 mb-8"
+          />
+
+          <Pressable
+            onPress={handleRegister}
+            disabled={isLoading}
+            className={`w-full py-4 rounded-xl items-center ${isLoading ? 'bg-brand-500/50' : 'bg-brand-500'}`}
+          >
+            {isLoading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Cadastrar</Text>}
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
