@@ -51,7 +51,6 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user := input.ToModel()
-	user.Username = &userId
 	updatedUser, err := h.userService.UpdateUserByUserId(r.Context(), userId, user)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)

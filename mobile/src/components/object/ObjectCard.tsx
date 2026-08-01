@@ -5,16 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Text } from '@/components/ui/text';
 
 import { ObjectTags } from '@/components/object/ObjectTags';
-
-export interface ObjectCardData {
-  id: string;
-  name: string;
-  extension: string;
-  tags: string[];
-}
+import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
+import { ObjectType } from '@/types/domain/Object';
 
 interface ObjectCardProps {
-  object: ObjectCardData;
+  object: ObjectType;
   onPress?: () => void;
 }
 
@@ -31,6 +26,12 @@ export function ObjectCard({ object, onPress }: ObjectCardProps) {
             <Text className="text-xs font-medium uppercase text-brand-100">{object.extension}</Text>
           </Badge>
         </View>
+
+        {object.status !== 'active' && (
+          <View className="mt-2 flex-row">
+            <ObjectStatusBadge status={object.status} />
+          </View>
+        )}
 
         <View className="mt-3">
           <ObjectTags tags={object.tags} maxVisible={3} />

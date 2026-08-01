@@ -5,14 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
-import { authService } from '@/services/authService';
+import { useRegisterMutation } from '@/hooks/useAuth';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const registerMutation = useRegisterMutation();
 
   async function handleRegister() {
     if (!email || !username || !password) {
@@ -20,15 +20,11 @@ export default function RegisterScreen() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      await authService.register({ email, username, password });
-      Alert.alert('Sucesso!', 'Conta criada com sucesso.');
+      await registerMutation.mutateAsync({ email, username, password });
       router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Falha ao criar conta');
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -73,10 +69,14 @@ export default function RegisterScreen() {
 
           <Pressable
             onPress={handleRegister}
-            disabled={isLoading}
-            className={`w-full py-4 rounded-xl items-center ${isLoading ? 'bg-brand-500/50' : 'bg-brand-500'}`}
+            disabled={registerMutation.isPending}
+            className={`w-full py-4 rounded-xl items-center ${registerMutation.isPending ? 'bg-brand-500/50' : 'bg-brand-500'}`}
           >
-            {isLoading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Cadastrar</Text>}
+            {registerMutation.isPending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text className="text-white font-bold text-lg">Cadastrar</Text>
+            )}
           </Pressable>
         </View>
       </ScrollView>

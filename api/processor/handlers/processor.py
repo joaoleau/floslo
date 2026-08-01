@@ -1,6 +1,7 @@
 import json
 import logging
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 
 from services import (
     ChunkService,
@@ -15,6 +16,8 @@ from services import (
     Object,
     build_id_with_prefix
 )
+
+FAILED_OBJECT_TTL_MINUTES = 10
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -77,70 +80,146 @@ class ProcessorHandler:
             logger.error(f"Failed extracting user_id from key={object_key}")
             return
 
-        total_pages = 0
-        total_chunks = 0
-        all_tags: set[str] = set()
-        vector_objects: list[VectorObject] = []
-
-        for content in self.s3_service.get_file_content(bucket=bucket, key=object_key):
-            total_pages += 1
-            page = content.page
-            text = content.text
-
-            try:
-                tag_result = self.tag_service.get_tags(text)
-                all_tags.update([tag.value for tag in tag_result.tags])
-            except Exception:
-                logger.exception(f"[{object_key}] Failed extracting tags for page={page}")
-
-            for chunk in self.chunk_service.chunk(text):
-                total_chunks += 1
-                try:
-                    embedding_result = self.embedding_service.generate_embedding(
-                        EmbeddingRequest(chunk_text=chunk.text, chunk_index=chunk.index, object_key=object_key)
-                    )
-                except Exception:
-                    logger.exception(f"[{object_key}] Failed generating embedding for page={page} chunk={chunk.index}")
-                    continue
-
-                metadata = VectorMetadata(
-                    user=user_id,
-                    object_key=object_key,
-                    page=page,
-                    chunk_index=chunk.index,
-                    language=tag_result.language,
-                    chunk=chunk.text
-                )
-
-                vector_objects.append(
-                    VectorObject(chunk=chunk, embedding=embedding_result.vector, metadata=metadata)
-                )
-
-        if not vector_objects:
-            logger.warning(f"No vectors generated for s3://{bucket}/{object_key}")
+        object_name = self._extract_object_name_from_key(object_key)
+        if not object_name:
+            logger.error(f"Failed extracting object name from key={object_key}")
             return
 
-        self.vector_service.save(vector_objects)
-        logger.info(f"Successfully saved {len(vector_objects)} vectors for s3://{bucket}/{object_key}")
+        object_id = build_id_with_prefix("obj")
+        created_at = datetime.now(UTC).isoformat()
 
         try:
-            object_name = self._extract_object_name_from_key(object_key)
             self.dynamo_service.save_object(
                 Object(
-                    id=build_id_with_prefix("obj"),
+                    id=object_id,
+                    name=object_name,
+                    key=object_key,
+                    user_id=user_id,
+                    tags=[],
+                    status="processing",
+                    created_at=created_at,
+                    vector_ids=[],
+                )
+            )
+        except Exception:
+            logger.exception(f"Failed saving initial 'processing' record for s3://{bucket}/{object_key}")
+            return
+
+        vector_save_result = None
+
+        try:
+            total_pages = 0
+            total_chunks = 0
+            all_tags: set[str] = set()
+            vector_objects: list[VectorObject] = []
+
+            for content in self.s3_service.get_file_content(bucket=bucket, key=object_key):
+                total_pages += 1
+                page = content.page
+                text = content.text
+
+                try:
+                    tag_result = self.tag_service.get_tags(text)
+                    all_tags.update([tag.value for tag in tag_result.tags])
+                except Exception:
+                    logger.exception(f"[{object_key}] Failed extracting tags for page={page}")
+
+                for chunk in self.chunk_service.chunk(text):
+                    total_chunks += 1
+                    try:
+                        embedding_result = self.embedding_service.generate_embedding(
+                            EmbeddingRequest(chunk_text=chunk.text, chunk_index=chunk.index, object_key=object_key)
+                        )
+                    except Exception:
+                        logger.exception(f"[{object_key}] Failed generating embedding for page={page} chunk={chunk.index}")
+                        continue
+
+                    metadata = VectorMetadata(
+                        user=user_id,
+                        object_key=object_key,
+                        page=page,
+                        chunk_index=chunk.index,
+                        language=tag_result.language,
+                        chunk=chunk.text
+                    )
+
+                    vector_objects.append(
+                        VectorObject(chunk=chunk, embedding=embedding_result.vector, metadata=metadata)
+                    )
+
+            if not vector_objects:
+                raise RuntimeError(f"No vectors generated for s3://{bucket}/{object_key}")
+
+            vector_save_result = self.vector_service.save(vector_objects)
+            logger.info(f"Successfully saved {len(vector_objects)} vectors for s3://{bucket}/{object_key}")
+
+            self.dynamo_service.save_object(
+                Object(
+                    id=object_id,
                     name=object_name,
                     key=object_key,
                     user_id=user_id,
                     tags=list(all_tags),
                     status="active",
-                    created_at=None,
+                    created_at=created_at,
+                    vector_ids=vector_save_result.vector_ids,
+                )
+            )
+
+            logger.info(f"Ingestion completed for s3://{bucket}/{object_key}. Pages={total_pages}, Chunks={total_chunks}")
+
+        except Exception:
+            logger.exception(f"Ingestion failed for s3://{bucket}/{object_key}")
+            self._handle_ingestion_failure(
+                bucket=bucket,
+                object_key=object_key,
+                object_id=object_id,
+                object_name=object_name,
+                user_id=user_id,
+                created_at=created_at,
+                vector_ids=vector_save_result.vector_ids if vector_save_result else [],
+            )
+
+    def _handle_ingestion_failure(
+        self,
+        bucket: str,
+        object_key: str,
+        object_id: str,
+        object_name: str,
+        user_id: str,
+        created_at: str,
+        vector_ids: list[str],
+    ) -> None:
+        if vector_ids:
+            try:
+                self.vector_service.delete(vector_ids)
+            except Exception:
+                logger.exception(f"Failed cleaning up orphaned vectors for s3://{bucket}/{object_key}")
+
+        ttl = int((datetime.now(UTC) + timedelta(minutes=FAILED_OBJECT_TTL_MINUTES)).timestamp())
+
+        try:
+            self.dynamo_service.save_object(
+                Object(
+                    id=object_id,
+                    name=object_name,
+                    key=object_key,
+                    user_id=user_id,
+                    tags=[],
+                    status="failed",
+                    created_at=created_at,
+                    vector_ids=[],
+                    ttl=ttl,
                 )
             )
         except Exception:
-            logger.exception(f"Failed saving DynamoDB metadata for s3://{bucket}/{object_key}")
-            raise
+            logger.exception(f"Failed saving 'failed' record for s3://{bucket}/{object_key}")
+            return
 
-        logger.info(f"Ingestion completed for s3://{bucket}/{object_key}. Pages={total_pages}, Chunks={total_chunks}")
+        try:
+            self.s3_service.delete_file(bucket=bucket, key=object_key)
+        except Exception:
+            logger.exception(f"Failed deleting S3 object after ingestion failure s3://{bucket}/{object_key}")
 
     def _handle_delete_event(self, bucket: str, object_key: str) -> None:
         pass

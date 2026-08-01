@@ -6,38 +6,32 @@ import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
 import { HeaderAction } from '@/components/common/HeaderAction';
 import { SoundCard } from '@/components/scheduler/SoundCard';
-import { mockSounds } from '@/api/mock/sounds';
+import { soundService } from '@/services/soundService';
 import { soundSelectionService } from '@/services/soundSelectionService';
 
 export default function SoundScreen() {
   const router = useRouter();
   const { currentSound } = useLocalSearchParams();
-  
+  const sounds = soundService.getAvailableSounds();
+
   const [selectedSoundName, setSelectedSoundName] = useState(
-    typeof currentSound === 'string' ? currentSound : 'Radar'
+    typeof currentSound === 'string' ? currentSound : sounds[0]?.name
   );
 
   function handleSave() {
-    const chosenSound = mockSounds.find((s) => s.name === selectedSoundName) || mockSounds[0];
+    const chosenSound = sounds.find((s) => s.name === selectedSoundName) || sounds[0];
 
-    console.log('[SoundScreen] Som escolhido:', chosenSound);
-
-    // 1. Envia o som direto para o serviço global
+    // Envia o som direto para o serviço global e volta para a tela anterior (Create ou Edit)
     soundSelectionService.selectSound(chosenSound);
-
-    // 2. Volta para a tela anterior (Create ou Edit, tanto faz)
     router.back();
   }
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <Header
-        title="Selecionar Som"
-        rightAction={<HeaderAction icon="checkmark" onPress={handleSave} />}
-      />
+      <Header title="Selecionar Som" rightAction={<HeaderAction icon="checkmark" onPress={handleSave} />} />
 
       <FlatList
-        data={mockSounds}
+        data={sounds}
         keyExtractor={(item) => item.name}
         renderItem={({ item }) => (
           <SoundCard

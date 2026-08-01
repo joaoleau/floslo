@@ -9,15 +9,15 @@ export interface QuizAlternativeDTO {
 }
 
 export interface ChunkDTO {
-  Content: string;
-  Score: number;
-  ObjectKey: string;
-  Page: number;
-  ChunkIndex: number;
-  Language: string;
+  content: string;
+  score: number;
+  object_key: string;
+  page: number;
+  chunk_index: number;
+  language: string;
 }
 
-export interface QuizChallengeDataDTO {
+export interface GeneratedQuizDTO {
   question: string;
   alternatives: QuizAlternativeDTO[];
   explanation: string;
@@ -26,15 +26,11 @@ export interface QuizChallengeDataDTO {
   source_chunks: ChunkDTO[];
 }
 
-export interface GeneratedQuizChallengeDTO {
-  challenge_type: 'QUIZ';
-  data: QuizChallengeDataDTO;
+export interface RAGRequestDTO {
+  scheduler_id: string;
 }
-
-// Quando houver outros tipos (FLASHCARD, MATH), adicionaremos com um "Union Type" (|)
-export type GeneratedChallengeDTO = GeneratedQuizChallengeDTO;
 
 export interface RAGDTO {
   scheduler: SchedulerDTO;
-  challenges: GeneratedChallengeDTO[];
+  quizzes: GeneratedQuizDTO[];
 }

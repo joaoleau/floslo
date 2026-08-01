@@ -3,16 +3,16 @@ import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Ale
 import { useRouter } from 'expo-router';
 
 // Usando seus componentes customizados!
-import { Text } from '@/components/ui/text'; 
+import { Text } from '@/components/ui/text';
 import { Input } from '@/components/ui/input';
 
-import { authService } from '@/services/authService';
+import { useLoginMutation } from '@/hooks/useAuth';
 
 export default function LoginScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const loginMutation = useLoginMutation();
 
   async function handleLogin() {
     if (!username || !password) {
@@ -20,14 +20,11 @@ export default function LoginScreen() {
       return;
     }
 
-    setIsLoading(true);
     try {
-      await authService.login({ username, password });
-      router.replace('/(tabs)'); 
+      await loginMutation.mutateAsync({ username, password });
+      router.replace('/(tabs)');
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Falha ao fazer login');
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -67,10 +64,10 @@ export default function LoginScreen() {
 
         <Pressable
           onPress={handleLogin}
-          disabled={isLoading}
-          className={`w-full py-4 rounded-xl items-center mt-6 ${isLoading ? 'bg-brand-500/50' : 'bg-brand-500'}`}
+          disabled={loginMutation.isPending}
+          className={`w-full py-4 rounded-xl items-center mt-6 ${loginMutation.isPending ? 'bg-brand-500/50' : 'bg-brand-500'}`}
         >
-          {isLoading ? (
+          {loginMutation.isPending ? (
             <ActivityIndicator color="white" />
           ) : (
             <Text className="text-white font-bold text-lg">Entrar</Text>

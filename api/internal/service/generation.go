@@ -53,27 +53,33 @@ func NewGenerationService(modelClient *bedrockruntime.Client,modelId string) *Ge
 	}
 }
 
-func (s *GenerationService) GenerateQuiz(ctx context.Context, query string, tag string, contextText string) (*GeneratedQuiz, error) {
+func (s *GenerationService) GenerateQuizzes(ctx context.Context, query string, tag string, contextText string, count int, difficulty string) ([]*GeneratedQuiz, error) {
 	prompt := fmt.Sprintf(`
 You are an intelligent educational quiz generator.
 
 Based ONLY on the provided context,
-generate ONE multiple choice study question.
+generate %d distinct multiple choice study questions, at difficulty level: %s.
+
+All questions MUST be distinct from each other and grounded ONLY in the provided context.
 
 You MUST respond ONLY with valid JSON.
 
 {
-  "question": "string",
-  "alternatives": [
+  "quizzes": [
     {
-      "id": "A",
-      "text": "string",
-      "correct": false
+      "question": "string",
+      "alternatives": [
+        {
+          "id": "A",
+          "text": "string",
+          "correct": false
+        }
+      ],
+      "explanation": "string",
+      "difficulty": "easy|medium|hard",
+      "tag": "string"
     }
-  ],
-  "explanation": "string",
-  "difficulty": "easy|medium|hard",
-  "tag": "string"
+  ]
 }
 
 CONTEXT:
@@ -81,7 +87,12 @@ CONTEXT:
 
 TOPIC:
 %s
-`, contextText, query)
+`, count, difficulty, contextText, query)
+
+	maxTokens := 500 + count*300
+	if maxTokens > 4000 {
+		maxTokens = 4000
+	}
 
 	body := map[string]interface{}{
 		"messages": []map[string]interface{}{
@@ -95,7 +106,7 @@ TOPIC:
 			},
 		},
 		"inferenceConfig": map[string]interface{}{
-			"max_new_tokens": 500,
+			"max_new_tokens": maxTokens,
 			"temperature":    0.8,
 			"top_p":          0.9,
 		},
@@ -133,17 +144,24 @@ TOPIC:
 
 	raw = cleanJSONResponse(raw)
 
-	var generated GeneratedQuiz
+	var parsed struct {
+		Quizzes []GeneratedQuiz `json:"quizzes"`
+	}
 
-	if err := json.Unmarshal([]byte(raw), &generated); err != nil {
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
 		return nil, err
 	}
 
-	if generated.Tag == "" {
-		generated.Tag = tag
+	generated := make([]*GeneratedQuiz, len(parsed.Quizzes))
+	for i := range parsed.Quizzes {
+		quiz := parsed.Quizzes[i]
+		if quiz.Tag == "" {
+			quiz.Tag = tag
+		}
+		generated[i] = &quiz
 	}
 
-	return &generated, nil
+	return generated, nil
 }
 
 func cleanJSONResponse(text string) string {

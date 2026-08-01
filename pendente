@@ -1,0 +1,25 @@
+Fluxo de caso um objeto seja deletado, mas ele esta associado a um scheduler, e esse scheduler so tinha esse objeto. O schdeduler tera que ficar inativo e talvez uma mensagem antes de deletar que informe que existe relação ou coisa assim.
+
+Editar um scheduler, pra adicionar objeto nao ta vinculando
+
+Tags tao ficando com espaço em branco tipo um monte de espaço depois do nome
+
+Pós fazer upload do objeto redireciona pra tela, mas nao vem nenhuma info de q o objeto ta sendo processado.
+
+Se eu saio duma conta e vou pra outro no mesmo dispositivo parece que o token é mantido, ou seja, uso otoken de outra pessoa (ou a tela de get me esta bugada).
+
+yake + llm
+
+idioma nos quizz
+
+mudar pra modelo de inferencia com nova2
+
+flashcard
+
+melhorar estetica do front
+
+deixa como opção de perfil o auto force ou procastinador
+
+quem sabe uma forma de gerar métricas pra um painel de acompanhamento evolutivo, que detalhe
+
+adicionar no front na hora de escolher o challenger ter um icone de ? que inform o que é aquele challenger

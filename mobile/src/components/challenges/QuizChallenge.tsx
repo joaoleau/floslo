@@ -3,16 +3,16 @@ import { View, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { GeneratedQuizChallenge } from '@/types/domain/RAG';
+import { Quiz } from '@/types/domain/RAG';
 
 interface QuizChallengeProps {
-  challenge: GeneratedQuizChallenge;
+  quiz: Quiz;
   currentIndex: number;
-  totalChallenges: number;
+  totalQuizzes: number;
   onSuccess: () => void;
 }
 
-export function QuizChallenge({ challenge, currentIndex, totalChallenges, onSuccess }: QuizChallengeProps) {
+export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: QuizChallengeProps) {
   const [wrongAnswerId, setWrongAnswerId] = useState<string | null>(null);
   const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
 
@@ -29,14 +29,17 @@ export function QuizChallenge({ challenge, currentIndex, totalChallenges, onSucc
   }
 
   // Define a cor da badge de dificuldade
-  const difficultyColor = 
-    challenge.data.difficulty.toLowerCase() === 'fácil' ? 'text-green-600' :
-    challenge.data.difficulty.toLowerCase() === 'médio' ? 'text-yellow-600' : 'text-red-600';
+  const difficultyColor =
+    quiz.difficulty.toLowerCase() === 'easy'
+      ? 'text-green-600'
+      : quiz.difficulty.toLowerCase() === 'medium'
+        ? 'text-yellow-600'
+        : 'text-red-600';
 
   return (
     // Adicionado flex-shrink e removido o p-6 (o padding agora fica no ScrollView)
     <View className="w-full max-w-sm bg-white rounded-3xl shadow-lg flex-shrink">
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={true}
         // Usamos style inline para o padding do conteúdo para garantir compatibilidade no ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 32 }}
@@ -47,38 +50,38 @@ export function QuizChallenge({ challenge, currentIndex, totalChallenges, onSucc
             <View className="flex-row items-center gap-2 flex-1">
               <Ionicons name="school" size={20} color="#33405C" />
               <Text className="font-semibold text-zinc-700" numberOfLines={1}>
-                {challenge.data.tag} • <Text className={difficultyColor}>{challenge.data.difficulty}</Text>
+                {quiz.tag} • <Text className={difficultyColor}>{quiz.difficulty}</Text>
               </Text>
             </View>
             <Text className="text-sm font-bold text-brand-100 ml-2">
-              {currentIndex + 1} / {totalChallenges}
+              {currentIndex + 1} / {totalQuizzes}
             </Text>
           </View>
 
           {/* PERGUNTA */}
-          <Text className="text-xl font-bold text-zinc-800 leading-snug">
-            {challenge.data.question}
-          </Text>
+          <Text className="text-xl font-bold text-zinc-800 leading-snug">{quiz.question}</Text>
 
           {/* ALTERNATIVAS */}
           <View className="gap-3">
-            {challenge.data.alternatives.map((alt) => {
+            {quiz.alternatives.map((alt) => {
               const isWrong = wrongAnswerId === alt.id;
               const isCorrect = correctAnswerId === alt.id;
-              
+
               return (
                 <Pressable
                   key={alt.id}
                   onPress={() => handleSelectAlternative(alt.id, alt.correct)}
                   className={`w-full p-4 rounded-xl border flex-row items-center justify-between ${
-                    isWrong 
-                      ? 'bg-red-50 border-red-400' 
-                      : isCorrect 
+                    isWrong
+                      ? 'bg-red-50 border-red-400'
+                      : isCorrect
                         ? 'bg-green-50 border-green-400'
                         : 'bg-zinc-50 border-zinc-200 active:bg-zinc-100'
                   }`}
                 >
-                  <Text className={`flex-1 font-medium ${isWrong ? 'text-red-700' : isCorrect ? 'text-green-700' : 'text-zinc-700'}`}>
+                  <Text
+                    className={`flex-1 font-medium ${isWrong ? 'text-red-700' : isCorrect ? 'text-green-700' : 'text-zinc-700'}`}
+                  >
                     {alt.text}
                   </Text>
                   {isWrong && <Ionicons name="close-circle" size={20} color="#EF4444" />}
@@ -96,9 +99,7 @@ export function QuizChallenge({ challenge, currentIndex, totalChallenges, onSucc
                   <Ionicons name="bulb" size={18} color="#33405C" />
                   <Text className="font-bold text-brand-100">Explicação</Text>
                 </View>
-                <Text className="text-zinc-700 leading-relaxed text-sm">
-                  {challenge.data.explanation}
-                </Text>
+                <Text className="text-zinc-700 leading-relaxed text-sm">{quiz.explanation}</Text>
               </View>
 
               <Button onPress={onSuccess} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">

@@ -21,5 +21,5 @@ func (s *SchedulerObjectLink) GetKey() map[string]types.AttributeValue {
 
 func (s *SchedulerObjectLink) SetKeys() {
 	s.PK = "USER#" + s.UserId
-	s.SK = "OBJECTLINK#" + s.ObjectId + "#SCHEDULER" + s.SchedulerId
+	s.SK = "OBJECTLINK#" + s.ObjectId + "#SCHEDULER#" + s.SchedulerId
 }

@@ -28,7 +28,7 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
 
   const date = useMemo(() => parseTime(value), [value]);
 
-  function handleValueChange(event: any, selectedDate: Date) {
+  function handleChange(_event: unknown, selectedDate?: Date) {
     if (Platform.OS === 'android') {
       setOpen(false);
     }
@@ -55,8 +55,7 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
           mode="time"
           is24Hour
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onValueChange={handleValueChange}
-          onDismiss={() => setOpen(false)}
+          onChange={handleChange}
         />
       )}
     </>

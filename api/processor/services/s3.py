@@ -96,6 +96,10 @@ class S3Service:
         finally:
             obj["Body"].close()
 
+    def delete_file(self, bucket: str, key: str) -> None:
+        self.s3_client.delete_object(Bucket=bucket, Key=key)
+        logger.info(f"Successfully deleted object s3://{bucket}/{key}")
+
     def _validate_file_size(self, bucket: str, key: str) -> None:
         metadata = self.s3_client.head_object(Bucket=bucket, Key=key)
         size_mb = metadata["ContentLength"] / 1024 / 1024

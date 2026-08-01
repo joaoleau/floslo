@@ -2,9 +2,11 @@ export interface Sound {
   name: string;
 }
 
+export type QuizDifficulty = 'easy' | 'medium' | 'hard';
+
 export interface QuizChallenge {
   questionCount: number;
-  difficulty: string;
+  difficulty: QuizDifficulty;
 }
 
 export interface Challenger {
@@ -17,7 +19,7 @@ export interface Scheduler {
   name: string;
   weekDays: string[];
   startTime: string;
-  alarmSound: Sound;
+  alarmSound: string;
   objectIds: string[];
   challengers: Challenger[];
   enabled: boolean;

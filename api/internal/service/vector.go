@@ -13,6 +13,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3vectors/types"
 )
 
+// deleteVectorsBatchSize caps each DeleteVectors call to stay within the S3 Vectors API limit per request.
+const deleteVectorsBatchSize = 500
+
 type RetrievedChunk struct {
 	Content    string
 	Score      float64
@@ -162,5 +165,36 @@ func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectK
 
 	logger.Log.Info("query vectors success",logger.String("object_key", objectKey),logger.Any("vectors_found", len(output.Vectors)))
 
-	return output.Vectors, nil 
+	return output.Vectors, nil
+}
+
+// DeleteVectors deletes vectors by their exact keys (as returned by VectorSaveResult at
+// ingestion time and persisted on the object record), batching requests to stay within
+// the S3 Vectors DeleteVectors per-call limit. This is the primary, O(1)-lookup deletion
+// path: no scan or search of the index is needed because the caller already knows exactly
+// which keys belong to the object.
+func (s *VectorService) DeleteVectors(ctx context.Context, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+
+	for i := 0; i < len(keys); i += deleteVectorsBatchSize {
+		end := i + deleteVectorsBatchSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+
+		_, err := s.Client.DeleteVectors(ctx, &s3vectors.DeleteVectorsInput{
+			VectorBucketName: aws.String(s.VectorBucket),
+			IndexName:        aws.String(s.VectorIndex),
+			Keys:             keys[i:end],
+		})
+		if err != nil {
+			logger.Log.Error("failed deleting vector batch", logger.Any("error", err), logger.Any("batch_size", end-i))
+			return fmt.Errorf("failed deleting vectors: %w", err)
+		}
+	}
+
+	logger.Log.Info("deleted vectors", logger.Any("count", len(keys)))
+	return nil
 }

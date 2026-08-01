@@ -22,6 +22,7 @@ type Repositories struct {
 	UserRepository *irepository.UserRepository
 	SchedulerRepository *irepository.SchedulerRepository
 	SchedulerObjectLinkRepository *irepository.SchedulerObjectLinkRepository
+	ObjectRepository *irepository.ObjectRepository
 }
 
 type Services struct {
@@ -29,6 +30,9 @@ type Services struct {
 	AuthService *iservice.AuthService
 	StorageService *iservice.StorageService
 	SchedulerService *iservice.SchedulerService
+	EmbeddingService *iservice.EmbeddingService
+	VectorService *iservice.VectorService
+	ObjectService *iservice.ObjectService
 }
 
 type Handlers struct {
@@ -36,6 +40,7 @@ type Handlers struct {
 	AuthHandler *ihandler.AuthHandler
 	StorageHandler *ihandler.StorageHandler
 	SchedulerHandler *ihandler.SchedulerHandler
+	ObjectHandler *ihandler.ObjectHandler
 }
 
 func handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -80,6 +85,7 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Use(imiddleware.JWTMiddleware(cfg))
 			r.Get("/storage/list", handlers.StorageHandler.ListObjects)
 			r.Post("/storage/upload", handlers.StorageHandler.UploadObject)
+			r.Post("/storage/download", handlers.StorageHandler.DownloadObject)
 			r.Delete("/storage/delete", handlers.StorageHandler.DeleteObject)
 		})
 
@@ -91,6 +97,14 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Delete("/scheduler/{id}", handlers.SchedulerHandler.DeleteSchedulerById)
 			r.Get("/scheduler", handlers.SchedulerHandler.ListSchedulers)
 		})
+
+		r.Group(func(r chi.Router) {
+			r.Use(imiddleware.JWTMiddleware(cfg))
+			r.Get("/objects", handlers.ObjectHandler.ListObjects)
+			r.Get("/objects/{id}", handlers.ObjectHandler.GetObjectById)
+			r.Put("/objects/{id}/tags", handlers.ObjectHandler.UpdateObjectTags)
+			r.Delete("/objects/{id}", handlers.ObjectHandler.DeleteObject)
+		})
 	})
 }
 
@@ -100,17 +114,25 @@ func setupHandlers(services *Services) *Handlers {
 		AuthHandler: ihandler.NewAuthHandler(services.AuthService),
 		StorageHandler: ihandler.NewStorageHandler(services.StorageService),
 		SchedulerHandler: ihandler.NewSchedulerHandler(services.SchedulerService),
+		ObjectHandler: ihandler.NewObjectHandler(services.ObjectService),
 	}
 }
 
 func setupServices(cfg *config.Config, repos *Repositories) *Services {
 	storageService := iservice.NewStorageService(cfg.BucketName, cfg.S3Client)
+	embeddingService := iservice.NewEmbeddingService(cfg.BedrockRuntimeClient, cfg.EmbeddingModelId)
+	vectorService := iservice.NewVectorService(cfg.S3VectorsClient, embeddingService, cfg.VectorBucketName, cfg.VectorIndexName)
+	schedulerService := iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService)
+	objectService := iservice.NewObjectService(repos.ObjectRepository, repos.SchedulerObjectLinkRepository, storageService, vectorService)
 
 	return &Services{
-		UserService: iservice.NewUserService(repos.UserRepository),
+		UserService: iservice.NewUserService(repos.UserRepository, objectService, schedulerService, storageService),
 		AuthService: iservice.NewAuthService(repos.UserRepository, cfg.JWTSecret),
 		StorageService: storageService,
-		SchedulerService: iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository,storageService),
+		SchedulerService: schedulerService,
+		EmbeddingService: embeddingService,
+		VectorService: vectorService,
+		ObjectService: objectService,
 	}
 }
 
@@ -119,5 +141,6 @@ func setupRepositories(db *dynamodb.Client, table string) *Repositories {
 		UserRepository: irepository.NewUserRepository(db, table),
 		SchedulerRepository: irepository.NewSchedulerRepository(db, table),
 		SchedulerObjectLinkRepository: irepository.NewSchedulerObjectLinkRepository(db, table),
+		ObjectRepository: irepository.NewObjectRepository(db, table),
 	}
 }

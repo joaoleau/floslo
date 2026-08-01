@@ -115,9 +115,10 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 	update := expression.Set(expression.Name("name"), expression.Value(scheduler.Name)).
 		Set(expression.Name("weekdays"), expression.Value(scheduler.WeekDays)).
 		Set(expression.Name("start_time"), expression.Value(scheduler.StartTime)).
-		Set(expression.Name("snooze_duration"), expression.Value(scheduler.SnoozeDuration)).
 		Set(expression.Name("alarm_sound"), expression.Value(scheduler.AlarmSound)).
+		Set(expression.Name("vibration"), expression.Value(scheduler.Vibration)).
 		Set(expression.Name("object_ids"), expression.Value(scheduler.ObjectIds)).
+		Set(expression.Name("challengers"), expression.Value(scheduler.Challengers)).
 		Set(expression.Name("enabled"), expression.Value(scheduler.Enabled)).
 		Set(expression.Name("updated_at"), expression.Value(time.Now().UTC().Format(time.RFC3339)))
 	expr, err := expression.NewBuilder().WithUpdate(update).Build()

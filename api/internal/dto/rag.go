@@ -11,12 +11,12 @@ type QuizAlternativeDTO struct {
 }
 
 type ChunkDTO struct {
-	Content    string
-	Score      float64
-	ObjectKey  string
-	Page       int
-	ChunkIndex int
-	Language   string
+	Content    string  `json:"content"`
+	Score      float64 `json:"score"`
+	ObjectKey  string  `json:"object_key"`
+	Page       int     `json:"page"`
+	ChunkIndex int     `json:"chunk_index"`
+	Language   string  `json:"language"`
 }
 
 type GeneratedQuizDTO struct {
@@ -30,5 +30,5 @@ type GeneratedQuizDTO struct {
 
 type RAGResponseDTO struct {
 	Scheduler SchedulerResponseDTO `json:"scheduler"`
-	Quiz GeneratedQuizDTO `json:"quiz"`
+	Quizzes []GeneratedQuizDTO `json:"quizzes"`
 }

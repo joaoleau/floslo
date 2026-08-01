@@ -1,4 +1,4 @@
-// src/types/domain/RAGResponse.ts
+// src/types/domain/RAG.ts
 
 import { Scheduler } from './Scheduler';
 
@@ -17,7 +17,7 @@ export interface SourceChunk {
   language: string;
 }
 
-export interface QuizChallengeData {
+export interface Quiz {
   question: string;
   alternatives: QuizAlternative[];
   explanation: string;
@@ -26,15 +26,7 @@ export interface QuizChallengeData {
   sourceChunks: SourceChunk[];
 }
 
-export interface GeneratedQuizChallenge {
-  challengeType: 'QUIZ';
-  data: QuizChallengeData;
-}
-
-// Futuros desafios entram aqui
-export type GeneratedChallenge = GeneratedQuizChallenge;
-
 export interface RAG {
   scheduler: Scheduler;
-  challenges: GeneratedChallenge[];
+  quizzes: Quiz[];
 }
