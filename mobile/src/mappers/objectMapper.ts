@@ -18,6 +18,7 @@ export const objectMapper = {
       name: parseBaseName(raw.name),
       extension: parseExtension(raw.name),
       tags: raw.tags ?? [],
+      status: raw.status,
     };
   },
 };

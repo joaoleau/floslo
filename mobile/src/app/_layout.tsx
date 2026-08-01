@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, useColorScheme } from 'react-native'; // Removido View e ActivityIndicator
+import { AppState, AppStateStatus, Platform, useColorScheme } from 'react-native'; // Removido View e ActivityIndicator
 import { ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import notifee, { EventType, AndroidCategory } from '@notifee/react-native';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, focusManager } from '@tanstack/react-query';
 
 import { authService } from '@/services/authService';
 import { onSessionExpired } from '@/api/http/client'; 
@@ -59,10 +59,25 @@ export default function RootLayout() {
   // Expulsa o usuário caso o interceptor do Axios avise que a sessão morreu
   useEffect(() => {
     onSessionExpired(async () => {
-      await authService.logout(); 
+      await authService.logout();
       router.replace('/(auth)/login');
     });
   }, [router]);
+
+  // React Query has no notion of "app foregrounded" on native by default — without
+  // this, refetchInterval/refetchOnWindowFocus never resume reliably after the app
+  // goes to background (the OS can suspend JS timers), so screens like the objects
+  // list stay stuck showing stale data (e.g. "processing") until a full app restart.
+  useEffect(() => {
+    function onAppStateChange(status: AppStateStatus) {
+      if (Platform.OS !== 'web') {
+        focusManager.setFocused(status === 'active');
+      }
+    }
+
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+    return () => subscription.remove();
+  }, []);
 
   // ==========================================
   // EFEITO 1: CHECAR AUTENTICAÇÃO E ROTA INICIAL

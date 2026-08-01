@@ -1,5 +1,7 @@
-import { useRouter } from 'expo-router';
+import { useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { Screen } from '@/components/common/Screen';
@@ -9,12 +11,23 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { ObjectCard } from '@/components/object/ObjectCard';
 
 import { useObjectsQuery } from '@/hooks/useObjects';
+import { queryKeys } from '@/lib/queryKeys';
 
 export default function ObjectsScreen() {
   const router = useRouter();
   const scrollY = useSharedValue(0);
+  const queryClient = useQueryClient();
 
   const { data: objects = [], isPending, isError, error, refetch } = useObjectsQuery();
+
+  // Belt-and-suspenders alongside the refetchInterval polling in useObjectsQuery:
+  // coming back to this tab (e.g. after uploading) always checks for fresh status,
+  // instead of relying solely on the interval timer surviving navigation/backgrounding.
+  useFocusEffect(
+    useCallback(() => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.objects.all });
+    }, [queryClient])
+  );
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {

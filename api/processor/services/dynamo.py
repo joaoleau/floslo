@@ -16,6 +16,8 @@ class Object:
     tags: list[str]
     status: str
     created_at: str
+    vector_ids: list[str]
+    ttl: int | None = None
 
 
 @dataclass(slots=True)
@@ -53,15 +55,21 @@ class DynamoService:
             "user_id": record.user_id,
             "tags": record.tags,
             "status": record.status,
-            "created_at": record.created_at if record.created_at else datetime.now(UTC).isoformat()
+            "created_at": record.created_at if record.created_at else datetime.now(UTC).isoformat(),
+            "vector_ids": record.vector_ids
         }
+        # ttl is only ever set on the "failed" transition. put_item replaces the whole
+        # item, so leaving this key out on "processing"/"active" writes is enough to
+        # ensure those states never carry a stale ttl from a previous write.
+        if record.ttl is not None:
+            item["ttl"] = record.ttl
 
         try:
             self.client.put_item(
                 TableName=self.table_name,
                 Item={key: self._serialize_value(value) for key, value in item.items()}
             )
-            logger.info(f"Successfully saved object metadata for object_id={record.id}")
+            logger.info(f"Successfully saved object metadata for object_id={record.id} status={record.status}")
         except Exception:
             logger.exception(f"Failed saving object metadata for object_id={record.id}")
             raise
@@ -88,7 +96,9 @@ class DynamoService:
                 user_id=self._deserialize_value(item["user_id"]),
                 tags=self._deserialize_value(item["tags"]),
                 status=self._deserialize_value(item["status"]),
-                created_at=self._deserialize_value(item["created_at"])
+                created_at=self._deserialize_value(item["created_at"]),
+                vector_ids=self._deserialize_value(item["vector_ids"]) if "vector_ids" in item else [],
+                ttl=self._deserialize_value(item["ttl"]) if "ttl" in item else None
             )
         except Exception:
             logger.exception(f"Failed retrieving object metadata for object_id={object_id}")

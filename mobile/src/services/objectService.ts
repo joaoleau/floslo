@@ -24,10 +24,10 @@ export const objectService = {
   },
 
   async deleteObject(id: string): Promise<void> {
-    // The storage-delete endpoint keys off the original S3 filename, not the
-    // object's DynamoDB id, so look it up first.
-    const raw = await objectsApi.getById(id);
-    await storageApi.deleteObject(raw.name);
+    // Cascades server-side: S3 file, S3 Vectors embeddings, scheduler links and the
+    // DynamoDB record. Do not fall back to storageApi.deleteObject — that only
+    // removes the S3 file and leaves the rest orphaned.
+    await objectsApi.remove(id);
   },
 
   async upload(file: { uri: string; name: string; mimeType?: string }): Promise<void> {

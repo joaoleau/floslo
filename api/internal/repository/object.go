@@ -61,6 +61,13 @@ func (r *ObjectRepository) GetObjectById(ctx context.Context, userId string, obj
 		return nil, fmt.Errorf("failed to unmarshal object: %w", err)
 	}
 
+	// DynamoDB's TTL sweep is best-effort and can lag well past the expiry timestamp,
+	// so a "failed" object past its ttl is treated as already gone here instead of
+	// waiting on physical deletion to hide it.
+	if object.IsExpired() {
+		return nil, fmt.Errorf("object not found")
+	}
+
 	return &object, nil
 }
 
@@ -90,6 +97,11 @@ func (r *ObjectRepository) ListObjectsByUser(ctx context.Context, userId string)
 		if err != nil {
 			logger.Log.Error("failed to unmarshal object: ", logger.Any("error", err))
 			return nil, fmt.Errorf("failed to unmarshal object: %w", err)
+		}
+		// See the comment in GetObjectById: hide expired "failed" objects here rather
+		// than relying on DynamoDB's best-effort TTL sweep to have deleted them yet.
+		if object.IsExpired() {
+			continue
 		}
 		objects = append(objects, &object)
 	}
@@ -137,4 +149,24 @@ func (r *ObjectRepository) UpdateObjectTags(ctx context.Context, userId string, 
 
 	logger.Log.Info("object updated: ", logger.String("object_id", objectId))
 	return &updatedObject, nil
+}
+
+func (r *ObjectRepository) DeleteObjectById(ctx context.Context, userId string, objectId string) error {
+	key, err := attributevalue.MarshalMap(map[string]string{
+		"PK": "USER#" + userId,
+		"SK": "OBJECT#" + objectId,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal key: %w", err)
+	}
+
+	_, err = r.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.table),
+		Key:       key,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete object: %w", err)
+	}
+
+	return nil
 }

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
 import { ObjectTagsList } from '@/components/object/ObjectTagsList';
+import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
 import { useObjectQuery, useUpdateObjectTagsMutation, useDeleteObjectMutation } from '@/hooks/useObjects';
 
 export default function ObjectDetails() {
@@ -100,6 +101,8 @@ export default function ObjectDetails() {
     );
   }
 
+  const isEditable = object.status === 'active';
+
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Header
@@ -108,7 +111,7 @@ export default function ObjectDetails() {
           updateTagsMutation.isPending ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <HeaderAction icon="checkmark" onPress={handleSave} />
+            <HeaderAction icon="checkmark" onPress={handleSave} disabled={!isEditable} />
           )
         }
       />
@@ -123,6 +126,17 @@ export default function ObjectDetails() {
               </Badge>
             </View>
 
+            {!isEditable && (
+              <View className="flex-row items-center justify-between">
+                <ObjectStatusBadge status={object.status} />
+                {object.status === 'failed' && (
+                  <Text className="flex-1 text-right text-sm text-zinc-500">
+                    Falha ao processar o documento.
+                  </Text>
+                )}
+              </View>
+            )}
+
             <Separator />
 
             <View className="flex-row gap-2">
@@ -130,16 +144,17 @@ export default function ObjectDetails() {
                 className="flex-1"
                 value={newTag}
                 onChangeText={setNewTag}
-                placeholder="Digite uma nova tag"
+                placeholder={isEditable ? 'Digite uma nova tag' : 'Disponível após o processamento'}
                 onSubmitEditing={addTag}
+                editable={isEditable}
               />
-              <Button onPress={addTag} className="bg-brand-100">
+              <Button onPress={addTag} className="bg-brand-100" disabled={!isEditable}>
                 <Ionicons name="add" size={18} color="white" />
               </Button>
             </View>
 
             <View className="flex-1">
-              <ObjectTagsList tags={tags} onRemoveTag={removeTag} />
+              <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
             </View>
           </Card>
 

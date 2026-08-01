@@ -14,4 +14,8 @@ export const objectsApi = {
     const body: UpdateObjectTagsRequestDTO = { tags };
     return api.put<ObjectDTO>(`/api/objects/${id}/tags`, body);
   },
+
+  remove(id: string) {
+    return api.delete<{ message: string }>(`/api/objects/${id}`);
+  },
 };

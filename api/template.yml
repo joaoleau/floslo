@@ -56,6 +56,10 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
   #########################################################
   # S3 OBJECTS
   #########################################################
@@ -149,11 +153,17 @@ Resources:
     UpdateReplacePolicy: Retain
 
     Properties:
-      IndexName: floslo-index
+      IndexName: floslo-index-v2
       DataType: float32
       Dimension: 1024
       DistanceMetric: cosine
       VectorBucketName: floslo-us-east-1-vectors
+      MetadataConfiguration:
+        NonFilterableMetadataKeys:
+          - chunk
+          - page
+          - chunk_index
+          - language
 
   #########################################################
   # API
@@ -203,6 +213,7 @@ Resources:
             - Effect: Allow
               Action:
                 - s3vectors:QueryVectors
+                - s3vectors:DeleteVectors
               Resource: "*"
 
       Environment:
@@ -211,7 +222,7 @@ Resources:
           BUCKET_NAME: floslo-us-east-1-tenants
           PARAMETER_JWT_SECRET: "/lambda/floslo/jwt_secret"
           VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
-          VECTOR_INDEX_NAME: floslo-index
+          VECTOR_INDEX_NAME: floslo-index-v2
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
 
@@ -271,7 +282,7 @@ Resources:
           BUCKET_NAME: floslo-us-east-1-tenants
           PARAMETER_JWT_SECRET: "/lambda/floslo/jwt_secret"
           VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
-          VECTOR_INDEX_NAME: floslo-index
+          VECTOR_INDEX_NAME: floslo-index-v2
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
 

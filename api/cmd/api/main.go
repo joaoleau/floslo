@@ -30,6 +30,8 @@ type Services struct {
 	AuthService *iservice.AuthService
 	StorageService *iservice.StorageService
 	SchedulerService *iservice.SchedulerService
+	EmbeddingService *iservice.EmbeddingService
+	VectorService *iservice.VectorService
 	ObjectService *iservice.ObjectService
 }
 
@@ -101,6 +103,7 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Get("/objects", handlers.ObjectHandler.ListObjects)
 			r.Get("/objects/{id}", handlers.ObjectHandler.GetObjectById)
 			r.Put("/objects/{id}/tags", handlers.ObjectHandler.UpdateObjectTags)
+			r.Delete("/objects/{id}", handlers.ObjectHandler.DeleteObject)
 		})
 	})
 }
@@ -117,13 +120,19 @@ func setupHandlers(services *Services) *Handlers {
 
 func setupServices(cfg *config.Config, repos *Repositories) *Services {
 	storageService := iservice.NewStorageService(cfg.BucketName, cfg.S3Client)
+	embeddingService := iservice.NewEmbeddingService(cfg.BedrockRuntimeClient, cfg.EmbeddingModelId)
+	vectorService := iservice.NewVectorService(cfg.S3VectorsClient, embeddingService, cfg.VectorBucketName, cfg.VectorIndexName)
+	schedulerService := iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService)
+	objectService := iservice.NewObjectService(repos.ObjectRepository, repos.SchedulerObjectLinkRepository, storageService, vectorService)
 
 	return &Services{
-		UserService: iservice.NewUserService(repos.UserRepository),
+		UserService: iservice.NewUserService(repos.UserRepository, objectService, schedulerService, storageService),
 		AuthService: iservice.NewAuthService(repos.UserRepository, cfg.JWTSecret),
 		StorageService: storageService,
-		SchedulerService: iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository,storageService),
-		ObjectService: iservice.NewObjectService(repos.ObjectRepository),
+		SchedulerService: schedulerService,
+		EmbeddingService: embeddingService,
+		VectorService: vectorService,
+		ObjectService: objectService,
 	}
 }
 

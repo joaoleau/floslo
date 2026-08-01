@@ -75,3 +75,19 @@ func (h *ObjectHandler) UpdateObjectTags(w http.ResponseWriter, r *http.Request)
 
 	utils.ResponseWithData(w, http.StatusOK, dto.ToObjectResponseDTO(updatedObject))
 }
+
+func (h *ObjectHandler) DeleteObject(w http.ResponseWriter, r *http.Request) {
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
+	if !ok {
+		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+	id := chi.URLParam(r, "id")
+
+	if err := h.ObjectService.DeleteObject(r.Context(), userId, id); err != nil {
+		utils.ResponseWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	utils.ResponseWithMessage(w, http.StatusOK, "Object deleted successfully")
+}

@@ -11,10 +11,15 @@ api/cmd/rag/build
 api/docker/
 .aws-sam/
 processor/venv/*
+processor/output/*
+!processor/output/.gitkeep
 
 mobile/node_modules
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
+processor/
+.agents/
+skills-lock.json
+mobile/skills-lock.json
 # Expo
 mobile/.expo/
 mobile/dist/
