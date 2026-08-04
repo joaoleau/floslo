@@ -31,7 +31,7 @@ class TagExtractionResult:
 
 @dataclass(slots=True)
 class TagServiceData:
-    max_keywords: int = 7
+    max_keywords: int = 15
     keyword_ngram_size: int = 3
     min_text_length: int = 50
     max_keyword_score: float = 0.08

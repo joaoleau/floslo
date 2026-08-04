@@ -1,0 +1,11 @@
+Floslo is a knowledge management platform that helps teams capture, organize and retrieve
+their documents automatically. When a user uploads a file, the ingestion pipeline extracts
+its text content, splits it into overlapping chunks, detects the document language, extracts
+representative keywords for tagging, generates vector embeddings for semantic search, and
+finally stores both the vectors and the object metadata so the document becomes searchable.
+
+This sample file exists purely to exercise the local processor clone end to end: text
+extraction, chunking with RecursiveCharacterTextSplitter, YAKE-based keyword tagging, language
+detection with langdetect, a local deterministic embedding stand-in, and JSON-based local
+storage for both the vector records and the object metadata record, mirroring what the
+production Lambda does against S3, Bedrock, S3 Vectors and DynamoDB.

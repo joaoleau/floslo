@@ -12,8 +12,13 @@ import { Button } from '@/components/ui/button';
 
 import { useUploadObjectMutation } from '@/hooks/useObjects';
 
-const ALLOWED_EXTENSIONS = ['pdf', 'txt', 'md'];
-const ALLOWED_MIME_TYPES = ['application/pdf', 'text/plain', 'text/markdown'];
+const ALLOWED_EXTENSIONS = ['pdf', 'txt', 'md', 'pptx'];
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'text/markdown',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
 
 interface PickedFile {
   uri: string;
@@ -42,7 +47,7 @@ export default function CreateObject() {
 
     const asset = result.assets[0];
     if (!ALLOWED_EXTENSIONS.includes(getExtension(asset.name))) {
-      Alert.alert('Arquivo inválido', 'Selecione um arquivo PDF, TXT ou MD.');
+      Alert.alert('Arquivo inválido', 'Selecione um arquivo PDF, TXT, MD ou PPTX.');
       return;
     }
 
@@ -80,7 +85,7 @@ export default function CreateObject() {
             ) : (
               <View className="items-center gap-1">
                 <Text className="font-semibold text-brand-100">Selecionar arquivo</Text>
-                <Text className="text-sm text-zinc-500">PDF, TXT ou MD</Text>
+                <Text className="text-sm text-zinc-500">PDF, TXT, MD ou PPTX</Text>
               </View>
             )}
           </Card>

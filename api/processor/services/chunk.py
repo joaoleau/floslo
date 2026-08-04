@@ -17,8 +17,8 @@ class Chunk:
 
 @dataclass(slots=True)
 class ChunkServiceData:
-    chunk_size: int = 1000
-    chunk_overlap: int = 200
+    chunk_size: int = 2000
+    chunk_overlap: int = 300
 
 
 class ChunkService:

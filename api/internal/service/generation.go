@@ -53,7 +53,14 @@ func NewGenerationService(modelClient *bedrockruntime.Client,modelId string) *Ge
 	}
 }
 
-func (s *GenerationService) GenerateQuizzes(ctx context.Context, query string, tag string, contextText string, count int, difficulty string) ([]*GeneratedQuiz, error) {
+func (s *GenerationService) GenerateQuizzes(ctx context.Context, query string, tags []string, contextText string, count int, difficulty string) ([]*GeneratedQuiz, error) {
+	var topicsList strings.Builder
+	for _, t := range tags {
+		topicsList.WriteString("- ")
+		topicsList.WriteString(t)
+		topicsList.WriteString("\n")
+	}
+
 	prompt := fmt.Sprintf(`
 You are an intelligent educational quiz generator.
 
@@ -61,6 +68,8 @@ Based ONLY on the provided context,
 generate %d distinct multiple choice study questions, at difficulty level: %s.
 
 All questions MUST be distinct from each other and grounded ONLY in the provided context.
+Spread the questions across the different topics below where the context supports it,
+instead of concentrating all questions on a single topic.
 
 You MUST respond ONLY with valid JSON.
 
@@ -85,9 +94,11 @@ You MUST respond ONLY with valid JSON.
 CONTEXT:
 %s
 
-TOPIC:
+TOPICS (each question should be grounded in ONE of these; set "tag" to whichever topic that specific question is really about):
 %s
-`, count, difficulty, contextText, query)
+SEARCH QUERY (what was used to retrieve the context above):
+%s
+`, count, difficulty, contextText, topicsList.String(), query)
 
 	maxTokens := 500 + count*300
 	if maxTokens > 4000 {
@@ -155,8 +166,8 @@ TOPIC:
 	generated := make([]*GeneratedQuiz, len(parsed.Quizzes))
 	for i := range parsed.Quizzes {
 		quiz := parsed.Quizzes[i]
-		if quiz.Tag == "" {
-			quiz.Tag = tag
+		if quiz.Tag == "" && len(tags) > 0 {
+			quiz.Tag = tags[0]
 		}
 		generated[i] = &quiz
 	}

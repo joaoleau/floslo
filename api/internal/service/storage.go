@@ -20,13 +20,15 @@ type StorageService struct {
 	BucketName string
 	S3Client *s3.Client
 	S3PresignClient *s3.PresignClient
+	MaxUploadSizeBytes int64
 }
 
-func NewStorageService(bucketName string, s3Client *s3.Client) *StorageService {
+func NewStorageService(bucketName string, s3Client *s3.Client, maxUploadSizeBytes int64) *StorageService {
 	return &StorageService{
 		BucketName:      bucketName,
 		S3Client:    	 s3Client,
 		S3PresignClient: s3.NewPresignClient(s3Client),
+		MaxUploadSizeBytes: maxUploadSizeBytes,
 	}
 }
 
@@ -45,18 +47,32 @@ func (s *StorageService) PresignGetObject(ctx context.Context, userId string, ob
 	return request, err
 }
 
-func (s *StorageService) PresignPutObject(ctx context.Context, userId string, objectName string, lifetimeSecs int64) (*v4.PresignedHTTPRequest, error) { 
+// PresignUploadObject returns a presigned POST (form-data) upload request, rather than a
+// presigned PUT, because only S3's POST policy conditions support enforcing an upload size
+// limit (content-length-range) -- that lets S3 itself reject an oversized upload before
+// accepting any bytes, instead of only catching it later in the processor after the object
+// already landed in the bucket.
+func (s *StorageService) PresignUploadObject(ctx context.Context, userId string, objectName string, lifetimeSecs int64) (*s3.PresignedPostRequest, error) {
 	objectKey := fmt.Sprintf("tenants/%s/context/%s", userId,	objectName)
-	
-	request, err := s.S3PresignClient.PresignPutObject(ctx, &s3.PutObjectInput{ 
-		Bucket: aws.String(s.BucketName), 
-		Key:    aws.String(objectKey), 
-		}, func(opts *s3.PresignOptions) { 
-			opts.Expires = time.Duration(lifetimeSecs * int64(time.Second)) 
-	}) 
-	if err != nil { 
+
+	request, err := s.S3PresignClient.PresignPostObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(objectKey),
+		}, func(opts *s3.PresignPostOptions) {
+			opts.Expires = time.Duration(lifetimeSecs * int64(time.Second))
+			opts.Conditions = []any{
+				[]any{"content-length-range", 0, s.MaxUploadSizeBytes},
+				// The client sends a Content-Type field (from the picked file's mime
+				// type); every non-reserved form field must have a matching policy
+				// condition or S3 rejects the whole request with 403 "Policy
+				// Condition failed". starts-with with an empty value allows any
+				// Content-Type without pinning it to a specific one.
+				[]any{"starts-with", "$Content-Type", ""},
+			}
+	})
+	if err != nil {
 		logger.Log.Error("Couldn't get a presigned request to put %v:%v.",s.BucketName, objectKey, logger.Any("error", err))
-	} 
+	}
 	return request, err
 }
 
