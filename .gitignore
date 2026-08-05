@@ -10,6 +10,7 @@ api/cmd/api/build
 api/cmd/rag/build
 api/docker/
 .aws-sam/
+processor/
 processor/venv/*
 processor/output/*
 !processor/output/.gitkeep
