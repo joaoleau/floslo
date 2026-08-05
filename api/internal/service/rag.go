@@ -50,15 +50,19 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 		return nil, fmt.Errorf("object has no tags")
 	}
 
-	tag := object.Tags[rand.Intn(len(object.Tags))]
+	selectedTags := s.selectTags(object.Tags)
 
 	logger.Log.Info(
-		"selected object and tag for RAG",
+		"selected object and tags for RAG",
 		logger.String("object_id", object.Id),
 		logger.String("object_name", object.Name),
-		logger.String("tag", tag),
+		logger.Any("tags", selectedTags),
 	)
-	query := s.generateQuery(tag)
+
+	queries := make([]string, len(selectedTags))
+	for i, selectedTag := range selectedTags {
+		queries[i] = s.generateQuery(selectedTag)
+	}
 
 	count, difficulty := s.resolveChallengeConfig(scheduler.Challengers)
 
@@ -67,7 +71,15 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 		topK = 7
 	}
 
-	chunks, err := s.VectorService.RetrieveRelevantChunks(ctx,userId, object.Key, query, int32(topK))
+	// Distribute the topK budget across the per-tag queries instead of multiplying it --
+	// keeps total context/cost comparable to a single-tag search, while still querying each
+	// tag independently so one weak/generic tag can't dominate the whole result set.
+	perQueryTopK := int32(topK) / int32(len(queries))
+	if perQueryTopK < 3 {
+		perQueryTopK = 3
+	}
+
+	chunks, err := s.VectorService.RetrieveRelevantChunksMulti(ctx, userId, object.Key, queries, perQueryTopK)
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +91,8 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 	contextText := s.buildContext(selected)
 	quizzes, err := s.GenerationService.GenerateQuizzes(
 		ctx,
-		query,
-		tag,
+		strings.Join(queries, "; "),
+		selectedTags,
 		contextText,
 		count,
 		difficulty,
@@ -96,6 +108,24 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 		Scheduler: scheduler,
 		Quizzes: quizzes,
 	}, nil
+}
+
+// selectTags picks up to 3 distinct random tags from the object's tag pool. Querying with
+// several tags (instead of a single random one) bounds the risk of one weak/generic tag
+// anchoring the whole retrieval -- see VectorService.RetrieveRelevantChunksMulti.
+func (s *RAGService) selectTags(tags []string) []string {
+	numTags := 3
+	if len(tags) < numTags {
+		numTags = len(tags)
+	}
+
+	perm := rand.Perm(len(tags))
+	selected := make([]string, numTags)
+	for i := 0; i < numTags; i++ {
+		selected[i] = tags[perm[i]]
+	}
+
+	return selected
 }
 
 func (s *RAGService) resolveChallengeConfig(challengers []model.Challenger) (int, string) {

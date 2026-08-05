@@ -1,4 +1,5 @@
 pypdf
 langdetect
 yake
-langchain-text-splitters
+docx2txt
+python-pptx

@@ -119,7 +119,7 @@ func setupHandlers(services *Services) *Handlers {
 }
 
 func setupServices(cfg *config.Config, repos *Repositories) *Services {
-	storageService := iservice.NewStorageService(cfg.BucketName, cfg.S3Client)
+	storageService := iservice.NewStorageService(cfg.BucketName, cfg.S3Client, cfg.MaxUploadSizeBytes)
 	embeddingService := iservice.NewEmbeddingService(cfg.BedrockRuntimeClient, cfg.EmbeddingModelId)
 	vectorService := iservice.NewVectorService(cfg.S3VectorsClient, embeddingService, cfg.VectorBucketName, cfg.VectorIndexName)
 	schedulerService := iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService)

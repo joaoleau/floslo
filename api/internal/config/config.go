@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -24,7 +25,10 @@ const (
 	JWTSecret   = "PARAMETER_JWT_SECRET"
 	GenerateModelId = "GENERATE_MODEL_ID"
 	EmbeddingModelId = "EMBEDDING_MODEL_ID"
+	MaxUploadSizeMB = "MAX_UPLOAD_SIZE_MB"
 )
+
+const defaultMaxUploadSizeMB = 500
 
 type Config struct {
 	DynamoTable  string
@@ -39,6 +43,7 @@ type Config struct {
 	BedrockRuntimeClient *bedrockruntime.Client
 	GenerateModelId string
 	EmbeddingModelId string
+	MaxUploadSizeBytes int64
 }
 
 func NewConfig(ctx context.Context) (*Config, error) {
@@ -95,6 +100,16 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	s3Client := s3.NewFromConfig(cfg)
 	s3VectorsClient := s3vectors.NewFromConfig(cfg)
 
+	maxUploadSizeMB := defaultMaxUploadSizeMB
+	if raw := os.Getenv(MaxUploadSizeMB); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid MAX_UPLOAD_SIZE_MB value %q: %w", raw, err)
+		}
+		maxUploadSizeMB = parsed
+	}
+	maxUploadSizeBytes := int64(maxUploadSizeMB) * 1024 * 1024
+
 	logger.Log.Info("config initialized successfully", logger.String("dynamo_table", dynamoTable), logger.String("bucket_name", bucketName))
 	return &Config{
 		DynamoTable:  dynamoTable,
@@ -109,6 +124,7 @@ func NewConfig(ctx context.Context) (*Config, error) {
 		BedrockRuntimeClient: bedrockRuntimeClient,
 		GenerateModelId: generateModelId,
 		EmbeddingModelId: embeddingModelId,
+		MaxUploadSizeBytes: maxUploadSizeBytes,
 
 	}, nil
 }

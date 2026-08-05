@@ -99,6 +99,14 @@ Resources:
                   - Name: suffix
                     Value: .md
 
+          - Event: s3:ObjectCreated:*
+            Queue: !GetAtt FlosloObjectQueue.Arn
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pptx
+
   #########################################################
   # S3 VECTOR BUCKET
   #########################################################
@@ -225,6 +233,7 @@ Resources:
           VECTOR_INDEX_NAME: floslo-index-v2
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
+          MAX_UPLOAD_SIZE_MB: "500"
 
       Events:
         Proxy:
@@ -325,6 +334,7 @@ Resources:
                 - bedrock:InvokeModel
               Resource:
                 - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
 
             - Effect: Allow
               Action:
@@ -341,6 +351,14 @@ Resources:
           VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
           VECTOR_INDEX_ARN: !GetAtt FlosloVectorIndex.IndexArn
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
+          MAX_FILE_SIZE_MB: "500"
+          CHUNK_SIZE: "2000"
+          CHUNK_OVERLAP: "300"
+          EMBEDDING_MAX_CHUNK_LENGTH: "8000"
+          TAG_REFINER_ENABLED: "true"
+          TAG_REFINER_MAX_TAGS: "100"
+          TAG_REFINER_MODEL_ID: amazon.nova-lite-v1:0
+          YAKE_MAX_KEYWORDS: "15"
 
       Events:
         ObjectQueue:

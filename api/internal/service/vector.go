@@ -65,6 +65,54 @@ func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId strin
 	return s.sortAndBuildChunks(vectors)
 }
 
+// RetrieveRelevantChunksMulti runs one real vector search per query (e.g. one per tag)
+// instead of a single search over a combined query -- this bounds the blast radius of any
+// one bad/generic tag: even if one query returns weak matches, the others still anchor the
+// context on genuinely different parts of the document. Results are merged (deduplicated by
+// page+chunk_index) and re-sorted by distance. A failure on one query is logged and skipped,
+// not fatal -- only fails if every query fails.
+func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32) ([]RetrievedChunk, error) {
+	type chunkKey struct {
+		page       int
+		chunkIndex int
+	}
+
+	seen := make(map[chunkKey]bool)
+	var merged []RetrievedChunk
+	var lastErr error
+
+	for _, query := range queries {
+		chunks, err := s.RetrieveRelevantChunks(ctx, userId, objectKey, query, perQueryTopK)
+		if err != nil {
+			lastErr = err
+			logger.Log.Error("failed retrieving chunks for one of the multi-tag queries, skipping it", logger.String("query", query), logger.Any("error", err))
+			continue
+		}
+
+		for _, chunk := range chunks {
+			key := chunkKey{page: chunk.Page, chunkIndex: chunk.ChunkIndex}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			merged = append(merged, chunk)
+		}
+	}
+
+	if len(merged) == 0 {
+		if lastErr != nil {
+			return nil, fmt.Errorf("all multi-tag queries failed: %w", lastErr)
+		}
+		return merged, nil
+	}
+
+	sort.Slice(merged, func(i, j int) bool {
+		return merged[i].Score < merged[j].Score
+	})
+
+	return merged, nil
+}
+
 func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([]RetrievedChunk, error) {
 	var chunks []RetrievedChunk
 	

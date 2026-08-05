@@ -9,6 +9,7 @@ from services import (
     EmbeddingService,
     S3Service,
     TagService,
+    TagRefinerService,
     VectorObject,
     VectorMetadata,
     VectorService,
@@ -18,6 +19,7 @@ from services import (
 )
 
 FAILED_OBJECT_TTL_MINUTES = 10
+TAG_REFINER_SAMPLE_TEXT_LENGTH = 1200
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -30,6 +32,7 @@ class HandlerData:
     vector_service: VectorService
     chunk_service: ChunkService
     dynamo_service: DynamoService
+    tag_refiner: TagRefinerService
 
 
 class ProcessorHandler:
@@ -40,6 +43,7 @@ class ProcessorHandler:
         self.vector_service = config.vector_service
         self.chunk_service = config.chunk_service
         self.dynamo_service = config.dynamo_service
+        self.tag_refiner = config.tag_refiner
 
     def process_all(self, records: list[dict]) -> None:
         total_records = len(records)
@@ -112,11 +116,15 @@ class ProcessorHandler:
             total_chunks = 0
             all_tags: set[str] = set()
             vector_objects: list[VectorObject] = []
+            tag_refiner_sample_text = ""
 
             for content in self.s3_service.get_file_content(bucket=bucket, key=object_key):
                 total_pages += 1
                 page = content.page
                 text = content.text
+
+                if not tag_refiner_sample_text and text:
+                    tag_refiner_sample_text = text[:TAG_REFINER_SAMPLE_TEXT_LENGTH]
 
                 try:
                     tag_result = self.tag_service.get_tags(text)
@@ -150,6 +158,8 @@ class ProcessorHandler:
             if not vector_objects:
                 raise RuntimeError(f"No vectors generated for s3://{bucket}/{object_key}")
 
+            refined_tags = self.tag_refiner.refine(list(all_tags), tag_refiner_sample_text)
+
             vector_save_result = self.vector_service.save(vector_objects)
             logger.info(f"Successfully saved {len(vector_objects)} vectors for s3://{bucket}/{object_key}")
 
@@ -159,7 +169,7 @@ class ProcessorHandler:
                     name=object_name,
                     key=object_key,
                     user_id=user_id,
-                    tags=list(all_tags),
+                    tags=refined_tags,
                     status="active",
                     created_at=created_at,
                     vector_ids=vector_save_result.vector_ids,

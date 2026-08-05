@@ -28,7 +28,13 @@ class EmbeddingResponse:
 class EmbeddingServiceData:
     bedrock_runtime_client: Any
     model_id: str
-    max_chunk_length: int = 3000
+    # Character-based safety net against Titan Embed's real 8192-token input limit --
+    # not a token count itself (no public Titan tokenizer), just a conservative
+    # character ceiling comfortably below the ~24k chars that limit maps to in the
+    # worst-case (heavily accented) char/token ratio. Chunks should rarely get near
+    # this given ChunkServiceData.chunk_size; it only guards edge cases (e.g. a page
+    # with no natural split points).
+    max_chunk_length: int = 8000
 
 
 class EmbeddingService:
@@ -60,6 +66,13 @@ class EmbeddingService:
 
             response_body = json.loads(response["body"].read())
             embedding = response_body.get("embedding", [])
+            input_text_token_count = response_body.get("inputTextTokenCount")
+
+            logger.info(
+                f"Embedded chunk_index={request.chunk_index} object_key={request.object_key}: "
+                f"{len(chunk)} chars -> {input_text_token_count} tokens (real Titan count, "
+                f"used to validate chars/token assumptions behind CHUNK_SIZE)"
+            )
 
             if not embedding:
                 raise ValueError("Embedding model returned empty vector")

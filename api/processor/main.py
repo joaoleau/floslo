@@ -5,6 +5,7 @@ from handlers import ProcessorHandler, HandlerData
 from services import (
     S3Service, S3ServiceData,
     TagService, TagServiceData,
+    TagRefinerService, TagRefinerData, BedrockTagRefinerClient,
     EmbeddingService, EmbeddingServiceData,
     VectorService, VectorServiceData,
     ChunkService, ChunkServiceData,
@@ -17,15 +18,25 @@ logger.setLevel(logging.DEBUG)
 try:
     cfg = Config()
 
-    s3_service_data = S3ServiceData(s3_client=cfg.s3_client)
+    s3_service_data = S3ServiceData(s3_client=cfg.s3_client, max_file_size_mb=cfg.max_file_size_mb)
     s3_service = S3Service(s3_service_data)
 
-    tag_service_data = TagServiceData()
+    tag_service_data = TagServiceData(max_keywords=cfg.yake_max_keywords)
     tag_service = TagService(tag_service_data)
+
+    tag_refiner_client = BedrockTagRefinerClient(
+        bedrock_runtime_client=cfg.bedrock_runtime_client,
+        model_id=cfg.tag_refiner_model_id
+    )
+    tag_refiner_service = TagRefinerService(
+        TagRefinerData(enabled=cfg.tag_refiner_enabled, max_tags=cfg.tag_refiner_max_tags),
+        client=tag_refiner_client
+    )
 
     embedding_service_data = EmbeddingServiceData(
         bedrock_runtime_client=cfg.bedrock_runtime_client,
-        model_id=cfg.model_id
+        model_id=cfg.model_id,
+        max_chunk_length=cfg.embedding_max_chunk_length
     )
     embedding_service = EmbeddingService(embedding_service_data)
 
@@ -36,13 +47,21 @@ try:
     )
     vector_service = VectorService(vector_service_data)
 
-    chunk_service_data = ChunkServiceData()
+    chunk_service_data = ChunkServiceData(chunk_size=cfg.chunk_size, chunk_overlap=cfg.chunk_overlap)
     chunk_service = ChunkService(chunk_service_data)
 
     dynamo_service_data = DynamoServiceData(dynamodb_table_name=cfg.dynamo_table_name, dynamodb_client=cfg.dynamo_client)
     dynamo_service = DynamoService(dynamo_service_data)
 
-    config_handler = HandlerData(s3_service, tag_service, embedding_service, vector_service, chunk_service, dynamo_service)
+    config_handler = HandlerData(
+        s3_service=s3_service,
+        tag_service=tag_service,
+        embedding_service=embedding_service,
+        vector_service=vector_service,
+        chunk_service=chunk_service,
+        dynamo_service=dynamo_service,
+        tag_refiner=tag_refiner_service
+    )
     processor = ProcessorHandler(config_handler)
 
 except Exception as e:

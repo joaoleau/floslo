@@ -31,16 +31,15 @@ func (h *StorageHandler) UploadObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	presign, err := h.StorageService.PresignPutObject(r.Context(), userId, input.ObjectName, int64(360))
+	presign, err := h.StorageService.PresignUploadObject(r.Context(), userId, input.ObjectName, int64(360))
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	utils.ResponseWithData(w, http.StatusOK, dto.PresignObjectResponseDTO{
+	utils.ResponseWithData(w, http.StatusOK, dto.PresignUploadResponseDTO{
 			URL: presign.URL,
-			Method: presign.Method,
-			SignedHeader: presign.SignedHeader,
+			Fields: presign.Values,
 		},
 	)
 }
