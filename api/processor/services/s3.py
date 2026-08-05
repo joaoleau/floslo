@@ -1,18 +1,14 @@
+import csv
+import io
 import json
 import logging
 import os
-import tempfile
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Iterator
 
-from langchain_community.document_loaders import (
-    CSVLoader,
-    Docx2txtLoader,
-    PyPDFLoader,
-    TextLoader,
-)
+import docx2txt
 from pptx import Presentation
+from pypdf import PdfReader
 
 from .utils import normalize_text
 
@@ -38,16 +34,22 @@ class S3ServiceData:
 
 
 class S3Service:
-    """Extraction is delegated to langchain_community.document_loaders
-    (TextLoader for txt/md, PyPDFLoader for pdf, Docx2txtLoader for docx,
-    CSVLoader for csv). These loaders read from a local path, not a stream,
-    so each object is downloaded to the Lambda's /tmp before extraction and
-    removed right after. JSON and PPTX keep hand-rolled readers -- LangChain's
-    JSONLoader needs the `jq` Python binding, a C-extension wheel that's
-    awkward to build for Lambda and not worth it for a format this simple,
-    and UnstructuredPowerPointLoader drags in the heavy `unstructured`
-    package (and its own transitive dependencies) for something `python-pptx`
-    reads directly.
+    """Reads each object into an in-memory buffer and extracts text directly
+    with pypdf/docx2txt/python-pptx/csv/json -- no filesystem tempfile, no
+    LangChain document loaders.
+
+    This used to go through LangChain's community document loaders (which
+    need a local file path, hence a download to Lambda's /tmp first). That
+    was reverted after langchain-community's transitive dependencies (numpy
+    duplicated on top of yake's own copy, sqlalchemy, aiohttp, zstandard via
+    langsmith, etc. -- ~80MB across the whole langchain dependency chain,
+    including langchain-text-splitters) pushed the Lambda's deployment
+    package past the 250MB unzipped code+layers limit and broke the stack
+    update. pypdf/docx2txt/python-pptx were already the libraries doing the
+    actual work underneath those loaders -- calling them directly, on an
+    in-memory buffer (all three accept a file-like object, not just a path),
+    keeps the same file format support without the wrapper's dependency
+    weight or the tempfile download/cleanup step.
     """
 
     def __init__(self, config: S3ServiceData):
@@ -64,97 +66,87 @@ class S3Service:
 
         self._validate_file_size(bucket, key)
 
-        path = self._download_to_tempfile(bucket, key, ext)
-        try:
-            if ext in ("txt", "md"):
-                yield from self._read_text_file(bucket, key, path, ext)
-            elif ext == "pdf":
-                yield from self._read_pdf_file(bucket, key, path)
-            elif ext == "docx":
-                yield from self._read_docx_file(bucket, key, path)
-            elif ext == "csv":
-                yield from self._read_csv_file(bucket, key, path)
-            elif ext == "json":
-                yield from self._read_json_file(bucket, key, path)
-            elif ext == "pptx":
-                yield from self._read_pptx_file(bucket, key, path)
-        finally:
-            path.unlink(missing_ok=True)
+        buffer = self._download_to_buffer(bucket, key)
 
-    def _download_to_tempfile(self, bucket: str, key: str, ext: str) -> Path:
+        if ext in ("txt", "md"):
+            yield from self._read_text_file(bucket, key, buffer, ext)
+        elif ext == "pdf":
+            yield from self._read_pdf_file(bucket, key, buffer)
+        elif ext == "docx":
+            yield from self._read_docx_file(bucket, key, buffer)
+        elif ext == "csv":
+            yield from self._read_csv_file(bucket, key, buffer)
+        elif ext == "json":
+            yield from self._read_json_file(bucket, key, buffer)
+        elif ext == "pptx":
+            yield from self._read_pptx_file(bucket, key, buffer)
+
+    def _download_to_buffer(self, bucket: str, key: str) -> io.BytesIO:
         obj = self.s3_client.get_object(Bucket=bucket, Key=key)
         try:
             body = obj["Body"].read()
         finally:
             obj["Body"].close()
 
-        fd, tmp_name = tempfile.mkstemp(suffix=f".{ext}")
-        try:
-            with os.fdopen(fd, "wb") as tmp_file:
-                tmp_file.write(body)
-        except Exception:
-            os.unlink(tmp_name)
-            raise
+        logger.info(f"Downloaded s3://{bucket}/{key} into memory for extraction ({len(body)} bytes)")
+        return io.BytesIO(body)
 
-        logger.info(f"Downloaded s3://{bucket}/{key} to local tempfile for extraction")
-        return Path(tmp_name)
-
-    def _read_text_file(self, bucket: str, key: str, path: Path, ext: str) -> Iterator[ObjectContent]:
-        documents = TextLoader(str(path), encoding="utf-8").load()
-        text = normalize_text(documents[0].page_content) if documents else ""
+    def _read_text_file(self, bucket: str, key: str, buffer: io.BytesIO, ext: str) -> Iterator[ObjectContent]:
+        text = normalize_text(buffer.read().decode("utf-8"))
 
         if not text:
             logger.warning(f"Text file is empty after normalization. key={key}")
             return
 
-        logger.info(f"Successfully processed text file via TextLoader: '{key}'")
+        logger.info(f"Successfully processed text file: '{key}'")
         yield ObjectContent(bucket=bucket, key=key, page=1, text=text, file_type=ext)
 
-    def _read_pdf_file(self, bucket: str, key: str, path: Path) -> Iterator[ObjectContent]:
-        documents = PyPDFLoader(str(path)).load()
-        logger.info(f"Processing PDF via PyPDFLoader: '{key}' with {len(documents)} page(s)")
+    def _read_pdf_file(self, bucket: str, key: str, buffer: io.BytesIO) -> Iterator[ObjectContent]:
+        reader = PdfReader(buffer)
+        logger.info(f"Processing PDF via pypdf: '{key}' with {len(reader.pages)} page(s)")
 
-        for document in documents:
+        for page_number, page in enumerate(reader.pages, start=1):
             try:
-                text = normalize_text(document.page_content)
+                text = normalize_text(page.extract_text() or "")
 
                 if not text:
                     continue
 
-                # PyPDFLoader's "page" metadata is 0-indexed; keep parity with
-                # the previous PdfReader-based implementation (1-indexed).
-                page_number = document.metadata.get("page", 0) + 1
                 yield ObjectContent(bucket=bucket, key=key, page=page_number, text=text, file_type="pdf")
             except Exception:
-                logger.exception(f"Failed extracting text from a page of key={key}")
+                logger.exception(f"Failed extracting text from page={page_number} key={key}")
 
-    def _read_docx_file(self, bucket: str, key: str, path: Path) -> Iterator[ObjectContent]:
-        documents = Docx2txtLoader(str(path)).load()
-        text = normalize_text(documents[0].page_content) if documents else ""
+    def _read_docx_file(self, bucket: str, key: str, buffer: io.BytesIO) -> Iterator[ObjectContent]:
+        text = normalize_text(docx2txt.process(buffer))
 
         if not text:
             logger.warning(f"DOCX file is empty after normalization. key={key}")
             return
 
-        logger.info(f"Successfully processed DOCX file via Docx2txtLoader: '{key}'")
+        logger.info(f"Successfully processed DOCX file via docx2txt: '{key}'")
         yield ObjectContent(bucket=bucket, key=key, page=1, text=text, file_type="docx")
 
-    def _read_csv_file(self, bucket: str, key: str, path: Path) -> Iterator[ObjectContent]:
-        # CSVLoader yields one Document per row; joined back into a single
-        # page so tag/chunk extraction runs once per file, not once per row
-        # (matches the pre-existing single-page-per-file behaviour).
-        documents = CSVLoader(str(path)).load()
-        text = normalize_text("\n".join(document.page_content for document in documents))
+    def _read_csv_file(self, bucket: str, key: str, buffer: io.BytesIO) -> Iterator[ObjectContent]:
+        # One "row: field: value" block per CSV row, joined into a single page --
+        # matches the previous per-file (not per-row) granularity used by every other reader.
+        text_stream = io.TextIOWrapper(buffer, encoding="utf-8")
+        reader = csv.DictReader(text_stream)
+
+        rows = []
+        for row in reader:
+            rows.append("\n".join(f"{field}: {value}" for field, value in row.items()))
+
+        text = normalize_text("\n\n".join(rows))
 
         if not text:
             logger.warning(f"CSV file is empty after normalization. key={key}")
             return
 
-        logger.info(f"Successfully processed CSV file via CSVLoader: '{key}'")
+        logger.info(f"Successfully processed CSV file: '{key}'")
         yield ObjectContent(bucket=bucket, key=key, page=1, text=text, file_type="csv")
 
-    def _read_json_file(self, bucket: str, key: str, path: Path) -> Iterator[ObjectContent]:
-        data = json.loads(path.read_text(encoding="utf-8"))
+    def _read_json_file(self, bucket: str, key: str, buffer: io.BytesIO) -> Iterator[ObjectContent]:
+        data = json.loads(buffer.read().decode("utf-8"))
         text = normalize_text(json.dumps(data, ensure_ascii=False, indent=2))
 
         if not text:
@@ -163,8 +155,8 @@ class S3Service:
 
         yield ObjectContent(bucket=bucket, key=key, page=1, text=text, file_type="json")
 
-    def _read_pptx_file(self, bucket: str, key: str, path: Path) -> Iterator[ObjectContent]:
-        presentation = Presentation(str(path))
+    def _read_pptx_file(self, bucket: str, key: str, buffer: io.BytesIO) -> Iterator[ObjectContent]:
+        presentation = Presentation(buffer)
         logger.info(f"Processing PPTX via python-pptx: '{key}' with {len(presentation.slides)} slide(s)")
 
         for slide_number, slide in enumerate(presentation.slides, start=1):
