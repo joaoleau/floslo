@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Scheduler } from '@/types/domain/Scheduler';
 import { WeekDays } from '@/components/scheduler/WeekDays';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 import '@/styles/global.css';
 
@@ -19,28 +20,43 @@ interface SchedulerCardProps {
 }
 
 export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: SchedulerCardProps) {
+  const colors = useThemeColors();
+
   return (
     <Pressable onPress={onPress}>
       <Card
         className={[
-          'w-full rounded-[32px] bg-background px-1 py-2',
+          'w-full rounded-[32px] bg-card px-1 py-2',
           !scheduler.enabled && 'opacity-50',
         ]
           .filter(Boolean)
           .join(' ')}
       >
         <CardHeader className="flex-row items-center justify-between px-4">
-          <Text className="flex-1 text-sm font-normal text-brand-100" numberOfLines={1}>
-            {scheduler.name}
-          </Text>
-          
-          <View className="flex-row gap-1">
+          <View
+            className="flex-row items-center gap-1.5"
+            style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, overflow: 'hidden' }}
+          >
+            {scheduler.strictMode && (
+              <Ionicons name="lock-closed" size={13} color={colors.primary} />
+            )}
+            <Text
+              className="text-sm font-normal text-foreground"
+              style={{ flexShrink: 1, overflow: 'hidden' }}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {scheduler.name}
+            </Text>
+          </View>
+
+          <View className="flex-row gap-1" style={{ flexShrink: 0 }}>
             {/* Badge indicando a quantidade de objetos/materiais de estudo */}
-            
+
             {scheduler.objectIds && scheduler.objectIds.length > 0 && (
-              <Badge className="rounded-full bg-background border border-brand-100 flex-row items-center">
-                <Ionicons name="document-text" size={16} color="#33405C" />
-                <Text className="text-sm text-brand-100 ml-1">
+              <Badge className="rounded-full bg-background border border-border flex-row items-center">
+                <Ionicons name="document-text" size={16} color={colors.brand} />
+                <Text className="text-sm text-foreground ml-1">
                   {scheduler.objectIds.length}
                 </Text>
               </Badge>
@@ -51,8 +67,8 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
               if (challenger.challengeType === 'QUIZ') {
                 return (
                   <View key={`quiz-${index}`} className="flex-row gap-1">
-                    <Badge className="rounded-full bg-background border border-brand-100 flex-row items-center">
-                      <Ionicons name="school-outline" size={16} color="red" />
+                    <Badge className="rounded-full bg-background border border-border flex-row items-center">
+                      <Ionicons name="school-outline" size={16} color={colors.destructive} />
                     </Badge>
                   </View>
                 );
@@ -66,7 +82,7 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
         <CardContent className="px-4">
           <View className="flex-row justify-between">
             <View>
-              <Text className="text-5xl font-normal text-brand-100">{scheduler.startTime}</Text>
+              <Text className="text-5xl font-normal text-foreground">{scheduler.startTime}</Text>
 
               <WeekDays
                 weekDays={scheduler.weekDays}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/joaoleau/floslo/internal/config/logger"
 )
 
 type GenerateResponse struct {
@@ -65,11 +66,18 @@ func (s *GenerationService) GenerateQuizzes(ctx context.Context, query string, t
 You are an intelligent educational quiz generator.
 
 Based ONLY on the provided context,
-generate %d distinct multiple choice study questions, at difficulty level: %s.
+generate EXACTLY %d distinct multiple choice study question(s), at difficulty level: %s.
+The "quizzes" array in your response MUST contain EXACTLY %d item(s) — never more, never fewer.
 
 All questions MUST be distinct from each other and grounded ONLY in the provided context.
-Spread the questions across the different topics below where the context supports it,
-instead of concentrating all questions on a single topic.
+If — and only if — you are generating more than one question, spread them across the
+different topics below where the context supports it, instead of concentrating all
+questions on a single topic. If you are generating only one question, ignore the "spread"
+guidance and just pick whichever single topic is best supported by the context.
+
+Each question MUST have EXACTLY 4 alternatives, with ids "A", "B", "C", "D" in that order.
+EXACTLY ONE of the 4 alternatives MUST have "correct": true — the other 3 MUST have
+"correct": false. Never generate fewer or more than 4 alternatives.
 
 You MUST respond ONLY with valid JSON.
 
@@ -78,11 +86,10 @@ You MUST respond ONLY with valid JSON.
     {
       "question": "string",
       "alternatives": [
-        {
-          "id": "A",
-          "text": "string",
-          "correct": false
-        }
+        { "id": "A", "text": "string", "correct": false },
+        { "id": "B", "text": "string", "correct": true },
+        { "id": "C", "text": "string", "correct": false },
+        { "id": "D", "text": "string", "correct": false }
       ],
       "explanation": "string",
       "difficulty": "easy|medium|hard",
@@ -98,7 +105,7 @@ TOPICS (each question should be grounded in ONE of these; set "tag" to whichever
 %s
 SEARCH QUERY (what was used to retrieve the context above):
 %s
-`, count, difficulty, contextText, topicsList.String(), query)
+`, count, difficulty, count, contextText, topicsList.String(), query)
 
 	maxTokens := 500 + count*300
 	if maxTokens > 4000 {
@@ -161,6 +168,19 @@ SEARCH QUERY (what was used to retrieve the context above):
 
 	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
 		return nil, err
+	}
+
+	// The model is only ever asked nicely in the prompt to return exactly `count` quizzes —
+	// nothing there guarantees it. Observed in practice: with a low count and several topics
+	// listed, the model sometimes returns one quiz per topic instead of respecting the total.
+	// Enforce it here instead of trusting the prompt alone.
+	if len(parsed.Quizzes) > count {
+		logger.Log.Info(
+			"model returned more quizzes than requested, truncating",
+			logger.Any("requested", count),
+			logger.Any("returned", len(parsed.Quizzes)),
+		)
+		parsed.Quizzes = parsed.Quizzes[:count]
 	}
 
 	generated := make([]*GeneratedQuiz, len(parsed.Quizzes))

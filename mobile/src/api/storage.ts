@@ -45,14 +45,25 @@ export const storageApi = {
     }
     formData.append('file', blob);
 
-    const res = await fetch(presign.url, {
-      method: 'POST',
-      body: formData,
-    });
+    console.log(`[storage] -> POST (S3 presigned) upload de arquivo`);
+
+    let res: Response;
+    try {
+      res = await fetch(presign.url, {
+        method: 'POST',
+        body: formData,
+      });
+    } catch (networkErr) {
+      console.error('[storage] Erro de rede ao enviar arquivo pro S3', networkErr);
+      throw networkErr;
+    }
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
+      console.error(`[storage] <- ${res.status} upload S3 falhou`, body);
       throw new Error(`Upload failed with status ${res.status}: ${body}`);
     }
+
+    console.log(`[storage] <- ${res.status} upload S3 concluído`);
   },
 };

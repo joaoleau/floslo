@@ -18,6 +18,7 @@ class Object:
     created_at: str
     vector_ids: list[str]
     ttl: int | None = None
+    error_message: str | None = None
 
 
 @dataclass(slots=True)
@@ -58,11 +59,15 @@ class DynamoService:
             "created_at": record.created_at if record.created_at else datetime.now(UTC).isoformat(),
             "vector_ids": record.vector_ids
         }
-        # ttl is only ever set on the "failed" transition. put_item replaces the whole
-        # item, so leaving this key out on "processing"/"active" writes is enough to
-        # ensure those states never carry a stale ttl from a previous write.
+        # ttl and error_message are only ever set on the "failed" transition (and
+        # error_message only when the failure has a specific, known cause). put_item
+        # replaces the whole item, so leaving these keys out on other writes is enough
+        # to ensure those states never carry a stale value from a previous write.
         if record.ttl is not None:
             item["ttl"] = record.ttl
+
+        if record.error_message is not None:
+            item["error_message"] = record.error_message
 
         try:
             self.client.put_item(
@@ -98,7 +103,8 @@ class DynamoService:
                 status=self._deserialize_value(item["status"]),
                 created_at=self._deserialize_value(item["created_at"]),
                 vector_ids=self._deserialize_value(item["vector_ids"]) if "vector_ids" in item else [],
-                ttl=self._deserialize_value(item["ttl"]) if "ttl" in item else None
+                ttl=self._deserialize_value(item["ttl"]) if "ttl" in item else None,
+                error_message=self._deserialize_value(item["error_message"]) if "error_message" in item else None
             )
         except Exception:
             logger.exception(f"Failed retrieving object metadata for object_id={object_id}")

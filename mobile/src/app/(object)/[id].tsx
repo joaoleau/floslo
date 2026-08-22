@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -17,9 +17,11 @@ import { Button } from '@/components/ui/button';
 import { ObjectTagsList } from '@/components/object/ObjectTagsList';
 import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
 import { useObjectQuery, useUpdateObjectTagsMutation, useDeleteObjectMutation } from '@/hooks/useObjects';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function ObjectDetails() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const { data: object, isPending, isError } = useObjectQuery(id);
@@ -54,7 +56,8 @@ export default function ObjectDetails() {
     try {
       await updateTagsMutation.mutateAsync({ id: object.id, tags });
       router.back();
-    } catch {
+    } catch (err) {
+      console.error(`[ObjectDetails] Falha ao salvar tags do objeto "${object.id}"`, err);
       Alert.alert('Erro', 'Falha ao salvar as alterações.');
     }
   }
@@ -71,7 +74,8 @@ export default function ObjectDetails() {
           try {
             await deleteMutation.mutateAsync(object.id);
             router.back();
-          } catch {
+          } catch (err) {
+            console.error(`[ObjectDetails] Falha ao excluir objeto "${object.id}"`, err);
             Alert.alert('Erro', 'Falha ao excluir o objeto.');
           }
         },
@@ -84,7 +88,7 @@ export default function ObjectDetails() {
       <Screen>
         <Header title="Editar Objeto" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color={colors.brand} />
         </View>
       </Screen>
     );
@@ -109,7 +113,7 @@ export default function ObjectDetails() {
         title="Editar Objeto"
         rightAction={
           updateTagsMutation.isPending ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.brand} />
           ) : (
             <HeaderAction icon="checkmark" onPress={handleSave} disabled={!isEditable} />
           )
@@ -118,11 +122,18 @@ export default function ObjectDetails() {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
         <View className="flex-1 gap-4 p-4">
-          <Card className="flex-1 rounded-3xl bg-white p-5 gap-4">
+          <Card className="flex-1 rounded-3xl p-5 gap-4">
             <View className="flex-row items-center justify-between">
-              <Text className="text-2xl font-medium text-brand-100">{object.name}</Text>
-              <Badge className="rounded-full bg-muted px-3">
-                <Text className="uppercase text-brand-100">{object.extension}</Text>
+              <Text
+                className="text-2xl font-medium text-foreground"
+                style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12, overflow: 'hidden' }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {object.name}
+              </Text>
+              <Badge className="rounded-full bg-muted px-3" style={{ flexShrink: 0 }}>
+                <Text className="uppercase text-foreground">{object.extension}</Text>
               </Badge>
             </View>
 
@@ -130,8 +141,8 @@ export default function ObjectDetails() {
               <View className="flex-row items-center justify-between">
                 <ObjectStatusBadge status={object.status} />
                 {object.status === 'failed' && (
-                  <Text className="flex-1 text-right text-sm text-zinc-500">
-                    Falha ao processar o documento.
+                  <Text className="flex-1 text-right text-sm text-muted-foreground">
+                    {object.errorMessage || 'Falha ao processar o documento.'}
                   </Text>
                 )}
               </View>
@@ -153,9 +164,9 @@ export default function ObjectDetails() {
               </Button>
             </View>
 
-            <View className="flex-1">
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
               <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
-            </View>
+            </ScrollView>
           </Card>
 
           <Button

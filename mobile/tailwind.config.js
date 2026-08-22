@@ -42,14 +42,21 @@ module.exports = {
           foreground: 'hsl(var(--card-foreground))',
         },
         brand: {
-          50: '#55575c',
-          100: '#303031', //#33405C, #141516
+          50: 'hsl(var(--brand-soft))',
+          100: 'hsl(var(--brand))',
+          foreground: 'hsl(var(--brand-foreground))',
+        },
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          foreground: 'hsl(var(--brand-foreground))',
         },
       },
+      // Literal (not CSS-var-derived) so radius stays correct even though NativeWind's
+      // native runtime can't reliably resolve calc(var(...)) for style properties.
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: '1rem',
+        md: '0.875rem',
+        sm: '0.75rem',
       },
       borderWidth: {
         hairline: hairlineWidth(),

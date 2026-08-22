@@ -50,6 +50,7 @@ type CreateSchedulerRequestDTO struct {
 	StartTime      string   `json:"start_time"`
 	AlarmSound     string   `json:"alarm_sound"`
 	Vibration      bool     `json:"vibration"`
+	StrictMode     bool     `json:"strict_mode"`
 	ObjectIds   []string `json:"object_ids"`
 	Challengers []ChallengerDTO `json:"challengers"`
 	Enabled        bool     `json:"enabled"`
@@ -68,6 +69,7 @@ func (dto *CreateSchedulerRequestDTO) ToModel() *model.Scheduler {
 		StartTime:      dto.StartTime,
 		AlarmSound:     dto.AlarmSound,
 		Vibration:      dto.Vibration,
+		StrictMode:     dto.StrictMode,
 		ObjectIds:   dto.ObjectIds,
 		Challengers: challengerDTOsToModel(dto.Challengers),
 		Enabled:          dto.Enabled,
@@ -81,6 +83,7 @@ type SchedulerResponseDTO struct {
 	StartTime      string   `json:"start_time"`
 	AlarmSound     string   `json:"alarm_sound"`
 	Vibration      bool     `json:"vibration"`
+	StrictMode     bool     `json:"strict_mode"`
 	ObjectIds   []string `json:"object_ids"`
 	Challengers []ChallengerDTO `json:"challengers"`
 	Enabled        bool     `json:"enabled"`
@@ -95,6 +98,7 @@ type GetSchedulerResponseDTO struct {
 	StartTime      string   `json:"start_time"`
 	AlarmSound     string   `json:"alarm_sound"`
 	Vibration      bool     `json:"vibration"`
+	StrictMode     bool     `json:"strict_mode"`
 	ObjectIds   []string `json:"object_ids"`
 	Challengers []ChallengerDTO `json:"challengers"`
 	Enabled        bool     `json:"enabled"`
@@ -108,6 +112,7 @@ type UpdateSchedulerRequestDTO struct {
 	StartTime      *string   `json:"start_time"`
 	AlarmSound     *string   `json:"alarm_sound"`
 	Vibration      *bool     `json:"vibration"`
+	StrictMode     *bool     `json:"strict_mode"`
 	ObjectIds   *[]string `json:"object_ids"`
 	Challengers *[]ChallengerDTO `json:"challengers"`
 	Enabled        *bool     `json:"enabled"`
@@ -136,6 +141,7 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() *model.UpdateScheduler {
 		StartTime:       dto.StartTime,
 		AlarmSound:      dto.AlarmSound,
 		Vibration:       dto.Vibration,
+		StrictMode:      dto.StrictMode,
 		ObjectIds:    dto.ObjectIds,
 		Challengers: challengers,
 		Enabled:         dto.Enabled,
@@ -156,6 +162,7 @@ func ToSchedulerResponseDTOList(schedulers []*model.Scheduler) []*SchedulerRespo
 			StartTime:      scheduler.StartTime,
 			AlarmSound:     scheduler.AlarmSound,
 			Vibration:      scheduler.Vibration,
+			StrictMode:     scheduler.StrictMode,
 			ObjectIds:   scheduler.ObjectIds,
 			Challengers: challengersToDTOList(scheduler.Challengers),
 			Enabled:        scheduler.Enabled,

@@ -6,4 +6,5 @@ export interface ObjectType {
   extension: string;
   tags: string[];
   status: ObjectStatus;
+  errorMessage?: string;
 }

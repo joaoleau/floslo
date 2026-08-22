@@ -117,6 +117,7 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 		Set(expression.Name("start_time"), expression.Value(scheduler.StartTime)).
 		Set(expression.Name("alarm_sound"), expression.Value(scheduler.AlarmSound)).
 		Set(expression.Name("vibration"), expression.Value(scheduler.Vibration)).
+		Set(expression.Name("strict_mode"), expression.Value(scheduler.StrictMode)).
 		Set(expression.Name("object_ids"), expression.Value(scheduler.ObjectIds)).
 		Set(expression.Name("challengers"), expression.Value(scheduler.Challengers)).
 		Set(expression.Name("enabled"), expression.Value(scheduler.Enabled)).
@@ -132,7 +133,11 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-		ReturnValues:              types.ReturnValueUpdatedNew,
+		// UPDATED_NEW only returns the attributes present in the Set expression above — Id
+		// (derived from SK, never part of the update set) and CreatedAt come back empty,
+		// which is exactly the bug that made every edited scheduler report an empty id to
+		// the client. ALL_NEW returns the complete item after the update.
+		ReturnValues: types.ReturnValueAllNew,
 	})
 	if err != nil {
 		logger.Log.Error("failed to update item: ", logger.Any("error", err))

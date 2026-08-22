@@ -11,6 +11,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 
 import { useUploadObjectMutation } from '@/hooks/useObjects';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 const ALLOWED_EXTENSIONS = ['pdf', 'txt', 'md', 'pptx'];
 const ALLOWED_MIME_TYPES = [
@@ -33,6 +34,7 @@ function getExtension(filename: string): string {
 
 export default function CreateObject() {
   const router = useRouter();
+  const colors = useThemeColors();
   const [pickedFile, setPickedFile] = useState<PickedFile | null>(null);
   const uploadMutation = useUploadObjectMutation();
 
@@ -64,7 +66,8 @@ export default function CreateObject() {
         'Pode levar alguns minutos até ele ficar disponível para gerar quizzes.',
         [{ text: 'OK', onPress: () => router.back() }]
       );
-    } catch {
+    } catch (err) {
+      console.error('[CreateObject] Falha ao enviar documento', pickedFile, err);
       Alert.alert('Erro', 'Falha ao enviar o documento.');
     }
   }
@@ -75,17 +78,17 @@ export default function CreateObject() {
 
       <View className="flex-1 gap-4 p-4">
         <Pressable onPress={handlePickFile} disabled={uploadMutation.isPending}>
-          <Card className="rounded-3xl bg-white p-8 items-center justify-center gap-3 border-2 border-dashed border-zinc-300">
-            <Ionicons name="cloud-upload-outline" size={40} color="#33405C" />
+          <Card className="rounded-3xl p-8 items-center justify-center gap-3 border-2 border-dashed border-border">
+            <Ionicons name="cloud-upload-outline" size={40} color={colors.brand} />
             {pickedFile ? (
               <View className="items-center gap-1">
-                <Text className="font-semibold text-brand-100 text-center">{pickedFile.name}</Text>
-                <Text className="text-sm text-zinc-500">Toque para escolher outro arquivo</Text>
+                <Text className="font-semibold text-foreground text-center">{pickedFile.name}</Text>
+                <Text className="text-sm text-muted-foreground">Toque para escolher outro arquivo</Text>
               </View>
             ) : (
               <View className="items-center gap-1">
-                <Text className="font-semibold text-brand-100">Selecionar arquivo</Text>
-                <Text className="text-sm text-zinc-500">PDF, TXT, MD ou PPTX</Text>
+                <Text className="font-semibold text-foreground">Selecionar arquivo</Text>
+                <Text className="text-sm text-muted-foreground">PDF, TXT, MD ou PPTX</Text>
               </View>
             )}
           </Card>

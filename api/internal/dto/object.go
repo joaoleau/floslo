@@ -7,24 +7,26 @@ import (
 )
 
 type ObjectResponseDTO struct {
-	Id        string    `json:"id"`
-	Name      string    `json:"name"`
-	Tags      []string  `json:"tags"`
-	Language  string    `json:"language"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Id           string    `json:"id"`
+	Name         string    `json:"name"`
+	Tags         []string  `json:"tags"`
+	Language     string    `json:"language"`
+	Status       string    `json:"status"`
+	ErrorMessage string    `json:"error_message,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 func ToObjectResponseDTO(o *model.Object) *ObjectResponseDTO {
 	return &ObjectResponseDTO{
-		Id:        o.Id,
-		Name:      o.Name,
-		Tags:      o.Tags,
-		Language:  o.Language,
-		Status:    o.Status,
-		CreatedAt: o.CreatedAt,
-		UpdatedAt: o.UpdatedAt,
+		Id:           o.Id,
+		Name:         o.Name,
+		Tags:         o.Tags,
+		Language:     o.Language,
+		Status:       o.Status,
+		ErrorMessage: o.ErrorMessage,
+		CreatedAt:    o.CreatedAt,
+		UpdatedAt:    o.UpdatedAt,
 	}
 }
 

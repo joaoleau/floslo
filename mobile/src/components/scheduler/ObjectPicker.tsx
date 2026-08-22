@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { ObjectType } from '@/types/domain/Object';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface ObjectPickerProps {
   objects: ObjectType[];
@@ -15,6 +16,7 @@ interface ObjectPickerProps {
 }
 
 export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerProps) {
+  const colors = useThemeColors();
   const [open, setOpen] = useState(false);
 
   const selectedObjects = useMemo(
@@ -39,10 +41,10 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
   return (
     <View className="gap-3">
       <Button
-        className="h-10 rounded-3xl justify-start border border-brand-100 bg-white"
+        className="h-10 rounded-3xl justify-start border border-brand-100 bg-background"
         onPress={() => setOpen(true)}
       >
-        <Ionicons name="add-circle-outline" size={18} color="#33405C" />
+        <Ionicons name="add-circle-outline" size={18} color={colors.brand} />
         <Text className="ml-2 text-brand-100">Adicionar objeto</Text>
       </Button>
 
@@ -70,7 +72,7 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
             <View className="flex-row items-center justify-between">
               <Text className="text-lg font-semibold">Adicionar objeto</Text>
 
-              <Ionicons name="close" size={24} onPress={() => setOpen(false)} />
+              <Ionicons name="close" size={24} color={colors.brand} onPress={() => setOpen(false)} />
             </View>
 
             <ScrollView>
@@ -78,16 +80,16 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
                 <Pressable
                   key={object.id}
                   onPress={() => addObject(object.id)}
-                  className="flex-row items-center justify-between border-b border-zinc-200 py-4"
+                  className="flex-row items-center justify-between border-b border-border py-4"
                 >
                   <Text>{object.name}</Text>
 
-                  <Ionicons name="add-circle-outline" size={20} color="#33405C" />
+                  <Ionicons name="add-circle-outline" size={20} color={colors.brand} />
                 </Pressable>
               ))}
 
               {availableObjects.length === 0 && (
-                <Text className="py-8 text-center text-zinc-500">
+                <Text className="py-8 text-center text-muted-foreground">
                   Todos os objetos já foram adicionados.
                 </Text>
               )}

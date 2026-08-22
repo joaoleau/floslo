@@ -8,13 +8,16 @@ import { Screen } from '@/components/common/Screen';
 import { AnimatedHeader } from '@/components/common/AnimatedHeader';
 import { HeaderAction } from '@/components/common/HeaderAction';
 import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
 import { ObjectCard } from '@/components/object/ObjectCard';
 
 import { useObjectsQuery } from '@/hooks/useObjects';
 import { queryKeys } from '@/lib/queryKeys';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function ObjectsScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
   const scrollY = useSharedValue(0);
   const queryClient = useQueryClient();
 
@@ -52,10 +55,20 @@ export default function ObjectsScreen() {
 
       {isPending ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError ? (
         <ErrorState message={error?.message} onRetry={() => refetch()} />
+      ) : objects.length === 0 ? (
+        <View className="flex-1 pt-20 px-4">
+          <EmptyState
+            icon="document-text-outline"
+            title="Nenhum objeto ainda"
+            description="Envie seu primeiro material de estudo para gerar desafios nos seus alarmes."
+            actionLabel="Enviar meu primeiro material"
+            onAction={handleCreateObject}
+          />
+        </View>
       ) : (
         <Animated.FlatList
           data={objects}

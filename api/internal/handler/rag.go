@@ -47,6 +47,7 @@ func (h *RAGHandler) RetrieveAndGenerate(w http.ResponseWriter, r *http.Request)
 			StartTime: resp.Scheduler.StartTime,
 			AlarmSound: resp.Scheduler.AlarmSound,
 			Vibration: resp.Scheduler.Vibration,
+			StrictMode: resp.Scheduler.StrictMode,
 			ObjectIds: resp.Scheduler.ObjectIds,
 			Challengers: utils.MapSlice(resp.Scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
 				return dto.ChallengerDTO{

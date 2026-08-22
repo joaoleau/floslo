@@ -12,7 +12,7 @@ export function Screen({
   className = '',
 }: ScreenProps) {
   return (
-    <SafeAreaView edges={edges} className={`flex-1 bg-zinc-100 ${className}`}>
+    <SafeAreaView edges={edges} className={`flex-1 bg-background ${className}`}>
       {children}
     </SafeAreaView>
   );

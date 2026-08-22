@@ -21,7 +21,8 @@
       "permissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_FULL_SCREEN_INTENT",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ],
       "package": "com.floslo.mobile"
     },
@@ -44,7 +45,10 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-audio",
-      "expo-secure-store"
+      "expo-secure-store",
+      "./plugins/withNotifeeGradleRepo.js",
+      "./plugins/withAlarmSoundAssets.js",
+      "./plugins/withAlarmShowOverLockScreen.js"
     ],
     "experiments": {
       "typedRoutes": true

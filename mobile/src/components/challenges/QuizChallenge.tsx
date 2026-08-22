@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
+import { View, Pressable, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Quiz } from '@/types/domain/RAG';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface QuizChallengeProps {
   quiz: Quiz;
@@ -13,8 +15,10 @@ interface QuizChallengeProps {
 }
 
 export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: QuizChallengeProps) {
+  const colors = useThemeColors();
   const [wrongAnswerId, setWrongAnswerId] = useState<string | null>(null);
   const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
+  const [showSources, setShowSources] = useState(false);
 
   function handleSelectAlternative(alternativeId: string, isCorrect: boolean) {
     // Se já acertou, bloqueia novos cliques enquanto lê a explicação
@@ -35,31 +39,52 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
       : quiz.difficulty.toLowerCase() === 'medium'
         ? 'text-yellow-600'
         : 'text-red-600';
+  const difficultyBg =
+    quiz.difficulty.toLowerCase() === 'easy'
+      ? 'bg-green-500/10'
+      : quiz.difficulty.toLowerCase() === 'medium'
+        ? 'bg-yellow-500/10'
+        : 'bg-red-500/10';
 
   return (
-    // Adicionado flex-shrink e removido o p-6 (o padding agora fica no ScrollView)
-    <View className="w-full max-w-sm bg-white rounded-3xl shadow-lg flex-shrink">
+    // flex-1 + w-full: preenche praticamente toda a área disponível na tela de alarme
+    // (lateral e embaixo), não apenas uma caixinha centralizada.
+    <View className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
       <ScrollView
+        className="flex-1"
         showsVerticalScrollIndicator={true}
         // Usamos style inline para o padding do conteúdo para garantir compatibilidade no ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 32 }}
       >
         <View className="gap-6">
-          {/* HEADER: Tag, Dificuldade e Contador */}
-          <View className="flex-row justify-between items-center border-b border-zinc-100 pb-3">
-            <View className="flex-row items-center gap-2 flex-1">
-              <Ionicons name="school" size={20} color="#33405C" />
-              <Text className="font-semibold text-zinc-700" numberOfLines={1}>
-                {quiz.tag} • <Text className={difficultyColor}>{quiz.difficulty}</Text>
+          {/* HEADER: Tag, Dificuldade e Contador — a dificuldade é um badge de largura fixa
+              (não encolhe) e a tag trunca (flex-shrink), então o contador "1/5" nunca fica
+              coberto independente do tamanho da tag. */}
+          <View className="flex-row justify-between items-center gap-2 border-b border-border pb-3">
+            <View
+              className="flex-row items-center gap-2"
+              style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, overflow: 'hidden' }}
+            >
+              <Ionicons name="school" size={20} color={colors.brand} />
+              <Text
+                className="font-semibold text-foreground"
+                style={{ flexShrink: 1, overflow: 'hidden' }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {quiz.tag}
               </Text>
+              <View className={`rounded-full px-2 py-0.5 ${difficultyBg}`} style={{ flexShrink: 0 }}>
+                <Text className={`text-xs font-bold uppercase ${difficultyColor}`}>{quiz.difficulty}</Text>
+              </View>
             </View>
-            <Text className="text-sm font-bold text-brand-100 ml-2">
+            <Text className="text-sm font-bold text-foreground" style={{ flexShrink: 0 }}>
               {currentIndex + 1} / {totalQuizzes}
             </Text>
           </View>
 
           {/* PERGUNTA */}
-          <Text className="text-xl font-bold text-zinc-800 leading-snug">{quiz.question}</Text>
+          <Text className="text-xl font-bold text-foreground leading-snug">{quiz.question}</Text>
 
           {/* ALTERNATIVAS */}
           <View className="gap-3">
@@ -73,19 +98,19 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
                   onPress={() => handleSelectAlternative(alt.id, alt.correct)}
                   className={`w-full p-4 rounded-xl border flex-row items-center justify-between ${
                     isWrong
-                      ? 'bg-red-50 border-red-400'
+                      ? 'bg-red-500/10 border-red-500'
                       : isCorrect
-                        ? 'bg-green-50 border-green-400'
-                        : 'bg-zinc-50 border-zinc-200 active:bg-zinc-100'
+                        ? 'bg-green-500/10 border-green-500'
+                        : 'bg-muted border-border active:bg-secondary'
                   }`}
                 >
                   <Text
-                    className={`flex-1 font-medium ${isWrong ? 'text-red-700' : isCorrect ? 'text-green-700' : 'text-zinc-700'}`}
+                    className={`flex-1 font-medium ${isWrong ? 'text-red-600' : isCorrect ? 'text-green-600' : 'text-foreground'}`}
                   >
                     {alt.text}
                   </Text>
-                  {isWrong && <Ionicons name="close-circle" size={20} color="#EF4444" />}
-                  {isCorrect && <Ionicons name="checkmark-circle" size={20} color="#10B981" />}
+                  {isWrong && <Ionicons name="close-circle" size={20} color={colors.destructive} />}
+                  {isCorrect && <Ionicons name="checkmark-circle" size={20} color={colors.success} />}
                 </Pressable>
               );
             })}
@@ -94,12 +119,20 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
           {/* EXPLICAÇÃO E BOTÃO CONTINUAR (Só aparece quando acerta) */}
           {correctAnswerId && (
             <View className="mt-2 gap-4 animate-fade-in">
-              <View className="bg-brand-50/20 p-4 rounded-xl border border-brand-50/30">
-                <View className="flex-row items-center gap-2 mb-2">
-                  <Ionicons name="bulb" size={18} color="#33405C" />
-                  <Text className="font-bold text-brand-100">Explicação</Text>
+              <View className="bg-muted p-4 rounded-xl border border-border">
+                <View className="flex-row items-center justify-between mb-2">
+                  <View className="flex-row items-center gap-2">
+                    <Ionicons name="bulb" size={18} color={colors.brand} />
+                    <Text className="font-bold text-foreground">Explicação</Text>
+                  </View>
+
+                  {quiz.sourceChunks.length > 0 && (
+                    <Pressable hitSlop={8} onPress={() => setShowSources(true)}>
+                      <Ionicons name="help-circle-outline" size={22} color={colors.brandSoft} />
+                    </Pressable>
+                  )}
                 </View>
-                <Text className="text-zinc-700 leading-relaxed text-sm">{quiz.explanation}</Text>
+                <Text className="text-foreground leading-relaxed text-sm">{quiz.explanation}</Text>
               </View>
 
               <Button onPress={onSuccess} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
@@ -110,6 +143,50 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
           )}
         </View>
       </ScrollView>
+
+      {/* Detalhe de onde a pergunta veio: os trechos (chunks) do material que embasaram a
+          pergunta — documento de origem, página, posição do trecho e o quão relevante o
+          modelo considerou aquele trecho. */}
+      <Modal visible={showSources} transparent animationType="slide" onRequestClose={() => setShowSources(false)}>
+        <View className="flex-1 justify-end bg-black/40">
+          <Card className="max-h-[75%] rounded-t-3xl p-5 gap-4">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-lg font-semibold text-foreground">Baseado em</Text>
+              <Pressable hitSlop={8} onPress={() => setShowSources(false)}>
+                <Ionicons name="close" size={24} color={colors.brand} />
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View className="gap-3 pb-4">
+                {quiz.sourceChunks.map((chunk, index) => (
+                  <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
+                        <Ionicons name="document-text-outline" size={14} color={colors.brandSoft} />
+                        <Text className="text-xs font-medium text-foreground flex-shrink overflow-hidden" numberOfLines={1}>
+                          {chunk.objectKey}
+                        </Text>
+                      </View>
+                      <Text className="text-xs font-semibold text-muted-foreground">
+                        {Math.round(chunk.score * 100)}% relevante
+                      </Text>
+                    </View>
+
+                    <Text className="text-xs text-muted-foreground">
+                      Página {chunk.page} • Trecho #{chunk.chunkIndex + 1}
+                    </Text>
+
+                    <Text className="text-sm text-foreground leading-relaxed" numberOfLines={5}>
+                      {chunk.content}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </Card>
+        </View>
+      </Modal>
     </View>
   );
 }

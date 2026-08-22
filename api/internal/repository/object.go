@@ -133,7 +133,10 @@ func (r *ObjectRepository) UpdateObjectTags(ctx context.Context, userId string, 
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-		ReturnValues:              types.ReturnValueUpdatedNew,
+		// UPDATED_NEW only returns attributes present in the Set expression above — Id, name,
+		// extension, status etc. come back empty since they're not part of this update. ALL_NEW
+		// returns the complete item. Same bug fixed in scheduler.go's UpdateScheduler.
+		ReturnValues: types.ReturnValueAllNew,
 	})
 	if err != nil {
 		logger.Log.Error("failed to update item: ", logger.Any("error", err))

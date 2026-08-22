@@ -4,6 +4,7 @@ import Animated, { interpolate, useAnimatedStyle, SharedValue } from 'react-nati
 
 import { Header } from '@/components/common/Header';
 import { FloatingAction } from '@/components/common/FloatingAction';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface AnimatedHeaderProps {
   title: string;
@@ -35,6 +36,7 @@ export function AnimatedHeader({
   onFloatingPress,
 }: AnimatedHeaderProps) {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const translateY = interpolate(scrollY.value, [0, HEADER_HEIGHT], [0, -HEADER_HEIGHT], 'clamp');
@@ -107,7 +109,7 @@ export function AnimatedHeader({
           floatingAnimatedStyle,
         ]}
       >
-        <FloatingAction icon={floatingIcon} onPress={onFloatingPress} />
+        <FloatingAction icon={floatingIcon} onPress={onFloatingPress} backgroundColor={colors.primary} />
       </Animated.View>
     </>
   );

@@ -54,6 +54,7 @@ type Scheduler struct {
 	StartTime string `dynamodbav:"start_time"`
 	AlarmSound string `dynamodbav:"alarm_sound"`
 	Vibration bool `dynamodbav:"vibration"`
+	StrictMode bool `dynamodbav:"strict_mode"`
 	ObjectIds []string `dynamodbav:"object_ids"`
 	Challengers []Challenger `dynamodbav:"challengers"`
 	Enabled bool `dynamodbav:"enabled"`
@@ -80,6 +81,7 @@ type UpdateScheduler struct {
 	StartTime       *string
 	AlarmSound      *string
 	Vibration       *bool
+	StrictMode      *bool
 	ObjectIds   *[]string
 	Challengers *[]Challenger
 	Enabled         *bool

@@ -1,4 +1,4 @@
-import { FlatList } from 'react-native';
+import { View } from 'react-native';
 
 import { ObjectTagItem } from './ObjectTagItem';
 
@@ -12,22 +12,10 @@ interface ObjectTagsListProps {
 
 export function ObjectTagsList({ tags, onPressTag, onRemoveTag }: ObjectTagsListProps) {
   return (
-    <FlatList
-      data={tags}
-      nestedScrollEnabled
-      keyExtractor={(item) => item}
-
-      numColumns={3}
-
-      columnWrapperClassName="gap-2"
-
-      contentContainerClassName="gap-2"
-
-      showsVerticalScrollIndicator={false}
-
-      renderItem={({ item }) => (
-        <ObjectTagItem tag={item} onPressTag={onPressTag} onRemoveTag={onRemoveTag} />
-      )}
-    />
+    <View className="flex-row flex-wrap gap-2">
+      {tags.map((tag) => (
+        <ObjectTagItem key={tag} tag={tag} onPressTag={onPressTag} onRemoveTag={onRemoveTag} />
+      ))}
+    </View>
   );
 }

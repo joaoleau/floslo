@@ -75,6 +75,7 @@ export const schedulerMapper = {
       challengers: challengersToDomain(raw.challengers),
       enabled: raw.enabled,
       vibration: raw.vibration,
+      strictMode: raw.strict_mode,
       createdAt: new Date(raw.created_at),
       updatedAt: new Date(raw.updated_at),
     };
@@ -87,6 +88,7 @@ export const schedulerMapper = {
       start_time: domain.startTime,
       alarm_sound: domain.alarmSound,
       vibration: domain.vibration,
+      strict_mode: domain.strictMode,
       object_ids: domain.objectIds,
       challengers: challengersToDTO(domain.challengers),
       enabled: domain.enabled,
@@ -100,6 +102,7 @@ export const schedulerMapper = {
       start_time: domain.startTime,
       alarm_sound: domain.alarmSound,
       vibration: domain.vibration,
+      strict_mode: domain.strictMode,
       object_ids: domain.objectIds,
       challengers: domain.challengers ? challengersToDTO(domain.challengers) : undefined,
       enabled: domain.enabled,
