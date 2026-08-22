@@ -154,7 +154,11 @@ func (r *UserRepository) UpdateUserByUserId (ctx context.Context, user_id string
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-		ReturnValues:              types.ReturnValueUpdatedNew,
+		// UPDATED_NEW only returns attributes present in the Set expression above — Id and
+		// any other unchanged field come back empty, breaking anything that reads the
+		// returned user afterward. ALL_NEW returns the complete item. Same bug fixed in
+		// scheduler.go's UpdateScheduler.
+		ReturnValues: types.ReturnValueAllNew,
 	})
 	if err != nil {
 		logger.Log.Error("failed to update item: ", logger.Any("error", err))

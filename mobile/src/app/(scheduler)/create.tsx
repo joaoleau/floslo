@@ -12,9 +12,11 @@ import { SchedulerForm, SchedulerFormRef } from '@/components/scheduler/Schedule
 import { useObjectsQuery } from '@/hooks/useObjects';
 import { useCreateSchedulerMutation } from '@/hooks/useSchedulers';
 import { Scheduler } from '@/types/domain/Scheduler';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function CreateScheduler() {
   const router = useRouter();
+  const colors = useThemeColors();
   const formRef = useRef<SchedulerFormRef>(null);
 
   const { data: availableObjects = [], isPending, isError, error, refetch } = useObjectsQuery();
@@ -36,6 +38,7 @@ export default function CreateScheduler() {
       challengers: [],
       enabled: true,
       vibration: true,
+      strictMode: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -57,7 +60,7 @@ export default function CreateScheduler() {
         title="Novo Alarme"
         rightAction={
           createMutation.isPending ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.brand} />
           ) : (
             <HeaderAction icon="checkmark" onPress={() => formRef.current?.submit()} />
           )
@@ -66,7 +69,7 @@ export default function CreateScheduler() {
 
       {isPending ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError ? (
         <ErrorState message={error?.message} onRetry={() => refetch()} />

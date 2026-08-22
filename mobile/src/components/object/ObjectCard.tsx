@@ -16,14 +16,19 @@ interface ObjectCardProps {
 export function ObjectCard({ object, onPress }: ObjectCardProps) {
   return (
     <Pressable onPress={onPress}>
-      <Card className="w-full rounded-[32px] bg-background px-5 py-4">
+      <Card className="w-full rounded-[32px] bg-card px-5 py-4">
         <View className="flex-row items-start justify-between">
-          <Text className="mr-3 flex-1 text-lg font-medium text-brand-100" numberOfLines={1}>
+          <Text
+            className="text-lg font-medium text-foreground"
+            style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12, overflow: 'hidden' }}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {object.name}
           </Text>
 
-          <Badge className="rounded-full bg-muted px-3">
-            <Text className="text-xs font-medium uppercase text-brand-100">{object.extension}</Text>
+          <Badge className="rounded-full bg-muted px-3" style={{ flexShrink: 0 }}>
+            <Text className="text-xs font-medium uppercase text-foreground">{object.extension}</Text>
           </Badge>
         </View>
 

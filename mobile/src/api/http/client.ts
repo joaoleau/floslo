@@ -1,6 +1,6 @@
 import { tokenStorage } from '@/storage/tokenStorage';
 import { API_BASE_URL } from './config';
-import { ApiError } from './errors';
+import { ApiError, NetworkRefreshError } from './errors';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -30,18 +30,32 @@ async function refreshAccessToken(): Promise<string> {
     refreshPromise = (async () => {
       const refreshToken = await tokenStorage.getRefreshToken();
       if (!refreshToken) {
+        // No refresh token at all (e.g. logged out) is the one genuinely-terminal case here —
+        // there's nothing to retry, the caller's catch forces a real logout.
         console.error('[api] no refresh token in storage — cannot refresh session');
         throw new ApiError(401, 'No refresh token available');
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+      } catch (networkErr) {
+        // A transient network blip (wifi/cell handoff, no signal) while refreshing is not
+        // an auth failure — the refresh token itself is still valid. Don't let this look
+        // like "session expired": tag it so request() below can skip the forced logout.
+        console.warn('[api] network error while refreshing access token', networkErr);
+        throw new NetworkRefreshError();
+      }
+
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        // Non-OK from the refresh endpoint itself IS a real auth failure (expired/invalid
+        // refresh token) — the caller's catch forces logout, so this stays loud.
         console.error('[api] refresh token request failed', { status: res.status, body: json });
         throw new ApiError(res.status, json.error ?? 'Failed to refresh session');
       }
@@ -96,7 +110,12 @@ async function rawRequest<T>(
 
   if (!res.ok) {
     const message = (data as { error?: string } | undefined)?.error ?? `Request failed with status ${res.status}`;
-    console.error(`[api] <- ${res.status} ${method} ${path}`, { body: rawText });
+    // A 401 here is often just an expired access token about to be silently refreshed
+    // and retried by request() below — console.error would surface as a RedBox/LogBox
+    // error in dev builds even though the user never sees any failure. Real, unrecoverable
+    // failures are still logged loudly wherever they end up (the refresh-failure branch
+    // below, or the screen's own catch block).
+    console.warn(`[api] <- ${res.status} ${method} ${path}`, { body: rawText });
     throw new ApiError(res.status, message);
   }
 
@@ -118,6 +137,14 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       const newToken = await refreshAccessToken();
       return await rawRequest<T>(path, options, newToken);
     } catch (refreshErr) {
+      if (refreshErr instanceof NetworkRefreshError) {
+        // Couldn't reach the server at all — the session is still perfectly valid, just
+        // unreachable right now. Not a logout-worthy event; let the caller's own retry/error
+        // handling deal with it like any other network failure.
+        console.warn('[api] could not refresh session (network unreachable), not logging out', refreshErr);
+        throw refreshErr;
+      }
+
       console.error('[api] session expired — refresh failed, forcing logout', refreshErr);
       await tokenStorage.clear();
       sessionExpiredHandler?.();

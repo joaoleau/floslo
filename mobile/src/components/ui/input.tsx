@@ -20,7 +20,11 @@ function Input({
             'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
             'aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive',
           ),
-          native: 'placeholder:text-muted-foreground/50',
+          // Skip the class-based placeholder color when the caller passes an explicit
+          // placeholderTextColor prop — NativeWind's `placeholder:` class-to-prop
+          // translation can otherwise win over it unpredictably (same class of bug as
+          // the dark:bg-input/30 override issue on background color).
+          native: props.placeholderTextColor ? undefined : 'placeholder:text-muted-foreground/50',
         }),
         className,
       )}

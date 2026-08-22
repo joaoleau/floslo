@@ -8,13 +8,27 @@ import { Screen } from '@/components/common/Screen';
 import { AnimatedHeader } from '@/components/common/AnimatedHeader';
 import { HeaderAction } from '@/components/common/HeaderAction';
 import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
+import { OverlayPermissionBanner } from '@/components/common/OverlayPermissionBanner';
+import { FullScreenIntentPermissionBanner } from '@/components/common/FullScreenIntentPermissionBanner';
 import { SchedulerCard } from '@/components/scheduler/SchedulerCard';
 
 import { useSchedulersQuery, useToggleSchedulerMutation } from '@/hooks/useSchedulers';
 import { queryKeys } from '@/lib/queryKeys';
+import { useThemeColors } from '@/hooks/useThemeColors';
+
+function PermissionBanners() {
+  return (
+    <>
+      <OverlayPermissionBanner />
+      <FullScreenIntentPermissionBanner />
+    </>
+  );
+}
 
 export default function Home() {
   const router = useRouter();
+  const colors = useThemeColors();
   const scrollY = useSharedValue(0);
   const queryClient = useQueryClient();
 
@@ -52,16 +66,28 @@ export default function Home() {
 
       {isPending ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError ? (
         <ErrorState message={error?.message} onRetry={() => refetch()} />
+      ) : schedulers.length === 0 ? (
+        <View className="flex-1 pt-20 px-4">
+          <PermissionBanners />
+          <EmptyState
+            icon="alarm-outline"
+            title="Nenhum alarme ainda"
+            description="Crie seu primeiro alarme e comece a acordar na hora certa."
+            actionLabel="Criar meu primeiro alarme"
+            onAction={handleCreateScheduler}
+          />
+        </View>
       ) : (
         <Animated.FlatList
           data={schedulers}
           keyExtractor={(item) => item.id}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
+          ListHeaderComponent={PermissionBanners}
           contentContainerClassName="w-full px-4 pt-20 pb-32 gap-2"
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (

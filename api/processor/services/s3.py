@@ -18,6 +18,14 @@ logger.setLevel(logging.INFO)
 SUPPORTED_EXTENSIONS = {"txt", "md", "pdf", "docx", "csv", "json", "pptx"}
 
 
+class PdfOcrRequiredError(Exception):
+    """Raised when a PDF has at least one page but pypdf couldn't extract text
+    from any of them -- almost always a scanned/image-only PDF, which we don't
+    run OCR on. Caught upstream so the resulting "failed" record carries a
+    specific, human-readable error_message instead of a generic one.
+    """
+
+
 @dataclass(slots=True)
 class ObjectContent:
     bucket: str
@@ -105,6 +113,8 @@ class S3Service:
         reader = PdfReader(buffer)
         logger.info(f"Processing PDF via pypdf: '{key}' with {len(reader.pages)} page(s)")
 
+        yielded_any = False
+
         for page_number, page in enumerate(reader.pages, start=1):
             try:
                 text = normalize_text(page.extract_text() or "")
@@ -112,9 +122,14 @@ class S3Service:
                 if not text:
                     continue
 
+                yielded_any = True
                 yield ObjectContent(bucket=bucket, key=key, page=page_number, text=text, file_type="pdf")
             except Exception:
                 logger.exception(f"Failed extracting text from page={page_number} key={key}")
+
+        if not yielded_any and len(reader.pages) > 0:
+            logger.warning(f"No extractable text on any page -- likely a scanned/image-only PDF. key={key}")
+            raise PdfOcrRequiredError(key)
 
     def _read_docx_file(self, bucket: str, key: str, buffer: io.BytesIO) -> Iterator[ObjectContent]:
         text = normalize_text(docx2txt.process(buffer))

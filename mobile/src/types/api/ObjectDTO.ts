@@ -6,6 +6,7 @@ export interface ObjectDTO {
   tags: string[];
   language: string;
   status: ObjectStatusDTO;
+  error_message?: string;
   created_at: string;
   updated_at: string;
 }

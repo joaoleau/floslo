@@ -46,7 +46,7 @@ export function TimePicker({ value, onChange }: TimePickerProps) {
         onPress={() => setOpen(true)}
         className="flex-1 w-full h-full rounded-md px-4 py-3 items-center justify-center"
       >
-        <Text className="text-6xl font-medium text-brand-100">{value}</Text>
+        <Text className="text-6xl font-medium text-foreground">{value}</Text>
       </Pressable>
 
       {open && (

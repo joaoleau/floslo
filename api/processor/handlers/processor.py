@@ -15,7 +15,13 @@ from services import (
     VectorService,
     DynamoService,
     Object,
+    PdfOcrRequiredError,
     build_id_with_prefix
+)
+
+PDF_OCR_REQUIRED_MESSAGE = (
+    "Este PDF parece ser um documento digitalizado (imagem). "
+    "Ainda não conseguimos extrair texto desse tipo de arquivo."
 )
 
 FAILED_OBJECT_TTL_MINUTES = 10
@@ -178,6 +184,18 @@ class ProcessorHandler:
 
             logger.info(f"Ingestion completed for s3://{bucket}/{object_key}. Pages={total_pages}, Chunks={total_chunks}")
 
+        except PdfOcrRequiredError:
+            logger.warning(f"PDF requires OCR (unsupported) for s3://{bucket}/{object_key}")
+            self._handle_ingestion_failure(
+                bucket=bucket,
+                object_key=object_key,
+                object_id=object_id,
+                object_name=object_name,
+                user_id=user_id,
+                created_at=created_at,
+                vector_ids=[],
+                error_message=PDF_OCR_REQUIRED_MESSAGE,
+            )
         except Exception:
             logger.exception(f"Ingestion failed for s3://{bucket}/{object_key}")
             self._handle_ingestion_failure(
@@ -199,6 +217,7 @@ class ProcessorHandler:
         user_id: str,
         created_at: str,
         vector_ids: list[str],
+        error_message: str | None = None,
     ) -> None:
         if vector_ids:
             try:
@@ -220,6 +239,7 @@ class ProcessorHandler:
                     created_at=created_at,
                     vector_ids=[],
                     ttl=ttl,
+                    error_message=error_message,
                 )
             )
         except Exception:

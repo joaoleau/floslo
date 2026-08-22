@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface HeaderProps {
   title: string;
@@ -16,6 +17,7 @@ interface HeaderProps {
 
 export function Header({ title, showBackButton = true, onBack, rightAction }: HeaderProps) {
   const router = useRouter();
+  const colors = useThemeColors();
 
   function handleBack() {
     if (onBack) {
@@ -27,7 +29,7 @@ export function Header({ title, showBackButton = true, onBack, rightAction }: He
   }
 
   return (
-    <View className="h-14 flex-row items-center border-b border-zinc-200 px-4">
+    <View className="h-14 flex-row items-center border-b border-border px-4">
       <View className="w-10 items-start justify-center">
         {showBackButton && (
           <Pressable
@@ -35,13 +37,13 @@ export function Header({ title, showBackButton = true, onBack, rightAction }: He
             onPress={handleBack}
             className="h-10 w-10 items-center justify-center"
           >
-            <Ionicons name="chevron-back" size={24} color="#303031" />
+            <Ionicons name="chevron-back" size={24} color={colors.brand} />
           </Pressable>
         )}
       </View>
 
       <View className="flex-1 items-center justify-center">
-        <Text numberOfLines={1} className="text-lg font-semibold text-brand-100">
+        <Text numberOfLines={1} className="text-lg font-semibold text-foreground overflow-hidden">
           {title}
         </Text>
       </View>

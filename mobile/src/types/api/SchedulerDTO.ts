@@ -17,6 +17,7 @@ export interface SchedulerDTO {
   start_time: string;
   alarm_sound: string;
   vibration: boolean;
+  strict_mode: boolean;
   object_ids: string[];
   challengers: ChallengerDTO[];
   enabled: boolean;
@@ -30,6 +31,7 @@ export interface CreateSchedulerRequestDTO {
   start_time: string;
   alarm_sound: string;
   vibration: boolean;
+  strict_mode: boolean;
   object_ids: string[];
   challengers: ChallengerDTO[];
   enabled: boolean;

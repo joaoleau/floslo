@@ -1,6 +1,6 @@
 from .chunk import ChunkService, ChunkServiceData
 from .embedding import EmbeddingService, EmbeddingServiceData, EmbeddingRequest, EmbeddingResponse
-from .s3 import S3Service, S3ServiceData, ObjectContent
+from .s3 import S3Service, S3ServiceData, ObjectContent, PdfOcrRequiredError
 from .tag import TagService, TagServiceData, Tag, TagExtractionResult
 from .tag_refiner import (
     TagRefinerService,

@@ -12,9 +12,11 @@ import { Text } from '@/components/ui/text';
 import { useSchedulerQuery, useUpdateSchedulerMutation, useDeleteSchedulerMutation } from '@/hooks/useSchedulers';
 import { useObjectsQuery } from '@/hooks/useObjects';
 import { Scheduler } from '@/types/domain/Scheduler';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function EditScheduler() {
   const router = useRouter();
+  const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const formRef = useRef<SchedulerFormRef>(null);
 
@@ -29,7 +31,8 @@ export default function EditScheduler() {
     try {
       await updateMutation.mutateAsync({ id, scheduler: updatedScheduler });
       router.back();
-    } catch {
+    } catch (err) {
+      console.error(`[EditScheduler] Falha ao salvar alarme "${id}"`, err);
       Alert.alert('Erro', 'Falha ao salvar as alterações.');
     }
   }
@@ -44,7 +47,8 @@ export default function EditScheduler() {
           try {
             await deleteMutation.mutateAsync(schedulerId);
             router.back();
-          } catch {
+          } catch (err) {
+            console.error(`[EditScheduler] Falha ao excluir alarme "${schedulerId}"`, err);
             Alert.alert('Erro', 'Falha ao excluir.');
           }
         },
@@ -57,7 +61,7 @@ export default function EditScheduler() {
       <Screen>
         <Header title="Editar Alarme" />
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color={colors.brand} />
         </View>
       </Screen>
     );
@@ -80,7 +84,7 @@ export default function EditScheduler() {
         title="Editar Alarme"
         rightAction={
           updateMutation.isPending ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.brand} />
           ) : (
             <HeaderAction icon="checkmark" onPress={() => formRef.current?.submit()} />
           )

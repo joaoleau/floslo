@@ -19,6 +19,7 @@ export const objectMapper = {
       extension: parseExtension(raw.name),
       tags: raw.tags ?? [],
       status: raw.status,
+      errorMessage: raw.error_message,
     };
   },
 };

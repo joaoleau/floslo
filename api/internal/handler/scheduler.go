@@ -48,6 +48,7 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 		StartTime:        scheduler.StartTime,
 		AlarmSound:       scheduler.AlarmSound,
 		Vibration:        scheduler.Vibration,
+		StrictMode:       scheduler.StrictMode,
 		ObjectIds:   scheduler.ObjectIds,
 		Challengers: utils.MapSlice(scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
 			return dto.ChallengerDTO{
@@ -84,6 +85,7 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 		StartTime:        scheduler.StartTime,
 		AlarmSound:       scheduler.AlarmSound,
 		Vibration:        scheduler.Vibration,
+		StrictMode:       scheduler.StrictMode,
 		ObjectIds:   	  scheduler.ObjectIds,
 		Challengers: utils.MapSlice(scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
 			return dto.ChallengerDTO{
@@ -143,6 +145,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 		StartTime:        updateScheduler.StartTime,
 		AlarmSound:       updateScheduler.AlarmSound,
 		Vibration:        updateScheduler.Vibration,
+		StrictMode:       updateScheduler.StrictMode,
 		ObjectIds:   updateScheduler.ObjectIds,
 		Challengers: utils.MapSlice(updateScheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
 			return dto.ChallengerDTO{

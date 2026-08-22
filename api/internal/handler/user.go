@@ -35,6 +35,8 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		Id:       user.Id,
 		Username: user.Username,
 		Email:    user.Email,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
 	})
 }
 

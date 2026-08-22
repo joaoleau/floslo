@@ -24,6 +24,7 @@ export interface Scheduler {
   challengers: Challenger[];
   enabled: boolean;
   vibration: boolean;
+  strictMode: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

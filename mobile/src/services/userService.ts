@@ -10,11 +10,13 @@ export const userService = {
   },
 
   async updateMe(payload: UpdateUserRequestDTO): Promise<User> {
+    console.log('[User] Atualizando perfil', payload);
     const raw = await userApi.updateMe(payload);
     return userMapper.toDomain(raw);
   },
 
   async deleteMe(): Promise<void> {
+    console.log('[User] Excluindo conta');
     await userApi.deleteMe();
   },
 };
