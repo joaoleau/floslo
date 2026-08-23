@@ -12,6 +12,15 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 
 import '@/styles/global.css';
 
+const CHALLENGE_TYPE_STYLES: Record<
+  Scheduler['challengers'][number]['challengeType'],
+  { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; bg: string }
+> = {
+  QUIZ: { icon: 'school-outline', color: '#2563eb', bg: 'bg-blue-500/10' },
+  FLASHCARD: { icon: 'albums-outline', color: '#7c3aed', bg: 'bg-violet-500/10' },
+  TRUE_FALSE: { icon: 'checkmark-done-outline', color: '#0d9488', bg: 'bg-teal-500/10' },
+};
+
 interface SchedulerCardProps {
   scheduler: Scheduler;
   onPress?: () => void;
@@ -62,19 +71,16 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
               </Badge>
             )}
 
-            {/* Badges iterando sobre os desafios ativos */}
+            {/* Badges iterando sobre os desafios ativos -- uma cor por tipo de desafio */}
             {scheduler.challengers?.map((challenger, index) => {
-              if (challenger.challengeType === 'QUIZ') {
-                return (
-                  <View key={`quiz-${index}`} className="flex-row gap-1">
-                    <Badge className="rounded-full bg-background border border-border flex-row items-center">
-                      <Ionicons name="school-outline" size={16} color={colors.destructive} />
-                    </Badge>
-                  </View>
-                );
-              }
-              // Caso existam outros tipos de desafios no futuro, você pode tratá-los aqui
-              return null;
+              const style = CHALLENGE_TYPE_STYLES[challenger.challengeType];
+              return (
+                <View key={`${challenger.challengeType}-${index}`} className="flex-row gap-1">
+                  <Badge className={`rounded-full border-0 flex-row items-center ${style.bg}`}>
+                    <Ionicons name={style.icon} size={16} color={style.color} />
+                  </Badge>
+                </View>
+              );
             })}
           </View>
         </CardHeader>

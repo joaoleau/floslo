@@ -50,14 +50,14 @@ func NewVectorService(client *s3vectors.Client, embeddingService *EmbeddingServi
 	}
 }
 
-func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId string, objectKey string, query string, topK int32,) ([]RetrievedChunk, error) {
+func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId string, objectKey string, query string, topK int32, language string) ([]RetrievedChunk, error) {
 	embedding, err := s.EmbeddingService.GenerateEmbedding(ctx, query)
 
 	if err != nil {
 		return nil, err
 	}
 
-	vectors, err := s.QueryVectors(ctx, userId, objectKey, embedding, topK)
+	vectors, err := s.QueryVectors(ctx, userId, objectKey, embedding, topK, language)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,11 @@ func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId strin
 // context on genuinely different parts of the document. Results are merged (deduplicated by
 // page+chunk_index) and re-sorted by distance. A failure on one query is logged and skipped,
 // not fatal -- only fails if every query fails.
-func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32) ([]RetrievedChunk, error) {
+//
+// language, when non-empty, restricts the search to chunks tagged with that language
+// (VectorMetadata.language, set at ingestion time by the processor). Pass "" for no filter --
+// see RetrieveRelevantChunksMultiForLanguage for the caller-facing version with fallback.
+func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32, language string) ([]RetrievedChunk, error) {
 	type chunkKey struct {
 		page       int
 		chunkIndex int
@@ -82,7 +86,7 @@ func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId 
 	var lastErr error
 
 	for _, query := range queries {
-		chunks, err := s.RetrieveRelevantChunks(ctx, userId, objectKey, query, perQueryTopK)
+		chunks, err := s.RetrieveRelevantChunks(ctx, userId, objectKey, query, perQueryTopK, language)
 		if err != nil {
 			lastErr = err
 			logger.Log.Error("failed retrieving chunks for one of the multi-tag queries, skipping it", logger.String("query", query), logger.Any("error", err))
@@ -111,6 +115,28 @@ func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId 
 	})
 
 	return merged, nil
+}
+
+// RetrieveRelevantChunksMultiForLanguage biases retrieval towards chunks tagged with the
+// requested language, falling back to an unfiltered search when nothing matches (e.g. no
+// ingested content has been detected in that language yet) so a challenger's language choice
+// never hard-fails content generation -- GenerationService still gets a language instruction
+// either way and translates when the fallback kicks in.
+func (s *VectorService) RetrieveRelevantChunksMultiForLanguage(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32, language string) ([]RetrievedChunk, error) {
+	if language == "" {
+		return s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, "")
+	}
+
+	chunks, err := s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, language)
+	if err == nil && len(chunks) > 0 {
+		return chunks, nil
+	}
+
+	logger.Log.Info(
+		"no chunks matched the requested language, falling back to unfiltered retrieval",
+		logger.String("language", language),
+	)
+	return s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, "")
 }
 
 func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([]RetrievedChunk, error) {
@@ -161,28 +187,37 @@ func (s *VectorService) getVectorMetadata(vector *types.QueryOutputVector) (*Vec
 	return &metadata, nil
 }
 
-func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectKey string, embedding []float32, topK int32) ([]types.QueryOutputVector, error) {
+func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectKey string, embedding []float32, topK int32, language string) ([]types.QueryOutputVector, error) {
 	logger.Log.Info(
 		"starting query vectors",
 		logger.String("user_id", userId),
 		logger.Any("object_key", len(objectKey)),
 		logger.Any("embedding_dimensions", len(embedding)),
 		logger.Any("top_k", int(topK)),
+		logger.String("language", language),
 	)
 
-	filter := map[string]interface{}{
-		"$and": []map[string]interface{}{
-			{
-				"user": map[string]interface{}{
-					"$eq": userId,
-				},
-			},
-			{
-				"object_key": map[string]interface{}{
-					"$eq": objectKey,
-				},
+	filterClauses := []map[string]interface{}{
+		{
+			"user": map[string]interface{}{
+				"$eq": userId,
 			},
 		},
+		{
+			"object_key": map[string]interface{}{
+				"$eq": objectKey,
+			},
+		},
+	}
+	if language != "" {
+		filterClauses = append(filterClauses, map[string]interface{}{
+			"language": map[string]interface{}{
+				"$eq": language,
+			},
+		})
+	}
+	filter := map[string]interface{}{
+		"$and": filterClauses,
 	}
 	output, err := s.Client.QueryVectors(
 		ctx,

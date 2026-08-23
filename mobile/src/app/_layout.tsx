@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode, useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, Platform, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Text } from '@/components/ui/text';
 import { ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -272,13 +273,15 @@ export default function RootLayout() {
   }, [navigationState?.key, isAuthLoading, router]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppThemeProvider>
-        <ErrorBoundary>
-          <RootStack />
-        </ErrorBoundary>
-      </AppThemeProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <AppThemeProvider>
+          <ErrorBoundary>
+            <RootStack />
+          </ErrorBoundary>
+        </AppThemeProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

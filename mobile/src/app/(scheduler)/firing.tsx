@@ -12,7 +12,10 @@ import { VolumeManager } from 'react-native-volume-manager';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { QuizChallenge } from '@/components/challenges/QuizChallenge';
+import { FlashcardChallenge } from '@/components/challenges/FlashcardChallenge';
+import { TrueFalseChallenge } from '@/components/challenges/TrueFalseChallenge';
 import { RAG } from '@/types/domain/RAG';
+import { LANGUAGE_FLAGS } from '@/types/domain/Scheduler';
 import { useRagQuery } from '@/hooks/useFiring';
 
 // ==========================================
@@ -186,16 +189,16 @@ function FiringScreenContent({
   }
 
   function handleChallengeSuccess() {
-    console.log(`[Firing] Desafio ${currentChallengeIndex + 1}/${ragData.quizzes.length} concluído`);
-    if (currentChallengeIndex + 1 < ragData.quizzes.length) {
+    console.log(`[Firing] Desafio ${currentChallengeIndex + 1}/${ragData.challenges.length} concluído`);
+    if (currentChallengeIndex + 1 < ragData.challenges.length) {
       setCurrentChallengeIndex((prev) => prev + 1);
     } else {
       stopAlarm();
     }
   }
 
-  const currentQuiz = ragData.quizzes[currentChallengeIndex];
-  const total = ragData.quizzes.length || 1;
+  const currentChallenge = ragData.challenges[currentChallengeIndex];
+  const total = ragData.challenges.length || 1;
   const progressPercentage = (currentChallengeIndex / total) * 100;
 
   return (
@@ -214,9 +217,16 @@ function FiringScreenContent({
       {/* Cabeçalho compacto: só a hora, nome do alarme e progresso (quando houver mais de 1 desafio) */}
       <View className="items-center pt-14 pb-3 px-5">
         <Text className="text-5xl font-bold text-white tracking-widest">{currentTime}</Text>
-        <Text className="text-sm text-brand-50 font-medium text-center mt-1" numberOfLines={1}>
-          {ragData.scheduler.name || 'Seu alarme está tocando'}
-        </Text>
+        <View className="flex-row items-center gap-1.5 mt-1">
+          <Text className="text-sm text-brand-50 font-medium text-center" numberOfLines={1}>
+            {ragData.scheduler.name || 'Seu alarme está tocando'}
+          </Text>
+          {currentChallenge && (
+            <View className="flex-row items-center bg-white/15 rounded-full px-2 py-0.5">
+              <Text style={{ fontSize: 12 }}>{LANGUAGE_FLAGS[currentChallenge.language]}</Text>
+            </View>
+          )}
+        </View>
 
         {total > 1 && (
           <View className="w-full max-w-sm mt-3">
@@ -235,12 +245,30 @@ function FiringScreenContent({
 
       {/* Área do desafio: ocupa o resto da tela até as bordas, sem padding lateral/inferior */}
       <View className="flex-1">
-        {currentQuiz && (
+        {currentChallenge?.type === 'QUIZ' && (
           <QuizChallenge
-            key={`quiz-${currentChallengeIndex}`}
-            quiz={currentQuiz}
+            key={`challenge-${currentChallengeIndex}`}
+            quiz={currentChallenge.data}
             currentIndex={currentChallengeIndex}
             totalQuizzes={total}
+            onSuccess={handleChallengeSuccess}
+          />
+        )}
+        {currentChallenge?.type === 'FLASHCARD' && (
+          <FlashcardChallenge
+            key={`challenge-${currentChallengeIndex}`}
+            flashcard={currentChallenge.data}
+            currentIndex={currentChallengeIndex}
+            totalFlashcards={total}
+            onSuccess={handleChallengeSuccess}
+          />
+        )}
+        {currentChallenge?.type === 'TRUE_FALSE' && (
+          <TrueFalseChallenge
+            key={`challenge-${currentChallengeIndex}`}
+            item={currentChallenge.data}
+            currentIndex={currentChallengeIndex}
+            totalItems={total}
             onSuccess={handleChallengeSuccess}
           />
         )}

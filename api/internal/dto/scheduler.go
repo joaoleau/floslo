@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/utils"
@@ -11,35 +13,112 @@ type QuizChallengeConfigDTO struct {
 	QuestionCount int    `json:"question_count"`
 }
 
-type ChallengerDTO struct {
-	ChallengeType string                 `json:"challenge_type"`
-	Challenge     QuizChallengeConfigDTO `json:"challenge"`
+type FlashcardChallengeConfigDTO struct {
+	CardCount int `json:"card_count"`
 }
 
-func challengerDTOsToModel(challengers []ChallengerDTO) []model.Challenger {
-	values := make([]model.Challenger, len(challengers))
-	for i, c := range challengers {
-		values[i] = model.Challenger{
-			ChallengeType: c.ChallengeType,
-			Challenge: model.QuizChallengeConfig{
-				Difficulty:    c.Challenge.Difficulty,
-				QuestionCount: c.Challenge.QuestionCount,
-			},
+type TrueFalseChallengeConfigDTO struct {
+	Difficulty    string `json:"difficulty"`
+	QuestionCount int    `json:"question_count"`
+}
+
+// ChallengerDTO's Challenge field holds a concrete *ConfigDTO (Quiz/Flashcard/TrueFalse) on
+// encode, and is dispatched by ChallengeType via UnmarshalJSON on decode -- see below.
+type ChallengerDTO struct {
+	ChallengeType string      `json:"challenge_type"`
+	Language      string      `json:"language"`
+	Challenge     interface{} `json:"challenge"`
+}
+
+func (c *ChallengerDTO) UnmarshalJSON(data []byte) error {
+	var envelope struct {
+		ChallengeType string          `json:"challenge_type"`
+		Language      string          `json:"language"`
+		Challenge     json.RawMessage `json:"challenge"`
+	}
+	if err := json.Unmarshal(data, &envelope); err != nil {
+		return err
+	}
+
+	c.ChallengeType = envelope.ChallengeType
+	c.Language = envelope.Language
+
+	switch model.ChallengeType(envelope.ChallengeType) {
+	case model.ChallengeTypeQuiz:
+		var cfg QuizChallengeConfigDTO
+		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
+			return fmt.Errorf("invalid quiz challenge config: %w", err)
+		}
+		c.Challenge = cfg
+	case model.ChallengeTypeFlashcard:
+		var cfg FlashcardChallengeConfigDTO
+		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
+			return fmt.Errorf("invalid flashcard challenge config: %w", err)
+		}
+		c.Challenge = cfg
+	case model.ChallengeTypeTrueFalse:
+		var cfg TrueFalseChallengeConfigDTO
+		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
+			return fmt.Errorf("invalid true/false challenge config: %w", err)
+		}
+		c.Challenge = cfg
+	default:
+		return fmt.Errorf("unknown challenge type: %s", envelope.ChallengeType)
+	}
+
+	return nil
+}
+
+// ChallengerToDTO is the single place that maps a model.Challenger to its wire shape --
+// reused by every scheduler/RAG response so the type switch only lives in one place.
+func ChallengerToDTO(c model.Challenger) ChallengerDTO {
+	dto := ChallengerDTO{
+		ChallengeType: c.ChallengeType.String(),
+		Language:      c.Language.String(),
+	}
+	switch c.ChallengeType {
+	case model.ChallengeTypeQuiz:
+		if c.Quiz != nil {
+			dto.Challenge = QuizChallengeConfigDTO{Difficulty: c.Quiz.Difficulty, QuestionCount: c.Quiz.QuestionCount}
+		}
+	case model.ChallengeTypeFlashcard:
+		if c.Flashcard != nil {
+			dto.Challenge = FlashcardChallengeConfigDTO{CardCount: c.Flashcard.CardCount}
+		}
+	case model.ChallengeTypeTrueFalse:
+		if c.TrueFalse != nil {
+			dto.Challenge = TrueFalseChallengeConfigDTO{Difficulty: c.TrueFalse.Difficulty, QuestionCount: c.TrueFalse.QuestionCount}
 		}
 	}
-	return values
+	return dto
+}
+
+func challengerDTOsToModel(challengers []ChallengerDTO) ([]model.Challenger, error) {
+	values := make([]model.Challenger, len(challengers))
+	for i, c := range challengers {
+		m := model.Challenger{
+			ChallengeType: model.ChallengeType(c.ChallengeType),
+			Language:      model.Language(c.Language),
+		}
+		switch cfg := c.Challenge.(type) {
+		case QuizChallengeConfigDTO:
+			m.Quiz = &model.QuizChallengeConfig{Difficulty: cfg.Difficulty, QuestionCount: cfg.QuestionCount}
+		case FlashcardChallengeConfigDTO:
+			m.Flashcard = &model.FlashcardChallengeConfig{CardCount: cfg.CardCount}
+		case TrueFalseChallengeConfigDTO:
+			m.TrueFalse = &model.TrueFalseChallengeConfig{Difficulty: cfg.Difficulty, QuestionCount: cfg.QuestionCount}
+		default:
+			return nil, fmt.Errorf("unhandled challenge config type for challenge type %s", c.ChallengeType)
+		}
+		values[i] = m
+	}
+	return values, nil
 }
 
 func challengersToDTOList(challengers []model.Challenger) []ChallengerDTO {
 	values := make([]ChallengerDTO, len(challengers))
 	for i, c := range challengers {
-		values[i] = ChallengerDTO{
-			ChallengeType: c.ChallengeType,
-			Challenge: QuizChallengeConfigDTO{
-				Difficulty:    c.Challenge.Difficulty,
-				QuestionCount: c.Challenge.QuestionCount,
-			},
-		}
+		values[i] = ChallengerToDTO(c)
 	}
 	return values
 }
@@ -56,11 +135,16 @@ type CreateSchedulerRequestDTO struct {
 	Enabled        bool     `json:"enabled"`
 }
 
-func (dto *CreateSchedulerRequestDTO) ToModel() *model.Scheduler {
+func (dto *CreateSchedulerRequestDTO) ToModel() (*model.Scheduler, error) {
 	weekdays := make([]model.Weekday, len(dto.WeekDays))
 
 	for i, day := range dto.WeekDays {
 		weekdays[i] = model.Weekday(day)
+	}
+
+	challengers, err := challengerDTOsToModel(dto.Challengers)
+	if err != nil {
+		return nil, err
 	}
 
 	return &model.Scheduler{
@@ -71,9 +155,9 @@ func (dto *CreateSchedulerRequestDTO) ToModel() *model.Scheduler {
 		Vibration:      dto.Vibration,
 		StrictMode:     dto.StrictMode,
 		ObjectIds:   dto.ObjectIds,
-		Challengers: challengerDTOsToModel(dto.Challengers),
+		Challengers: challengers,
 		Enabled:          dto.Enabled,
-	}
+	}, nil
 }
 
 type SchedulerResponseDTO struct {
@@ -118,7 +202,7 @@ type UpdateSchedulerRequestDTO struct {
 	Enabled        *bool     `json:"enabled"`
 }
 
-func (dto *UpdateSchedulerRequestDTO) ToModel() *model.UpdateScheduler {
+func (dto *UpdateSchedulerRequestDTO) ToModel() (*model.UpdateScheduler, error) {
 	var weekdays *[]model.Weekday
 
 	if dto.WeekDays != nil {
@@ -131,7 +215,10 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() *model.UpdateScheduler {
 
 	var challengers *[]model.Challenger
 	if dto.Challengers != nil {
-		values := challengerDTOsToModel(*dto.Challengers)
+		values, err := challengerDTOsToModel(*dto.Challengers)
+		if err != nil {
+			return nil, err
+		}
 		challengers = &values
 	}
 
@@ -145,7 +232,7 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() *model.UpdateScheduler {
 		ObjectIds:    dto.ObjectIds,
 		Challengers: challengers,
 		Enabled:         dto.Enabled,
-	}
+	}, nil
 }
 
 type ListSchedulersResponseDTO struct {

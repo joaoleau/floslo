@@ -28,7 +28,33 @@ type GeneratedQuizDTO struct {
 	SourceChunks []ChunkDTO   `json:"source_chunks"`
 }
 
+type FlashcardDTO struct {
+	Title        string     `json:"title"`
+	Content      string     `json:"content"`
+	Tag          string     `json:"tag"`
+	SourceChunks []ChunkDTO `json:"source_chunks"`
+}
+
+type TrueFalseDTO struct {
+	Statement    string     `json:"statement"`
+	Answer       bool       `json:"answer"`
+	Explanation  string     `json:"explanation"`
+	Difficulty   string     `json:"difficulty"`
+	Tag          string     `json:"tag"`
+	SourceChunks []ChunkDTO `json:"source_chunks"`
+}
+
+// ChallengeResultDTO mirrors service.GeneratedChallengeResult: exactly one of
+// Quizzes/Flashcards/TrueFalses is populated, matching ChallengeType.
+type ChallengeResultDTO struct {
+	ChallengeType string         `json:"challenge_type"`
+	Language      string         `json:"language"`
+	Quizzes       []GeneratedQuizDTO `json:"quizzes,omitempty"`
+	Flashcards    []FlashcardDTO     `json:"flashcards,omitempty"`
+	TrueFalses    []TrueFalseDTO     `json:"true_falses,omitempty"`
+}
+
 type RAGResponseDTO struct {
-	Scheduler SchedulerResponseDTO `json:"scheduler"`
-	Quizzes []GeneratedQuizDTO `json:"quizzes"`
+	Scheduler  SchedulerResponseDTO  `json:"scheduler"`
+	Challenges []ChallengeResultDTO `json:"challenges"`
 }
