@@ -35,14 +35,83 @@ func (w Weekday) String() string {
 	return string(w)
 }
 
+type ChallengeType string
+
+const (
+	ChallengeTypeQuiz      ChallengeType = "QUIZ"
+	ChallengeTypeFlashcard ChallengeType = "FLASHCARD"
+	ChallengeTypeTrueFalse ChallengeType = "TRUE_FALSE"
+)
+
+var validChallengeTypes = map[ChallengeType]bool{
+	ChallengeTypeQuiz:      true,
+	ChallengeTypeFlashcard: true,
+	ChallengeTypeTrueFalse: true,
+}
+
+func (c ChallengeType) Validate() bool {
+	return validChallengeTypes[c]
+}
+
+func (c ChallengeType) String() string {
+	return string(c)
+}
+
+// Language is the challenge's output/content language. Keep this set in sync with
+// api/processor/services/tag.py's SUPPORTED_LANGUAGES and mobile's SUPPORTED_LANGUAGES
+// (src/types/domain/Scheduler.ts) -- there is no shared package between the three.
+type Language string
+
+const (
+	LanguagePT Language = "pt"
+	LanguageEN Language = "en"
+	LanguageES Language = "es"
+	LanguageFR Language = "fr"
+	LanguageDE Language = "de"
+	LanguageIT Language = "it"
+)
+
+var validLanguages = map[Language]bool{
+	LanguagePT: true,
+	LanguageEN: true,
+	LanguageES: true,
+	LanguageFR: true,
+	LanguageDE: true,
+	LanguageIT: true,
+}
+
+func (l Language) Validate() bool {
+	return validLanguages[l]
+}
+
+func (l Language) String() string {
+	return string(l)
+}
+
 type QuizChallengeConfig struct {
 	Difficulty    string `dynamodbav:"difficulty"`
 	QuestionCount int    `dynamodbav:"question_count"`
 }
 
+type FlashcardChallengeConfig struct {
+	CardCount int `dynamodbav:"card_count"`
+}
+
+type TrueFalseChallengeConfig struct {
+	Difficulty    string `dynamodbav:"difficulty"`
+	QuestionCount int    `dynamodbav:"question_count"`
+}
+
+// Challenger holds exactly one of Quiz/Flashcard/TrueFalse, selected by ChallengeType.
+// Only one config pointer should be non-nil at a time -- SchedulerService.validateChallenger
+// enforces this on write; adding a new challenge type means one more ChallengeType const,
+// one more *Config pointer field, and one more switch case, nothing else restructures.
 type Challenger struct {
-	ChallengeType string              `dynamodbav:"challenge_type"`
-	Challenge     QuizChallengeConfig `dynamodbav:"challenge"`
+	ChallengeType ChallengeType             `dynamodbav:"challenge_type"`
+	Language      Language                  `dynamodbav:"language"`
+	Quiz          *QuizChallengeConfig      `dynamodbav:"quiz,omitempty"`
+	Flashcard     *FlashcardChallengeConfig `dynamodbav:"flashcard,omitempty"`
+	TrueFalse     *TrueFalseChallengeConfig `dynamodbav:"true_false,omitempty"`
 }
 
 type Scheduler struct {

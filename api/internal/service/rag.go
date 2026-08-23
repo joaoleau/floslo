@@ -10,9 +10,19 @@ import (
 	"github.com/joaoleau/floslo/internal/model"
 )
 
+// GeneratedChallengeResult carries the generated content for one Challenger -- exactly one
+// of Quizzes/Flashcards/TrueFalses is populated, matching the Challenger's ChallengeType.
+type GeneratedChallengeResult struct {
+	ChallengeType string                `json:"challenge_type"`
+	Language      string                `json:"language"`
+	Quizzes       []*GeneratedQuiz      `json:"quizzes,omitempty"`
+	Flashcards    []*GeneratedFlashcard `json:"flashcards,omitempty"`
+	TrueFalses    []*GeneratedTrueFalse `json:"true_falses,omitempty"`
+}
+
 type RetrieveAndGenerateResponse struct {
-	Scheduler *model.Scheduler `json:"scheduler"`
-	Quizzes []*GeneratedQuiz `json:"quizzes"`
+	Scheduler  *model.Scheduler             `json:"scheduler"`
+	Challenges []*GeneratedChallengeResult `json:"challenges"`
 }
 
 type RAGService struct {
@@ -63,51 +73,112 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 	for i, selectedTag := range selectedTags {
 		queries[i] = s.generateQuery(selectedTag)
 	}
+	joinedQuery := strings.Join(queries, "; ")
 
-	count, difficulty := s.resolveChallengeConfig(scheduler.Challengers)
-
-	topK := 3 + count*3
-	if topK < 7 {
-		topK = 7
+	if len(scheduler.Challengers) == 0 {
+		return nil, fmt.Errorf("scheduler has no challengers")
 	}
 
-	// Distribute the topK budget across the per-tag queries instead of multiplying it --
-	// keeps total context/cost comparable to a single-tag search, while still querying each
-	// tag independently so one weak/generic tag can't dominate the whole result set.
-	perQueryTopK := int32(topK) / int32(len(queries))
-	if perQueryTopK < 3 {
-		perQueryTopK = 3
+	results := make([]*GeneratedChallengeResult, 0, len(scheduler.Challengers))
+	for _, challenger := range scheduler.Challengers {
+		count := challengeCount(challenger)
+
+		topK := 3 + count*3
+		if topK < 7 {
+			topK = 7
+		}
+
+		// Distribute the topK budget across the per-tag queries instead of multiplying it --
+		// keeps total context/cost comparable to a single-tag search, while still querying each
+		// tag independently so one weak/generic tag can't dominate the whole result set.
+		perQueryTopK := int32(topK) / int32(len(queries))
+		if perQueryTopK < 3 {
+			perQueryTopK = 3
+		}
+
+		language := string(challenger.Language)
+		chunks, err := s.VectorService.RetrieveRelevantChunksMultiForLanguage(ctx, userId, object.Key, queries, perQueryTopK, language)
+		if err != nil {
+			return nil, err
+		}
+		if len(chunks) == 0 {
+			return nil, fmt.Errorf("no chunks found for challenger %s", challenger.ChallengeType)
+		}
+
+		selected := s.diversifyChunks(chunks, count)
+		contextText := s.buildContext(selected)
+
+		result := &GeneratedChallengeResult{
+			ChallengeType: string(challenger.ChallengeType),
+			Language:      language,
+		}
+
+		switch challenger.ChallengeType {
+		case model.ChallengeTypeQuiz:
+			quizzes, err := s.GenerationService.GenerateQuizzes(ctx, joinedQuery, selectedTags, contextText, count, challenger.Quiz.Difficulty, language)
+			if err != nil {
+				return nil, err
+			}
+			for _, quiz := range quizzes {
+				quiz.SourceChunks = selected
+			}
+			result.Quizzes = quizzes
+		case model.ChallengeTypeFlashcard:
+			flashcards, err := s.GenerationService.GenerateFlashcards(ctx, joinedQuery, selectedTags, contextText, count, language)
+			if err != nil {
+				return nil, err
+			}
+			for _, card := range flashcards {
+				card.SourceChunks = selected
+			}
+			result.Flashcards = flashcards
+		case model.ChallengeTypeTrueFalse:
+			items, err := s.GenerationService.GenerateTrueFalse(ctx, joinedQuery, selectedTags, contextText, count, challenger.TrueFalse.Difficulty, language)
+			if err != nil {
+				return nil, err
+			}
+			for _, item := range items {
+				item.SourceChunks = selected
+			}
+			result.TrueFalses = items
+		default:
+			return nil, fmt.Errorf("unsupported challenge type: %s", challenger.ChallengeType)
+		}
+
+		results = append(results, result)
 	}
 
-	chunks, err := s.VectorService.RetrieveRelevantChunksMulti(ctx, userId, object.Key, queries, perQueryTopK)
-	if err != nil {
-		return nil, err
-	}
-	if len(chunks) == 0 {
-		return nil, fmt.Errorf("no chunks found")
-	}
-
-	selected := s.diversifyChunks(chunks, count)
-	contextText := s.buildContext(selected)
-	quizzes, err := s.GenerationService.GenerateQuizzes(
-		ctx,
-		strings.Join(queries, "; "),
-		selectedTags,
-		contextText,
-		count,
-		difficulty,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-	for _, quiz := range quizzes {
-		quiz.SourceChunks = selected
-	}
 	return &RetrieveAndGenerateResponse{
-		Scheduler: scheduler,
-		Quizzes: quizzes,
+		Scheduler:  scheduler,
+		Challenges: results,
 	}, nil
+}
+
+// challengeCount extracts the requested item count from a challenger's config, clamped to
+// [1, maxChallengeItemCount] the same way resolveChallengeConfig used to for the single-Quiz case.
+func challengeCount(c model.Challenger) int {
+	count := 1
+	switch c.ChallengeType {
+	case model.ChallengeTypeQuiz:
+		if c.Quiz != nil {
+			count = c.Quiz.QuestionCount
+		}
+	case model.ChallengeTypeFlashcard:
+		if c.Flashcard != nil {
+			count = c.Flashcard.CardCount
+		}
+	case model.ChallengeTypeTrueFalse:
+		if c.TrueFalse != nil {
+			count = c.TrueFalse.QuestionCount
+		}
+	}
+	if count < 1 {
+		count = 1
+	}
+	if count > maxChallengeItemCount {
+		count = maxChallengeItemCount
+	}
+	return count
 }
 
 // selectTags picks up to 3 distinct random tags from the object's tag pool. Querying with
@@ -126,28 +197,6 @@ func (s *RAGService) selectTags(tags []string) []string {
 	}
 
 	return selected
-}
-
-func (s *RAGService) resolveChallengeConfig(challengers []model.Challenger) (int, string) {
-	count := 1
-	difficulty := "medium"
-
-	for _, challenger := range challengers {
-		if challenger.ChallengeType == "QUIZ" {
-			count = challenger.Challenge.QuestionCount
-			difficulty = challenger.Challenge.Difficulty
-			break
-		}
-	}
-
-	if count < 1 {
-		count = 1
-	}
-	if count > 10 {
-		count = 10
-	}
-
-	return count, difficulty
 }
 
 func (s *RAGService) diversifyChunks(chunks []RetrievedChunk, count int) []RetrievedChunk {

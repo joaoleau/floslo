@@ -37,30 +37,74 @@ function weekDaysToDTO(domain: string[]): string[] {
   return (domain ?? []).map((day) => DOMAIN_TO_API_WEEKDAY[day] ?? day.toUpperCase());
 }
 
-function challengersToDomain(raw: ChallengerDTO[]): Challenger[] {
-  return (raw ?? []).map((item) => {
-    if (item.challenge_type === 'QUIZ') {
+function challengerToDomain(item: ChallengerDTO): Challenger {
+  switch (item.challenge_type) {
+    case 'QUIZ':
       return {
         challengeType: 'QUIZ',
+        language: item.language,
         challenge: {
           questionCount: item.challenge.question_count,
           difficulty: item.challenge.difficulty as QuizDifficulty,
         },
       };
+    case 'FLASHCARD':
+      return {
+        challengeType: 'FLASHCARD',
+        language: item.language,
+        challenge: { cardCount: item.challenge.card_count },
+      };
+    case 'TRUE_FALSE':
+      return {
+        challengeType: 'TRUE_FALSE',
+        language: item.language,
+        challenge: {
+          questionCount: item.challenge.question_count,
+          difficulty: item.challenge.difficulty as QuizDifficulty,
+        },
+      };
+    default: {
+      const unknown: { challenge_type: string } = item;
+      throw new Error(`Tipo de desafio desconhecido: ${unknown.challenge_type}`);
     }
+  }
+}
 
-    throw new Error(`Tipo de desafio desconhecido: ${item.challenge_type}`);
-  });
+function challengersToDomain(raw: ChallengerDTO[]): Challenger[] {
+  return (raw ?? []).map(challengerToDomain);
+}
+
+function challengerToDTO(item: Challenger): ChallengerDTO {
+  switch (item.challengeType) {
+    case 'QUIZ':
+      return {
+        challenge_type: 'QUIZ',
+        language: item.language,
+        challenge: {
+          question_count: item.challenge.questionCount,
+          difficulty: item.challenge.difficulty,
+        },
+      };
+    case 'FLASHCARD':
+      return {
+        challenge_type: 'FLASHCARD',
+        language: item.language,
+        challenge: { card_count: item.challenge.cardCount },
+      };
+    case 'TRUE_FALSE':
+      return {
+        challenge_type: 'TRUE_FALSE',
+        language: item.language,
+        challenge: {
+          question_count: item.challenge.questionCount,
+          difficulty: item.challenge.difficulty,
+        },
+      };
+  }
 }
 
 function challengersToDTO(domain: Challenger[]): ChallengerDTO[] {
-  return (domain ?? []).map((item) => ({
-    challenge_type: item.challengeType,
-    challenge: {
-      question_count: item.challenge.questionCount,
-      difficulty: item.challenge.difficulty,
-    },
-  }));
+  return (domain ?? []).map(challengerToDTO);
 }
 
 export const schedulerMapper = {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/joaoleau/floslo/internal/middleware"
-	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/service"
 	"github.com/joaoleau/floslo/internal/utils"
 	"github.com/joaoleau/floslo/internal/dto"
@@ -34,7 +33,11 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	scheduler := input.ToModel()
+	scheduler, err := input.ToModel()
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
 	err = h.SchedulerService.CreateScheduler(r.Context(), userId, scheduler)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
@@ -50,15 +53,7 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 		Vibration:        scheduler.Vibration,
 		StrictMode:       scheduler.StrictMode,
 		ObjectIds:   scheduler.ObjectIds,
-		Challengers: utils.MapSlice(scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
-			return dto.ChallengerDTO{
-				ChallengeType: c.ChallengeType,
-				Challenge: dto.QuizChallengeConfigDTO{
-					Difficulty:    c.Challenge.Difficulty,
-					QuestionCount: c.Challenge.QuestionCount,
-				},
-			}
-		}),
+		Challengers: utils.MapSlice(scheduler.Challengers, dto.ChallengerToDTO),
 		Enabled:          scheduler.Enabled,
 		CreatedAt:        scheduler.CreatedAt,
 		UpdatedAt:        scheduler.UpdatedAt,
@@ -87,15 +82,7 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 		Vibration:        scheduler.Vibration,
 		StrictMode:       scheduler.StrictMode,
 		ObjectIds:   	  scheduler.ObjectIds,
-		Challengers: utils.MapSlice(scheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
-			return dto.ChallengerDTO{
-				ChallengeType: c.ChallengeType,
-				Challenge: dto.QuizChallengeConfigDTO{
-					Difficulty:    c.Challenge.Difficulty,
-					QuestionCount: c.Challenge.QuestionCount,
-				},
-			}
-		}),
+		Challengers: utils.MapSlice(scheduler.Challengers, dto.ChallengerToDTO),
 		Enabled:          scheduler.Enabled,
 		CreatedAt:        scheduler.CreatedAt,
 		UpdatedAt:        scheduler.UpdatedAt,
@@ -131,7 +118,11 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 		utils.ResponseWithError(w, http.StatusBadRequest, err)
 		return
 	}
-	scheduler := input.ToModel()
+	scheduler, err := input.ToModel()
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
 	scheduler.Id = schedulerId
 	updateScheduler, err := h.SchedulerService.UpdateScheduler(r.Context(), userId, scheduler)
 	if err != nil {
@@ -147,15 +138,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 		Vibration:        updateScheduler.Vibration,
 		StrictMode:       updateScheduler.StrictMode,
 		ObjectIds:   updateScheduler.ObjectIds,
-		Challengers: utils.MapSlice(updateScheduler.Challengers, func(c model.Challenger) dto.ChallengerDTO {
-			return dto.ChallengerDTO{
-				ChallengeType: c.ChallengeType,
-				Challenge: dto.QuizChallengeConfigDTO{
-					Difficulty:    c.Challenge.Difficulty,
-					QuestionCount: c.Challenge.QuestionCount,
-				},
-			}
-		}),
+		Challengers: utils.MapSlice(updateScheduler.Challengers, dto.ChallengerToDTO),
 		Enabled:          updateScheduler.Enabled,
 		CreatedAt:        updateScheduler.CreatedAt,
 		UpdatedAt:        updateScheduler.UpdatedAt,
