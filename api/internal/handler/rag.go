@@ -1,12 +1,13 @@
 package handler
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
+
+	"github.com/joaoleau/floslo/internal/dto"
 	"github.com/joaoleau/floslo/internal/middleware"
 	"github.com/joaoleau/floslo/internal/service"
 	"github.com/joaoleau/floslo/internal/utils"
-	"github.com/joaoleau/floslo/internal/dto"
 )
 
 type RAGHandler struct {
@@ -40,18 +41,18 @@ func (h *RAGHandler) RetrieveAndGenerate(w http.ResponseWriter, r *http.Request)
 
 	utils.ResponseWithData(w, http.StatusCreated, dto.RAGResponseDTO{
 		Scheduler: dto.SchedulerResponseDTO{
-			SchedulerId: resp.Scheduler.Id,
-			Name: resp.Scheduler.Name,
-			WeekDays: utils.WeekdaysToStrings(resp.Scheduler.WeekDays),
-			StartTime: resp.Scheduler.StartTime,
-			AlarmSound: resp.Scheduler.AlarmSound,
-			Vibration: resp.Scheduler.Vibration,
-			StrictMode: resp.Scheduler.StrictMode,
-			ObjectIds: resp.Scheduler.ObjectIds,
-			Challengers: utils.MapSlice(resp.Scheduler.Challengers, dto.ChallengerToDTO),
-			Enabled: resp.Scheduler.Enabled,
-			CreatedAt: resp.Scheduler.CreatedAt,
-			UpdatedAt: resp.Scheduler.UpdatedAt,
+			SchedulerId:  resp.Scheduler.Id,
+			Name:         resp.Scheduler.Name,
+			WeekDays:     utils.WeekdaysToStrings(resp.Scheduler.WeekDays),
+			StartTime:    resp.Scheduler.StartTime,
+			AlarmSound:   resp.Scheduler.AlarmSound,
+			Vibration:    resp.Scheduler.Vibration,
+			SoundEnabled: dto.BoolOrFallback(resp.Scheduler.SoundEnabled, true),
+			ObjectIds:    resp.Scheduler.ObjectIds,
+			Challengers:  utils.MapSlice(resp.Scheduler.Challengers, dto.ChallengerToDTO),
+			Enabled:      resp.Scheduler.Enabled,
+			CreatedAt:    resp.Scheduler.CreatedAt,
+			UpdatedAt:    resp.Scheduler.UpdatedAt,
 		},
 		Challenges: utils.MapSlice(resp.Challenges, challengeResultToDTO),
 	})
@@ -82,8 +83,8 @@ func challengeResultToDTO(result *service.GeneratedChallengeResult) dto.Challeng
 				Question: quiz.Question,
 				Alternatives: utils.MapSlice(quiz.Alternatives, func(a service.QuizAlternative) dto.QuizAlternativeDTO {
 					return dto.QuizAlternativeDTO{
-						Id: a.Id,
-						Text: a.Text,
+						Id:      a.Id,
+						Text:    a.Text,
 						Correct: a.Correct,
 					}
 				}),

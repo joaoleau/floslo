@@ -10,11 +10,11 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 
 import { useMeQuery, useDeleteMeMutation } from '@/hooks/useUser';
-import { useSchedulersQuery } from '@/hooks/useSchedulers';
-import { useObjectsQuery } from '@/hooks/useObjects';
+import { useUserStatsQuery } from '@/hooks/useHistory';
 import { authService } from '@/services/authService';
 import { useTheme, ThemePreference } from '@/lib/ThemeProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { UserStatsSummaryCard } from '@/components/history/UserStatsSummaryCard';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'light', label: 'Claro', icon: 'sunny-outline' },
@@ -28,8 +28,7 @@ export default function Profile() {
   const { preference, setPreference } = useTheme();
 
   const { data: user, isPending, isError, refetch } = useMeQuery();
-  const { data: schedulers = [] } = useSchedulersQuery();
-  const { data: objects = [] } = useObjectsQuery();
+  const statsQuery = useUserStatsQuery();
   const deleteMeMutation = useDeleteMeMutation();
 
   async function handleLogout() {
@@ -89,26 +88,7 @@ export default function Profile() {
             </View>
           </Card>
 
-          <Card className="rounded-3xl p-5 gap-3">
-            <Text className="text-lg font-semibold text-foreground">Resumo</Text>
-            <View className="flex-row justify-between pt-1">
-              <View className="items-center gap-1">
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="alarm" size={16} color={colors.brand} />
-                  <Text className="text-xl font-bold text-foreground">{schedulers.length}</Text>
-                </View>
-                <Text className="text-xs text-muted-foreground">Alarmes</Text>
-              </View>
-
-              <View className="items-center gap-1">
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="document-text" size={16} color={colors.brand} />
-                  <Text className="text-xl font-bold text-foreground">{objects.length}</Text>
-                </View>
-                <Text className="text-xs text-muted-foreground">Objetos</Text>
-              </View>
-            </View>
-          </Card>
+          <UserStatsSummaryCard stats={statsQuery.data} />
 
           <Card className="rounded-3xl p-5 gap-3">
             <Text className="text-lg font-semibold text-foreground">Aparência</Text>

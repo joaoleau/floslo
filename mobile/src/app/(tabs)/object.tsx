@@ -64,7 +64,7 @@ export default function ObjectsScreen() {
           <EmptyState
             icon="document-text-outline"
             title="Nenhum objeto ainda"
-            description="Envie seu primeiro material de estudo para gerar desafios nos seus alarmes."
+            description="Envie seu primeiro material de estudo para gerar desafios nos seus agendadores."
             actionLabel="Enviar meu primeiro material"
             onAction={handleCreateObject}
           />

@@ -32,13 +32,13 @@ export default function EditScheduler() {
       await updateMutation.mutateAsync({ id, scheduler: updatedScheduler });
       router.back();
     } catch (err) {
-      console.error(`[EditScheduler] Falha ao salvar alarme "${id}"`, err);
+      console.error(`[EditScheduler] Falha ao salvar agendador "${id}"`, err);
       Alert.alert('Erro', 'Falha ao salvar as alterações.');
     }
   }
 
   function handleDelete(schedulerId: string) {
-    Alert.alert('Excluir Alarme', 'Tem certeza que deseja excluir este alarme?', [
+    Alert.alert('Excluir Agendador', 'Tem certeza que deseja excluir este agendador?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir',
@@ -48,7 +48,7 @@ export default function EditScheduler() {
             await deleteMutation.mutateAsync(schedulerId);
             router.back();
           } catch (err) {
-            console.error(`[EditScheduler] Falha ao excluir alarme "${schedulerId}"`, err);
+            console.error(`[EditScheduler] Falha ao excluir agendador "${schedulerId}"`, err);
             Alert.alert('Erro', 'Falha ao excluir.');
           }
         },
@@ -59,7 +59,7 @@ export default function EditScheduler() {
   if (isLoading) {
     return (
       <Screen>
-        <Header title="Editar Alarme" />
+        <Header title="Editar Agendador" />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
@@ -72,7 +72,7 @@ export default function EditScheduler() {
       <Screen>
         <Header title="Erro" />
         <View className="flex-1 justify-center items-center">
-          <Text>Alarme não encontrado.</Text>
+          <Text>Agendador não encontrado.</Text>
         </View>
       </Screen>
     );
@@ -81,7 +81,7 @@ export default function EditScheduler() {
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Header
-        title="Editar Alarme"
+        title="Editar Agendador"
         rightAction={
           updateMutation.isPending ? (
             <ActivityIndicator color={colors.brand} />

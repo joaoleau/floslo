@@ -33,12 +33,12 @@ export default function CreateScheduler() {
       name: '',
       weekDays: [],
       startTime: `${hours}:${minutes}`,
-      alarmSound: '',
+      alarmSound: 'chic_pop',
       objectIds: [],
       challengers: [],
       enabled: true,
       vibration: true,
-      strictMode: false,
+      soundEnabled: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -49,15 +49,15 @@ export default function CreateScheduler() {
       await createMutation.mutateAsync(scheduler);
       router.back();
     } catch (err) {
-      console.error('[CreateScheduler] Falha ao criar o alarme:', err);
-      Alert.alert('Erro', err instanceof Error ? err.message : 'Falha ao criar o alarme.');
+      console.error('[CreateScheduler] Falha ao criar o agendador:', err);
+      Alert.alert('Erro', err instanceof Error ? err.message : 'Falha ao criar o agendador.');
     }
   }
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Header
-        title="Novo Alarme"
+        title="Novo Agendador"
         rightAction={
           createMutation.isPending ? (
             <ActivityIndicator color={colors.brand} />

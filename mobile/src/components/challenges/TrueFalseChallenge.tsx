@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Pressable, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TrueFalseItem } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { ChallengeResult } from '@/types/domain/History';
 
 interface TrueFalseChallengeProps {
   item: TrueFalseItem;
   currentIndex: number;
   totalItems: number;
-  onSuccess: () => void;
+  onSuccess: (result: ChallengeResult) => void;
 }
 
 const OPTIONS = [
@@ -24,6 +25,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
   const [wrongOptionId, setWrongOptionId] = useState<string | null>(null);
   const [answered, setAnswered] = useState(false);
   const [showSources, setShowSources] = useState(false);
+  const wrongAttemptsRef = useRef(0);
 
   function handleSelectOption(optionId: string, value: boolean) {
     if (answered) return;
@@ -32,8 +34,13 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
       setWrongOptionId(null);
       setAnswered(true);
     } else {
+      wrongAttemptsRef.current += 1;
       setWrongOptionId(optionId);
     }
+  }
+
+  function handleContinue() {
+    onSuccess({ wrongAttempts: wrongAttemptsRef.current });
   }
 
   const difficultyColor =
@@ -129,7 +136,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                 <Text className="text-foreground leading-relaxed text-sm">{item.explanation}</Text>
               </View>
 
-              <Button onPress={onSuccess} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
+              <Button onPress={handleContinue} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
                 <Text className="text-white font-bold text-lg">Continuar</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>

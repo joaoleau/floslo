@@ -123,7 +123,10 @@ type Scheduler struct {
 	StartTime string `dynamodbav:"start_time"`
 	AlarmSound string `dynamodbav:"alarm_sound"`
 	Vibration bool `dynamodbav:"vibration"`
-	StrictMode bool `dynamodbav:"strict_mode"`
+	// Ponteiro (não bool puro) de propósito: nil diferencia "nunca setado" (schedulers
+	// criados antes desse campo existir) de "setado como false" -- o fallback pro
+	// comportamento antigo implícito (ver dto.ToSchedulerResponseDTOList) depende disso.
+	SoundEnabled *bool `dynamodbav:"sound_enabled,omitempty"`
 	ObjectIds []string `dynamodbav:"object_ids"`
 	Challengers []Challenger `dynamodbav:"challengers"`
 	Enabled bool `dynamodbav:"enabled"`
@@ -150,7 +153,7 @@ type UpdateScheduler struct {
 	StartTime       *string
 	AlarmSound      *string
 	Vibration       *bool
-	StrictMode      *bool
+	SoundEnabled    *bool
 	ObjectIds   *[]string
 	Challengers *[]Challenger
 	Enabled         *bool

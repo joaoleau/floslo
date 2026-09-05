@@ -179,8 +179,8 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, u
 	if update.Vibration != nil {
 		scheduler.Vibration = *update.Vibration
 	}
-	if update.StrictMode != nil {
-		scheduler.StrictMode = *update.StrictMode
+	if update.SoundEnabled != nil {
+		scheduler.SoundEnabled = update.SoundEnabled
 	}
 	if update.ObjectIds != nil {
 		scheduler.ObjectIds = *update.ObjectIds
