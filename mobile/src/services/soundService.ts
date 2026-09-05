@@ -16,3 +16,13 @@ export const soundService = {
     return AVAILABLE_SOUNDS;
   },
 };
+
+// Os nomes dos sons são slugs de arquivo ("chic_pop") -- formata pra exibição
+// ("Chic Pop") nos lugares onde o usuário vê o som já escolhido/selecionado.
+export function formatSoundLabel(name: string): string {
+  return name
+    .split('_')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}

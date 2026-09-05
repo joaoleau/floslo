@@ -67,28 +67,6 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
     }
     return;
   }
-
-  const isStrictAlarm = notification.data?.strictMode === 'true';
-
-  if (type === EventType.DISMISSED && notification.android?.category === AndroidCategory.ALARM && isStrictAlarm) {
-    console.log('[Anti-Cheat] Usuário tentou arrastar a notificação! Recriando...');
-
-    await notifee.displayNotification({
-      id: notification.id,
-      title: '🚨 O alarme continua tocando!',
-      body: 'Abra o aplicativo e resolva o desafio para desligar.',
-      data: notification.data,
-      android: {
-        channelId: notification.android?.channelId || 'default', 
-        category: AndroidCategory.ALARM,
-        ongoing: true, 
-        loopSound: true, 
-        autoCancel: false, 
-        fullScreenAction: { id: 'default', launchActivity: 'default' },
-        pressAction: { id: 'default', launchActivity: 'default' },
-      },
-    });
-  }
 });
 
 export default function RootLayout() {
@@ -329,6 +307,7 @@ function RootStack() {
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(object)" />
         <Stack.Screen name="(scheduler)" />
+        <Stack.Screen name="(history)" />
       </Stack>
     </ThemeProvider>
   );

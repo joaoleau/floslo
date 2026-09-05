@@ -40,10 +40,10 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
 
   return (
     <View className="gap-3">
-      <Button
-        className="h-10 rounded-3xl justify-start border border-brand-100 bg-background"
-        onPress={() => setOpen(true)}
-      >
+      {/* bg-card (não bg-background): esse botão sempre vive dentro de um Card branco --
+          bg-background é o fundo da página (ligeiramente mais escuro que branco de propósito,
+          pra dar profundidade atrás dos cards), então usá-lo aqui destoava do card ao redor. */}
+      <Button variant="outline" className="h-10 rounded-3xl justify-start bg-card" onPress={() => setOpen(true)}>
         <Ionicons name="add-circle-outline" size={18} color={colors.brand} />
         <Text className="ml-2 text-brand-100">Adicionar objeto</Text>
       </Button>
@@ -90,7 +90,9 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
 
               {availableObjects.length === 0 && (
                 <Text className="py-8 text-center text-muted-foreground">
-                  Todos os objetos já foram adicionados.
+                  {objects.length === 0
+                    ? 'Você ainda não tem nenhum objeto. Adicione um na aba Objetos primeiro.'
+                    : 'Todos os objetos já foram adicionados.'}
                 </Text>
               )}
             </ScrollView>

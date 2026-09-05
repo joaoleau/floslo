@@ -117,7 +117,7 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 		Set(expression.Name("start_time"), expression.Value(scheduler.StartTime)).
 		Set(expression.Name("alarm_sound"), expression.Value(scheduler.AlarmSound)).
 		Set(expression.Name("vibration"), expression.Value(scheduler.Vibration)).
-		Set(expression.Name("strict_mode"), expression.Value(scheduler.StrictMode)).
+		Set(expression.Name("sound_enabled"), expression.Value(scheduler.SoundEnabled)).
 		Set(expression.Name("object_ids"), expression.Value(scheduler.ObjectIds)).
 		Set(expression.Name("challengers"), expression.Value(scheduler.Challengers)).
 		Set(expression.Name("enabled"), expression.Value(scheduler.Enabled)).

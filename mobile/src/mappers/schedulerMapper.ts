@@ -119,7 +119,9 @@ export const schedulerMapper = {
       challengers: challengersToDomain(raw.challengers),
       enabled: raw.enabled,
       vibration: raw.vibration,
-      strictMode: raw.strict_mode,
+      // Schedulers criados antes desse campo existir não o têm no Dynamo -- som
+      // sempre tocava por padrão.
+      soundEnabled: raw.sound_enabled ?? true,
       createdAt: new Date(raw.created_at),
       updatedAt: new Date(raw.updated_at),
     };
@@ -132,7 +134,7 @@ export const schedulerMapper = {
       start_time: domain.startTime,
       alarm_sound: domain.alarmSound,
       vibration: domain.vibration,
-      strict_mode: domain.strictMode,
+      sound_enabled: domain.soundEnabled,
       object_ids: domain.objectIds,
       challengers: challengersToDTO(domain.challengers),
       enabled: domain.enabled,
@@ -146,7 +148,7 @@ export const schedulerMapper = {
       start_time: domain.startTime,
       alarm_sound: domain.alarmSound,
       vibration: domain.vibration,
-      strict_mode: domain.strictMode,
+      sound_enabled: domain.soundEnabled,
       object_ids: domain.objectIds,
       challengers: domain.challengers ? challengersToDTO(domain.challengers) : undefined,
       enabled: domain.enabled,

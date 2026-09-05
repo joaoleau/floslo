@@ -23,6 +23,7 @@ type Repositories struct {
 	SchedulerRepository *irepository.SchedulerRepository
 	SchedulerObjectLinkRepository *irepository.SchedulerObjectLinkRepository
 	ObjectRepository *irepository.ObjectRepository
+	UserStatsRepository *irepository.UserStatsRepository
 }
 
 type Services struct {
@@ -33,6 +34,7 @@ type Services struct {
 	EmbeddingService *iservice.EmbeddingService
 	VectorService *iservice.VectorService
 	ObjectService *iservice.ObjectService
+	UserStatsService *iservice.UserStatsService
 }
 
 type Handlers struct {
@@ -41,6 +43,7 @@ type Handlers struct {
 	StorageHandler *ihandler.StorageHandler
 	SchedulerHandler *ihandler.SchedulerHandler
 	ObjectHandler *ihandler.ObjectHandler
+	UserStatsHandler *ihandler.UserStatsHandler
 }
 
 func handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -79,6 +82,8 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Get("/user/me", handlers.UserHandler.GetMe)
 			r.Put("/user/me", handlers.UserHandler.UpdateMe)
 			r.Delete("/user/me", handlers.UserHandler.DeleteMe)
+			r.Get("/user/me/stats", handlers.UserStatsHandler.GetStats)
+			r.Post("/user/me/stats/answer", handlers.UserStatsHandler.RecordAnswer)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -115,6 +120,7 @@ func setupHandlers(services *Services) *Handlers {
 		StorageHandler: ihandler.NewStorageHandler(services.StorageService),
 		SchedulerHandler: ihandler.NewSchedulerHandler(services.SchedulerService),
 		ObjectHandler: ihandler.NewObjectHandler(services.ObjectService),
+		UserStatsHandler: ihandler.NewUserStatsHandler(services.UserStatsService),
 	}
 }
 
@@ -133,6 +139,7 @@ func setupServices(cfg *config.Config, repos *Repositories) *Services {
 		EmbeddingService: embeddingService,
 		VectorService: vectorService,
 		ObjectService: objectService,
+		UserStatsService: iservice.NewUserStatsService(repos.UserStatsRepository),
 	}
 }
 
@@ -142,5 +149,6 @@ func setupRepositories(db *dynamodb.Client, table string) *Repositories {
 		SchedulerRepository: irepository.NewSchedulerRepository(db, table),
 		SchedulerObjectLinkRepository: irepository.NewSchedulerObjectLinkRepository(db, table),
 		ObjectRepository: irepository.NewObjectRepository(db, table),
+		UserStatsRepository: irepository.NewUserStatsRepository(db, table),
 	}
 }

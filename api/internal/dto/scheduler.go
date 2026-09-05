@@ -129,7 +129,7 @@ type CreateSchedulerRequestDTO struct {
 	StartTime      string   `json:"start_time"`
 	AlarmSound     string   `json:"alarm_sound"`
 	Vibration      bool     `json:"vibration"`
-	StrictMode     bool     `json:"strict_mode"`
+	SoundEnabled   bool     `json:"sound_enabled"`
 	ObjectIds   []string `json:"object_ids"`
 	Challengers []ChallengerDTO `json:"challengers"`
 	Enabled        bool     `json:"enabled"`
@@ -153,7 +153,7 @@ func (dto *CreateSchedulerRequestDTO) ToModel() (*model.Scheduler, error) {
 		StartTime:      dto.StartTime,
 		AlarmSound:     dto.AlarmSound,
 		Vibration:      dto.Vibration,
-		StrictMode:     dto.StrictMode,
+		SoundEnabled:   &dto.SoundEnabled,
 		ObjectIds:   dto.ObjectIds,
 		Challengers: challengers,
 		Enabled:          dto.Enabled,
@@ -167,7 +167,7 @@ type SchedulerResponseDTO struct {
 	StartTime      string   `json:"start_time"`
 	AlarmSound     string   `json:"alarm_sound"`
 	Vibration      bool     `json:"vibration"`
-	StrictMode     bool     `json:"strict_mode"`
+	SoundEnabled   bool     `json:"sound_enabled"`
 	ObjectIds   []string `json:"object_ids"`
 	Challengers []ChallengerDTO `json:"challengers"`
 	Enabled        bool     `json:"enabled"`
@@ -182,7 +182,7 @@ type GetSchedulerResponseDTO struct {
 	StartTime      string   `json:"start_time"`
 	AlarmSound     string   `json:"alarm_sound"`
 	Vibration      bool     `json:"vibration"`
-	StrictMode     bool     `json:"strict_mode"`
+	SoundEnabled   bool     `json:"sound_enabled"`
 	ObjectIds   []string `json:"object_ids"`
 	Challengers []ChallengerDTO `json:"challengers"`
 	Enabled        bool     `json:"enabled"`
@@ -196,7 +196,7 @@ type UpdateSchedulerRequestDTO struct {
 	StartTime      *string   `json:"start_time"`
 	AlarmSound     *string   `json:"alarm_sound"`
 	Vibration      *bool     `json:"vibration"`
-	StrictMode     *bool     `json:"strict_mode"`
+	SoundEnabled   *bool     `json:"sound_enabled"`
 	ObjectIds   *[]string `json:"object_ids"`
 	Challengers *[]ChallengerDTO `json:"challengers"`
 	Enabled        *bool     `json:"enabled"`
@@ -228,7 +228,7 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() (*model.UpdateScheduler, error) 
 		StartTime:       dto.StartTime,
 		AlarmSound:      dto.AlarmSound,
 		Vibration:       dto.Vibration,
-		StrictMode:      dto.StrictMode,
+		SoundEnabled:    dto.SoundEnabled,
 		ObjectIds:    dto.ObjectIds,
 		Challengers: challengers,
 		Enabled:         dto.Enabled,
@@ -237,6 +237,16 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() (*model.UpdateScheduler, error) 
 
 type ListSchedulersResponseDTO struct {
 	Schedulers []*SchedulerResponseDTO `json:"schedulers"`
+}
+
+// BoolOrFallback resolves a scheduler's SoundEnabled: nil means the scheduler
+// was created before the field existed (no attribute in Dynamo), so fall back to
+// whatever it implicitly meant before -- see ToSchedulerResponseDTOList.
+func BoolOrFallback(value *bool, fallback bool) bool {
+	if value == nil {
+		return fallback
+	}
+	return *value
 }
 
 func ToSchedulerResponseDTOList(schedulers []*model.Scheduler) []*SchedulerResponseDTO {
@@ -249,7 +259,8 @@ func ToSchedulerResponseDTOList(schedulers []*model.Scheduler) []*SchedulerRespo
 			StartTime:      scheduler.StartTime,
 			AlarmSound:     scheduler.AlarmSound,
 			Vibration:      scheduler.Vibration,
-			StrictMode:     scheduler.StrictMode,
+			// Antes desse campo existir: som sempre tocava.
+			SoundEnabled: BoolOrFallback(scheduler.SoundEnabled, true),
 			ObjectIds:   scheduler.ObjectIds,
 			Challengers: challengersToDTOList(scheduler.Challengers),
 			Enabled:        scheduler.Enabled,

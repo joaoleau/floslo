@@ -30,7 +30,9 @@ export interface SchedulerDTO {
   start_time: string;
   alarm_sound: string;
   vibration: boolean;
-  strict_mode: boolean;
+  // Opcional: ausente em schedulers criados antes desse campo existir --
+  // mobile/src/mappers/schedulerMapper.ts aplica o fallback pro comportamento antigo.
+  sound_enabled?: boolean;
   object_ids: string[];
   challengers: ChallengerDTO[];
   enabled: boolean;
@@ -44,7 +46,7 @@ export interface CreateSchedulerRequestDTO {
   start_time: string;
   alarm_sound: string;
   vibration: boolean;
-  strict_mode: boolean;
+  sound_enabled: boolean;
   object_ids: string[];
   challengers: ChallengerDTO[];
   enabled: boolean;

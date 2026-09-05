@@ -100,7 +100,6 @@ async function syncWithAndroid(scheduler: Scheduler) {
     enabled: scheduler.enabled,
     weekDays: scheduler.weekDays,
     startTime: scheduler.startTime,
-    strictMode: scheduler.strictMode,
   });
 
   // Always clear every id this scheduler could own first — otherwise editing weekdays
@@ -133,19 +132,20 @@ async function syncWithAndroid(scheduler: Scheduler) {
   });
 
   const baseNotification = {
-    title: '⏰ ' + (scheduler.name || 'Alarme'),
-    body: 'Seu alarme está tocando. Toque para abrir.',
+    title: '⏰ ' + (scheduler.name || 'Agendador'),
+    body: 'Seu agendador está tocando. Toque para abrir.',
     android: {
       channelId,
       category: AndroidCategory.ALARM,
-      autoCancel: !scheduler.strictMode,
-      ongoing: scheduler.strictMode,
+      autoCancel: true,
+      ongoing: false,
       loopSound: true,
-      // launchActivity precisa estar aqui, igual nas outras notificações "tela cheia" do app
-      // (BARREIRA 2 em firing.tsx, recriação anti-arrastar em _layout.tsx) — sem ele, o Android
-      // pode simplesmente não lançar a activity automaticamente com a tela bloqueada e cair de
-      // volta pra uma notificação comum (vibra + aparece, mas não abre nada sozinho).
-      fullScreenAction: scheduler.strictMode ? { id: 'default', launchActivity: 'default' } : undefined,
+      // launchActivity precisa estar aqui, igual na tela cheia do próprio firing.tsx --
+      // sem ele, o Android pode simplesmente não lançar a activity automaticamente com a
+      // tela bloqueada e cair de volta pra uma notificação comum (vibra + aparece, mas não
+      // abre nada sozinho). Todo agendador é um alarme de verdade (acorda a tela), sem
+      // opção de virar só lembrete/notificação.
+      fullScreenAction: { id: 'default', launchActivity: 'default' },
       pressAction: { id: 'default', launchActivity: 'default' },
     },
   };
@@ -169,7 +169,7 @@ async function syncWithAndroid(scheduler: Scheduler) {
         {
           ...baseNotification,
           id: scheduler.id,
-          data: { schedulerId: scheduler.id, strictMode: String(scheduler.strictMode) },
+          data: { schedulerId: scheduler.id },
         },
         trigger
       );
@@ -200,7 +200,7 @@ async function syncWithAndroid(scheduler: Scheduler) {
           {
             ...baseNotification,
             id: dayNotificationId(scheduler.id, day),
-            data: { schedulerId: scheduler.id, strictMode: String(scheduler.strictMode) },
+            data: { schedulerId: scheduler.id },
           },
           trigger
         );

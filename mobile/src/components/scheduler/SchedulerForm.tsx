@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Scheduler, Challenger, QuizChallenge, FlashcardChallenge, QuizDifficulty, SupportedLanguage, LANGUAGE_FLAGS } from '@/types/domain/Scheduler';
 import { ObjectType } from '@/types/domain/Object';
 import { soundSelectionService } from '@/services/soundSelectionService';
+import { formatSoundLabel } from '@/services/soundService';
 
 import { WeekDays } from './WeekDays';
 import { TimePicker } from './TimePicker';
@@ -40,7 +41,7 @@ const DEFAULT_SCHEDULER: Scheduler = {
   objectIds: [],
   enabled: true,
   vibration: true,
-  strictMode: false,
+  soundEnabled: true,
   createdAt: new Date(),
   updatedAt: new Date(),
   challengers: [],
@@ -116,6 +117,9 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
     const [isChallengeModalVisible, setChallengeModalVisible] = useState(false);
     const [modalStep, setModalStep] = useState<ModalStep>('SELECT_TYPE');
     const [tempChallenger, setTempChallenger] = useState<Partial<Challenger>>({});
+    // null = criando um desafio novo; caso contrário, índice do desafio sendo editado
+    // in-place em vez de excluído e recriado.
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
     // Validação: no máximo um desafio de cada tipo por alarme
     const hasType = (type: Challenger['challengeType']) =>
@@ -160,7 +164,23 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
     function openChallengeModal() {
       setModalStep('SELECT_TYPE');
       setTempChallenger({});
+      setEditingIndex(null);
       setChallengeModalVisible(true);
+    }
+
+    // Editar um desafio já adicionado pula direto pra configuração, pré-preenchida --
+    // trocar o tipo continua sendo excluir + criar outro, já que o tipo define qual
+    // shape de `challenge` é usado.
+    function openEditChallengeModal(index: number) {
+      setTempChallenger(scheduler.challengers[index]);
+      setEditingIndex(index);
+      setModalStep('CONFIGURE_CHALLENGE');
+      setChallengeModalVisible(true);
+    }
+
+    function closeChallengeModal() {
+      setChallengeModalVisible(false);
+      setEditingIndex(null);
     }
 
     function handleSelectChallengeType(type: Challenger['challengeType']) {
@@ -195,10 +215,19 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
     }
 
     function handleAddChallenger() {
-      if (tempChallenger.challengeType) {
+      if (!tempChallenger.challengeType) return;
+
+      if (editingIndex !== null) {
+        update(
+          'challengers',
+          scheduler.challengers.map((item, index) =>
+            index === editingIndex ? (tempChallenger as Challenger) : item
+          )
+        );
+      } else {
         update('challengers', [...scheduler.challengers, tempChallenger as Challenger]);
-        setChallengeModalVisible(false);
       }
+      closeChallengeModal();
     }
 
     function handleRemoveChallenger(indexToRemove: number) {
@@ -248,30 +277,35 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 />
               </View>
 
-              <View className="gap-1 rounded-md border border-border px-4 py-3">
-                <View className="flex-row items-center">
-                  <Ionicons name="lock-closed-outline" size={20} color={colors.brand} />
-                  <Text className="ml-3 flex-1 font-medium">Modo antiprocrastinador</Text>
-                  <Switch
-                    checked={scheduler.strictMode}
-                    onCheckedChange={(value) => update('strictMode', value)}
-                  />
-                </View>
-                <Text className="text-xs text-muted-foreground">
-                  {scheduler.strictMode
-                    ? 'Trava o volume e não deixa fechar o app até resolver o desafio.'
-                    : 'Alarme normal: pode ser dispensado a qualquer momento.'}
-                </Text>
+              {/* Uma coisa só (label + nome do som escolhido + switch), não dois campos
+                  separados -- toque em qualquer lugar do bloco (menos o switch) abre o
+                  seletor, o switch liga/desliga o som. Sem seta: o próprio toque já é óbvio. */}
+              <View className="flex-row items-center rounded-md border border-border pl-4 pr-3 py-2.5">
+                <Pressable
+                  onPress={() => scheduler.soundEnabled && router.push('/(scheduler)/sounds')}
+                  disabled={!scheduler.soundEnabled}
+                  className="flex-1 flex-row items-center gap-3"
+                >
+                  <Ionicons name="musical-notes-outline" size={20} color={colors.brand} />
+                  <View className="flex-1">
+                    <Text className="font-medium text-foreground">Som</Text>
+                    <Text
+                      className="text-xs text-muted-foreground"
+                      numberOfLines={1}
+                    >
+                      {scheduler.soundEnabled
+                        ? scheduler.alarmSound
+                          ? formatSoundLabel(scheduler.alarmSound)
+                          : 'Selecionar som'
+                        : 'Desativado'}
+                    </Text>
+                  </View>
+                </Pressable>
+                <Switch
+                  checked={scheduler.soundEnabled}
+                  onCheckedChange={(value) => update('soundEnabled', value)}
+                />
               </View>
-
-              <Pressable
-                onPress={() => router.push('/(scheduler)/sounds')}
-                className="h-10 flex-row items-center gap-3 rounded-md border border-border px-4"
-              >
-                <Ionicons name="musical-notes-outline" size={20} color={colors.brand} />
-                <Text className="flex-1 text-muted-foreground">{scheduler.alarmSound || 'Selecionar som'}</Text>
-                <Ionicons name="chevron-forward" size={18} color={colors.brand} />
-              </Pressable>
             </View>
           </Card>
 
@@ -294,14 +328,17 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                     key={index}
                     className="flex-row items-center justify-between gap-2 rounded-xl border border-border p-3"
                   >
-                    <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+                    <Pressable
+                      onPress={() => openEditChallengeModal(index)}
+                      style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}
+                    >
                       <Text className="font-semibold text-foreground">
                         {challengeTypeLabel(item.challengeType)}
                       </Text>
                       <Text className="text-sm text-muted-foreground mt-1">
                         {describeChallenger(item)}
                       </Text>
-                    </View>
+                    </Pressable>
                     <Pressable onPress={() => handleRemoveChallenger(index)} className="p-2" style={{ flexShrink: 0 }}>
                       <Ionicons name="trash-outline" size={20} color={colors.destructive} />
                     </Pressable>
@@ -325,7 +362,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
               className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2 mt-4"
             >
               <Ionicons name="trash-outline" size={20} color="white" />
-              <Text className="ml-2 font-semibold text-white">Excluir alarme</Text>
+              <Text className="ml-2 font-semibold text-white">Excluir agendador</Text>
             </Button>
           )}
 
@@ -333,20 +370,20 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
             visible={isChallengeModalVisible}
             transparent
             animationType="fade"
-            onRequestClose={() => setChallengeModalVisible(false)}
+            onRequestClose={closeChallengeModal}
           >
             <View className="flex-1 justify-center bg-black/50 p-4">
               <Card className="rounded-3xl p-5 gap-4">
-                
+
                 {modalStep === 'SELECT_TYPE' && (
                   <>
                     <View className="flex-row justify-between items-center mb-2">
                       <Text className="text-xl font-bold text-foreground">Novo Desafio</Text>
-                      <Pressable onPress={() => setChallengeModalVisible(false)}>
+                      <Pressable onPress={closeChallengeModal}>
                         <Ionicons name="close" size={24} color={colors.brandSoft} />
                       </Pressable>
                     </View>
-                    <Text className="text-muted-foreground mb-2">Escolha o tipo de desafio para este alarme:</Text>
+                    <Text className="text-muted-foreground mb-2">Escolha o tipo de desafio para este agendador:</Text>
 
                     <View className="gap-3">
                       {CHALLENGE_TYPE_OPTIONS.map((option) => {
@@ -370,7 +407,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                                 {option.label}
                               </Text>
                               <Text className="text-sm text-muted-foreground">
-                                {disabled ? 'Já adicionado a este alarme.' : option.description}
+                                {disabled ? 'Já adicionado a este agendador.' : option.description}
                               </Text>
                             </View>
                             {!disabled ? (
@@ -388,7 +425,10 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 {modalStep === 'CONFIGURE_CHALLENGE' && tempChallenger.challengeType && (
                   <>
                     <View className="flex-row justify-between items-center mb-2 gap-2">
-                      <Pressable onPress={() => setModalStep('SELECT_TYPE')} className="p-1 -ml-1">
+                      <Pressable
+                        onPress={() => (editingIndex !== null ? closeChallengeModal() : setModalStep('SELECT_TYPE'))}
+                        className="p-1 -ml-1"
+                      >
                         <Ionicons name="arrow-back" size={24} color={colors.brand} />
                       </Pressable>
                       <Text
@@ -397,7 +437,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                         adjustsFontSizeToFit
                         minimumFontScale={0.8}
                       >
-                        Configurar {challengeTypeLabel(tempChallenger.challengeType)}
+                        {editingIndex !== null ? 'Editar' : 'Configurar'} {challengeTypeLabel(tempChallenger.challengeType)}
                       </Text>
                       <View
                         className="items-center justify-center rounded-full bg-muted border border-border"
@@ -478,7 +518,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
                     <View className="flex-row gap-3 mt-6">
                       <Button
-                        onPress={() => setChallengeModalVisible(false)}
+                        onPress={closeChallengeModal}
                         className="flex-1 bg-secondary"
                       >
                         <Text className="text-foreground font-semibold text-center w-full">Cancelar</Text>

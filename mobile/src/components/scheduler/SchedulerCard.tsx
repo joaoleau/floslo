@@ -46,9 +46,6 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
             className="flex-row items-center gap-1.5"
             style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, overflow: 'hidden' }}
           >
-            {scheduler.strictMode && (
-              <Ionicons name="lock-closed" size={13} color={colors.primary} />
-            )}
             <Text
               className="text-sm font-normal text-foreground"
               style={{ flexShrink: 1, overflow: 'hidden' }}
@@ -63,7 +60,7 @@ export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: Sch
             {/* Badge indicando a quantidade de objetos/materiais de estudo */}
 
             {scheduler.objectIds && scheduler.objectIds.length > 0 && (
-              <Badge className="rounded-full bg-background border border-border flex-row items-center">
+              <Badge className="rounded-full bg-brand-100/10 border-0 flex-row items-center">
                 <Ionicons name="document-text" size={16} color={colors.brand} />
                 <Text className="text-sm text-foreground ml-1">
                   {scheduler.objectIds.length}

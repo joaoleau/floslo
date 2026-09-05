@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Pressable, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Quiz } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { ChallengeResult } from '@/types/domain/History';
 
 interface QuizChallengeProps {
   quiz: Quiz;
   currentIndex: number;
   totalQuizzes: number;
-  onSuccess: () => void;
+  onSuccess: (result: ChallengeResult) => void;
 }
 
 export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: QuizChallengeProps) {
@@ -19,6 +20,7 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
   const [wrongAnswerId, setWrongAnswerId] = useState<string | null>(null);
   const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
+  const wrongAttemptsRef = useRef(0);
 
   function handleSelectAlternative(alternativeId: string, isCorrect: boolean) {
     // Se já acertou, bloqueia novos cliques enquanto lê a explicação
@@ -28,8 +30,13 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
       setWrongAnswerId(null);
       setCorrectAnswerId(alternativeId); // Salva qual foi a correta para exibir a explicação
     } else {
+      wrongAttemptsRef.current += 1;
       setWrongAnswerId(alternativeId);
     }
+  }
+
+  function handleContinue() {
+    onSuccess({ wrongAttempts: wrongAttemptsRef.current });
   }
 
   // Define a cor da badge de dificuldade
@@ -135,7 +142,7 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
                 <Text className="text-foreground leading-relaxed text-sm">{quiz.explanation}</Text>
               </View>
 
-              <Button onPress={onSuccess} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
+              <Button onPress={handleContinue} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
                 <Text className="text-white font-bold text-lg">Continuar</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>

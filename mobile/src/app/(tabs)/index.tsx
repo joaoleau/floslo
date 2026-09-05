@@ -9,8 +9,7 @@ import { AnimatedHeader } from '@/components/common/AnimatedHeader';
 import { HeaderAction } from '@/components/common/HeaderAction';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
-import { OverlayPermissionBanner } from '@/components/common/OverlayPermissionBanner';
-import { FullScreenIntentPermissionBanner } from '@/components/common/FullScreenIntentPermissionBanner';
+import { AlarmPermissionBanner } from '@/components/common/AlarmPermissionBanner';
 import { SchedulerCard } from '@/components/scheduler/SchedulerCard';
 
 import { useSchedulersQuery, useToggleSchedulerMutation } from '@/hooks/useSchedulers';
@@ -18,12 +17,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 function PermissionBanners() {
-  return (
-    <>
-      <OverlayPermissionBanner />
-      <FullScreenIntentPermissionBanner />
-    </>
-  );
+  return <AlarmPermissionBanner />;
 }
 
 export default function Home() {
@@ -56,7 +50,7 @@ export default function Home() {
   return (
     <Screen edges={['top', 'left', 'right']}>
       <AnimatedHeader
-        title="Alarmes"
+        title="Agendadores"
         showBackButton={false}
         scrollY={scrollY}
         floatingIcon="add"
@@ -75,9 +69,9 @@ export default function Home() {
           <PermissionBanners />
           <EmptyState
             icon="alarm-outline"
-            title="Nenhum alarme ainda"
-            description="Crie seu primeiro alarme e comece a acordar na hora certa."
-            actionLabel="Criar meu primeiro alarme"
+            title="Nenhum agendador ainda"
+            description="Crie seu primeiro agendador e comece a acordar na hora certa."
+            actionLabel="Criar meu primeiro agendador"
             onAction={handleCreateScheduler}
           />
         </View>
