@@ -72,6 +72,15 @@ export function useRecentMistakesQuery(limit = 10) {
   });
 }
 
+export function useStudyActivityQuery(days = 84) {
+  const { data: user } = useMeQuery();
+  return useQuery({
+    queryKey: queryKeys.history.dailyActivity(user?.id ?? '', days),
+    queryFn: () => historyService.getDailyActivity(user!.id, days),
+    enabled: !!user,
+  });
+}
+
 export function useSessionsQuery(limit = 20) {
   const { data: user } = useMeQuery();
   return useQuery({

@@ -28,7 +28,7 @@ const JS_DAY_TO_STRING: Record<number, string> = {
 };
 
 /** Next one-off timestamp for schedulers with no weekDays selected (fires once). */
-function calculateNextOneOffTrigger(startTime: string): number {
+export function calculateNextOneOffTrigger(startTime: string): number {
   const [targetHours, targetMinutes] = startTime.split(':').map(Number);
   const now = new Date();
 
@@ -41,7 +41,7 @@ function calculateNextOneOffTrigger(startTime: string): number {
 }
 
 /** Next timestamp (today or up to 7 days out) that lands on the given weekday. */
-function calculateNextTriggerForDay(startTime: string, day: string): number {
+export function calculateNextTriggerForDay(startTime: string, day: string): number {
   const [targetHours, targetMinutes] = startTime.split(':').map(Number);
   const now = new Date();
 

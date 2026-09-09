@@ -1,6 +1,7 @@
 import { useRef } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -13,6 +14,8 @@ import { useSchedulerQuery, useUpdateSchedulerMutation, useDeleteSchedulerMutati
 import { useObjectsQuery } from '@/hooks/useObjects';
 import { Scheduler } from '@/types/domain/Scheduler';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { getColorForId } from '@/lib/hashColor';
+import { showAlert } from '@/services/alertService';
 
 export default function EditScheduler() {
   const router = useRouter();
@@ -33,12 +36,12 @@ export default function EditScheduler() {
       router.back();
     } catch (err) {
       console.error(`[EditScheduler] Falha ao salvar agendador "${id}"`, err);
-      Alert.alert('Erro', 'Falha ao salvar as alterações.');
+      showAlert('Erro', 'Falha ao salvar as alterações.');
     }
   }
 
   function handleDelete(schedulerId: string) {
-    Alert.alert('Excluir Agendador', 'Tem certeza que deseja excluir este agendador?', [
+    showAlert('Excluir Agendador', 'Tem certeza que deseja excluir este agendador?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir',
@@ -49,7 +52,7 @@ export default function EditScheduler() {
             router.back();
           } catch (err) {
             console.error(`[EditScheduler] Falha ao excluir agendador "${schedulerId}"`, err);
-            Alert.alert('Erro', 'Falha ao excluir.');
+            showAlert('Erro', 'Falha ao excluir.');
           }
         },
       },
@@ -91,17 +94,19 @@ export default function EditScheduler() {
         }
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-          <SchedulerForm
-            ref={formRef}
-            initialValues={scheduler}
-            availableObjects={availableObjects}
-            onSubmit={handleSubmit}
-            onDelete={handleDelete}
-          />
-        </ScrollView>
-      </KeyboardAvoidingView>
+      <LinearGradient colors={[getColorForId(scheduler.id), colors.background]} style={{ flex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            <SchedulerForm
+              ref={formRef}
+              initialValues={scheduler}
+              availableObjects={availableObjects}
+              onSubmit={handleSubmit}
+              onDelete={handleDelete}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
     </Screen>
   );
 }

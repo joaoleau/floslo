@@ -1,105 +1,175 @@
 import { Pressable, View } from 'react-native';
-
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Text } from '@/components/ui/text';
 import { Ionicons } from '@expo/vector-icons';
 
-import { Scheduler } from '@/types/domain/Scheduler';
+import { Text } from '@/components/ui/text';
+import { Switch } from '@/components/ui/switch';
 import { WeekDays } from '@/components/scheduler/WeekDays';
-import { useThemeColors } from '@/hooks/useThemeColors';
-
-import '@/styles/global.css';
-
-const CHALLENGE_TYPE_STYLES: Record<
-  Scheduler['challengers'][number]['challengeType'],
-  { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; bg: string }
-> = {
-  QUIZ: { icon: 'school-outline', color: '#2563eb', bg: 'bg-blue-500/10' },
-  FLASHCARD: { icon: 'albums-outline', color: '#7c3aed', bg: 'bg-violet-500/10' },
-  TRUE_FALSE: { icon: 'checkmark-done-outline', color: '#0d9488', bg: 'bg-teal-500/10' },
-};
+import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
+import { DIFFICULTY_LABELS, DIFFICULTY_META } from '@/constants/difficulty';
+import { Challenger, LANGUAGE_FLAGS, QuizDifficulty, Scheduler } from '@/types/domain/Scheduler';
+import { getColorForId } from '@/lib/hashColor';
 
 interface SchedulerCardProps {
   scheduler: Scheduler;
   onPress?: () => void;
+  onLongPress?: () => void;
   onToggle?: (enabled: boolean) => void;
   onToggleDay?: (day: string) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
 }
 
-export function SchedulerCard({ scheduler, onPress, onToggle, onToggleDay }: SchedulerCardProps) {
-  const colors = useThemeColors();
+function challengeConfigLabel(item: Challenger): string {
+  switch (item.challengeType) {
+    case 'QUIZ':
+      return `${item.challenge.questionCount} questões`;
+    case 'TRUE_FALSE':
+      return `${item.challenge.questionCount} afirmações`;
+    case 'FLASHCARD':
+      return `${item.challenge.cardCount} cartões`;
+  }
+}
+
+function challengeDifficulty(item: Challenger): QuizDifficulty | null {
+  switch (item.challengeType) {
+    case 'QUIZ':
+    case 'TRUE_FALSE':
+      return item.challenge.difficulty;
+    case 'FLASHCARD':
+      return null;
+  }
+}
+
+// Item da listagem de agendadores (um abaixo do outro): card cheio, colorido (cor
+// tirada do hash do próprio id -- ver getColorForId). A ideia continua sendo puxar
+// pra estética de "app de estudo" (tipo cursos/lições), não de relógio: hora em destaque,
+// weekdays ao lado da hora (aproveitando o espaço que sobrava à direita) e cada desafio
+// configurado listado em duas linhas (tipo+idioma, depois dificuldade+config). Dimensões
+// bem reduzidas (fonte do horário, ícones, paddings) mantendo todos os mesmos detalhes.
+export function SchedulerCard({
+  scheduler,
+  onPress,
+  onLongPress,
+  onToggle,
+  onToggleDay,
+  selectionMode = false,
+  selected = false,
+}: SchedulerCardProps) {
+  const backgroundColor = getColorForId(scheduler.id);
 
   return (
-    <Pressable onPress={onPress}>
-      <Card
-        className={[
-          'w-full rounded-[32px] bg-card px-1 py-2',
-          !scheduler.enabled && 'opacity-50',
-        ]
-          .filter(Boolean)
-          .join(' ')}
+    <Pressable
+      testID="scheduler-card"
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={!scheduler.enabled && !selectionMode ? { opacity: 0.55 } : undefined}
+    >
+      <View
+        className="rounded-2xl p-3 gap-2"
+        style={{
+          backgroundColor,
+          opacity: selectionMode && !selected ? 0.5 : 1,
+          borderWidth: selected ? 3 : 0,
+          borderColor: '#FFFFFF',
+        }}
       >
-        <CardHeader className="flex-row items-center justify-between px-4">
-          <View
-            className="flex-row items-center gap-1.5"
-            style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, overflow: 'hidden' }}
-          >
-            <Text
-              className="text-sm font-normal text-foreground"
-              style={{ flexShrink: 1, overflow: 'hidden' }}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+        <View className="flex-row items-start justify-between gap-2">
+          {selectionMode && (
+            <View
+              testID="scheduler-card-checkbox"
+              className="items-center justify-center rounded-full"
+              style={{
+                width: 20,
+                height: 20,
+                backgroundColor: selected ? '#FFFFFF' : 'transparent',
+                borderWidth: selected ? 0 : 2,
+                borderColor: '#FFFFFF',
+              }}
             >
-              {scheduler.name}
-            </Text>
+              {selected && <Ionicons name="checkmark" size={13} color={backgroundColor} />}
+            </View>
+          )}
+
+          <Text className="flex-1 text-sm font-semibold text-white">{scheduler.name}</Text>
+
+          <View className="flex-row items-center gap-1.5">
+            {scheduler.objectIds.length > 0 && (
+              <View className="flex-row items-center gap-1 rounded-full bg-white/20 px-2 py-1">
+                <Ionicons name="document-text" size={13} color="#FFFFFF" />
+                <Text className="text-xs font-medium text-white">{scheduler.objectIds.length}</Text>
+              </View>
+            )}
+            {!selectionMode && <Switch checked={scheduler.enabled} onCheckedChange={onToggle || (() => {})} />}
+          </View>
+        </View>
+
+        <View className="flex-row items-center justify-between gap-2">
+          <View>
+            <Text className="text-xs font-medium text-white/70">Toca às</Text>
+            <Text className="text-4xl font-extrabold text-white">{scheduler.startTime}</Text>
           </View>
 
-          <View className="flex-row gap-1" style={{ flexShrink: 0 }}>
-            {/* Badge indicando a quantidade de objetos/materiais de estudo */}
+          <WeekDays
+            weekDays={scheduler.weekDays}
+            onToggleDay={onToggleDay}
+            variant="onColor"
+            dayClassName="w-4 h-6"
+          />
+        </View>
 
-            {scheduler.objectIds && scheduler.objectIds.length > 0 && (
-              <Badge className="rounded-full bg-brand-100/10 border-0 flex-row items-center">
-                <Ionicons name="document-text" size={16} color={colors.brand} />
-                <Text className="text-sm text-foreground ml-1">
-                  {scheduler.objectIds.length}
-                </Text>
-              </Badge>
-            )}
+        {scheduler.challengers.length > 0 && (
+          <View className="gap-1">
+            {scheduler.challengers.map((item, index) => {
+              const meta = CHALLENGE_TYPE_META[item.challengeType];
+              const difficulty = challengeDifficulty(item);
+              const difficultyMeta = difficulty ? DIFFICULTY_META[difficulty] : null;
 
-            {/* Badges iterando sobre os desafios ativos -- uma cor por tipo de desafio */}
-            {scheduler.challengers?.map((challenger, index) => {
-              const style = CHALLENGE_TYPE_STYLES[challenger.challengeType];
               return (
-                <View key={`${challenger.challengeType}-${index}`} className="flex-row gap-1">
-                  <Badge className={`rounded-full border-0 flex-row items-center ${style.bg}`}>
-                    <Ionicons name={style.icon} size={16} color={style.color} />
-                  </Badge>
+                <View
+                  key={`${item.challengeType}-${index}`}
+                  className="flex-row items-center justify-between gap-2 rounded-xl bg-white/15 px-2.5 py-1.5"
+                >
+                  <View className="flex-1 gap-1">
+                    <View className="flex-row items-center gap-1.5">
+                      <Ionicons name={meta.icon} size={14} color="#FFFFFF" />
+                      <Text className="flex-1 text-xs font-medium text-white">{meta.label}</Text>
+                    </View>
+
+                    <View className="flex-row items-center gap-1">
+                      {difficultyMeta && difficulty && (
+                        <>
+                          <Ionicons name={difficultyMeta.icon} size={12} color="#FFFFFF" />
+                          <Text className="text-xs font-medium text-white">
+                            {DIFFICULTY_LABELS[difficulty]}
+                          </Text>
+                          <Text className="text-xs text-white/50">•</Text>
+                        </>
+                      )}
+                      <Text className="text-xs text-white/80">{challengeConfigLabel(item)}</Text>
+                    </View>
+                  </View>
+
+                  <View
+                    className="items-center justify-center rounded-full bg-white/20"
+                    style={{ width: 26, height: 26 }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        lineHeight: 18,
+                        textAlign: 'center',
+                        includeFontPadding: false,
+                      }}
+                    >
+                      {LANGUAGE_FLAGS[item.language]}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
           </View>
-        </CardHeader>
-
-        <CardContent className="px-4">
-          <View className="flex-row justify-between">
-            <View>
-              <Text className="text-5xl font-normal text-foreground">{scheduler.startTime}</Text>
-
-              <WeekDays
-                weekDays={scheduler.weekDays}
-                onToggleDay={onToggleDay}
-                dayClassName="w-4 h-5"
-              />
-            </View>
-
-            <View className="justify-center pb-6">
-              <Switch checked={scheduler.enabled} onCheckedChange={onToggle || (() => {})} />
-            </View>
-          </View>
-        </CardContent>
-      </Card>
+        )}
+      </View>
     </Pressable>
   );
 }

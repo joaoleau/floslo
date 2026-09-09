@@ -24,6 +24,7 @@ export function TagAccuracyRow({ stat, onPress }: TagAccuracyRowProps) {
     <Pressable
       onPress={onPress}
       className="flex-row items-center gap-3 rounded-xl border border-border p-3"
+      style={{ borderLeftWidth: 4, borderLeftColor: barColor }}
     >
       <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, gap: 6 }}>
         <View className="flex-row items-center justify-between gap-2">

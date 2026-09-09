@@ -60,5 +60,14 @@ export default defineConfig([
     },
   },
 
+  {
+    files: ['**/*.test.ts', '**/*.test.tsx', 'jest.setup.js'],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
+  },
+
   eslintConfigPrettier,
 ]);

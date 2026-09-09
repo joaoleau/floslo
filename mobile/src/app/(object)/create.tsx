@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 
 import { useUploadObjectMutation } from '@/hooks/useObjects';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { showAlert } from '@/services/alertService';
 
 const ALLOWED_EXTENSIONS = ['pdf', 'txt', 'md', 'pptx'];
 const ALLOWED_MIME_TYPES = [
@@ -49,7 +50,7 @@ export default function CreateObject() {
 
     const asset = result.assets[0];
     if (!ALLOWED_EXTENSIONS.includes(getExtension(asset.name))) {
-      Alert.alert('Arquivo inválido', 'Selecione um arquivo PDF, TXT, MD ou PPTX.');
+      showAlert('Arquivo inválido', 'Selecione um arquivo PDF, TXT, MD ou PPTX.');
       return;
     }
 
@@ -61,14 +62,14 @@ export default function CreateObject() {
 
     try {
       await uploadMutation.mutateAsync(pickedFile);
-      Alert.alert(
+      showAlert(
         'Documento enviado',
         'Pode levar alguns minutos até ele ficar disponível para gerar quizzes.',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (err) {
       console.error('[CreateObject] Falha ao enviar documento', pickedFile, err);
-      Alert.alert('Erro', 'Falha ao enviar o documento.');
+      showAlert('Erro', 'Falha ao enviar o documento.');
     }
   }
 

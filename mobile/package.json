@@ -55,14 +55,20 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@react-native/jest-preset": "^0.86.3",
+    "@testing-library/react-native": "^14.0.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
+    "jest": "^30.5.1",
+    "jest-expo": "^57.0.5",
     "prettier": "^3.9.6",
     "react-native-svg-transformer": "^1.5.3",
+    "test-renderer": "^1.2.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.65.0"
   },
@@ -74,7 +80,19 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
-    "format:check": "prettier . --check"
+    "format:check": "prettier . --check",
+    "test": "jest",
+    "test:watch": "jest --watch"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/jest.setup.js"
+    ],
+    "testTimeout": 15000,
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|@rn-primitives/.*|nativewind|react-native-css-interop)"
+    ]
+  }
 }

@@ -8,11 +8,12 @@ interface ObjectTagsProps {
   maxVisible?: number;
 
   onPressTag?: (tag: string) => void;
-
   onRemoveTag?: (tag: string) => void;
+
+  variant?: 'default' | 'onColor';
 }
 
-export function ObjectTags({ tags, maxVisible = 3, onPressTag, onRemoveTag }: ObjectTagsProps) {
+export function ObjectTags({ tags, maxVisible = 3, onPressTag, onRemoveTag, variant = 'default' }: ObjectTagsProps) {
   const visibleTags = tags.slice(0, maxVisible);
 
   const hiddenCount = tags.length - visibleTags.length;
@@ -20,10 +21,10 @@ export function ObjectTags({ tags, maxVisible = 3, onPressTag, onRemoveTag }: Ob
   return (
     <View className="flex-row flex-wrap gap-2">
       {visibleTags.map((tag) => (
-        <ObjectTagItem key={tag} tag={tag} onPressTag={onPressTag} onRemoveTag={onRemoveTag} />
+        <ObjectTagItem key={tag} tag={tag} onPressTag={onPressTag} onRemoveTag={onRemoveTag} variant={variant} />
       ))}
 
-      {hiddenCount > 0 && <ObjectTagItem tag={`+${hiddenCount}`} />}
+      {hiddenCount > 0 && <ObjectTagItem tag={`+${hiddenCount}`} variant={variant} />}
     </View>
   );
 }

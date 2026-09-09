@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -11,17 +11,21 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ObjectCard } from '@/components/object/ObjectCard';
 
-import { useObjectsQuery } from '@/hooks/useObjects';
+import { useObjectsQuery, useDeleteObjectMutation } from '@/hooks/useObjects';
 import { queryKeys } from '@/lib/queryKeys';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { showAlert } from '@/services/alertService';
 
 export default function ObjectsScreen() {
   const router = useRouter();
   const colors = useThemeColors();
   const scrollY = useSharedValue(0);
   const queryClient = useQueryClient();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectionMode = selectedIds.size > 0;
 
   const { data: objects = [], isPending, isError, error, refetch } = useObjectsQuery();
+  const deleteMutation = useDeleteObjectMutation();
 
   // Belt-and-suspenders alongside the refetchInterval polling in useObjectsQuery:
   // coming back to this tab (e.g. after uploading) always checks for fresh status,
@@ -42,15 +46,66 @@ export default function ObjectsScreen() {
     router.push('/(object)/create');
   }
 
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  function handleCardPress(id: string) {
+    if (selectionMode) {
+      toggleSelected(id);
+    } else {
+      router.push({ pathname: '/(object)/[id]', params: { id } });
+    }
+  }
+
+  function handleDeleteSelected() {
+    const count = selectedIds.size;
+    showAlert(
+      'Excluir objetos',
+      `Tem certeza que deseja excluir ${count === 1 ? 'o objeto selecionado' : `os ${count} objetos selecionados`}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            const ids = Array.from(selectedIds);
+            clearSelection();
+            await Promise.all(ids.map((id) => deleteMutation.mutateAsync(id)));
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <Screen edges={['top', 'left', 'right']}>
       <AnimatedHeader
-        title="Objetos"
-        showBackButton={false}
+        title={selectionMode ? `${selectedIds.size} selecionado${selectedIds.size > 1 ? 's' : ''}` : 'Objetos'}
+        showBackButton={selectionMode}
+        onBack={clearSelection}
         scrollY={scrollY}
-        floatingIcon="add"
-        onFloatingPress={handleCreateObject}
-        rightAction={<HeaderAction icon="add" onPress={handleCreateObject} />}
+        floatingIcon={selectionMode ? 'trash-outline' : 'add'}
+        onFloatingPress={selectionMode ? handleDeleteSelected : handleCreateObject}
+        rightAction={
+          selectionMode ? (
+            <HeaderAction icon="trash-outline" color={colors.destructive} onPress={handleDeleteSelected} />
+          ) : (
+            <HeaderAction icon="add" onPress={handleCreateObject} />
+          )
+        }
       />
 
       {isPending ? (
@@ -67,6 +122,7 @@ export default function ObjectsScreen() {
             description="Envie seu primeiro material de estudo para gerar desafios nos seus agendadores."
             actionLabel="Enviar meu primeiro material"
             onAction={handleCreateObject}
+            color="#3B82F6"
           />
         </View>
       ) : (
@@ -80,12 +136,10 @@ export default function ObjectsScreen() {
           renderItem={({ item }) => (
             <ObjectCard
               object={item}
-              onPress={() => {
-                router.push({
-                  pathname: '/(object)/[id]',
-                  params: { id: item.id },
-                });
-              }}
+              selectionMode={selectionMode}
+              selected={selectedIds.has(item.id)}
+              onPress={() => handleCardPress(item.id)}
+              onLongPress={() => toggleSelected(item.id)}
             />
           )}
         />

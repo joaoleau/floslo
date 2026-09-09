@@ -1,5 +1,5 @@
 import { useRef, useMemo } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { Screen } from '@/components/common/Screen';
@@ -13,6 +13,7 @@ import { useObjectsQuery } from '@/hooks/useObjects';
 import { useCreateSchedulerMutation } from '@/hooks/useSchedulers';
 import { Scheduler } from '@/types/domain/Scheduler';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { showAlert } from '@/services/alertService';
 
 export default function CreateScheduler() {
   const router = useRouter();
@@ -30,7 +31,7 @@ export default function CreateScheduler() {
 
     return {
       id: '',
-      name: '',
+      name: 'Sem Nome',
       weekDays: [],
       startTime: `${hours}:${minutes}`,
       alarmSound: 'chic_pop',
@@ -50,7 +51,7 @@ export default function CreateScheduler() {
       router.back();
     } catch (err) {
       console.error('[CreateScheduler] Falha ao criar o agendador:', err);
-      Alert.alert('Erro', err instanceof Error ? err.message : 'Falha ao criar o agendador.');
+      showAlert('Erro', err instanceof Error ? err.message : 'Falha ao criar o agendador.');
     }
   }
 

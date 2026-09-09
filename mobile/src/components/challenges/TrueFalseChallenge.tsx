@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { View, Pressable, ScrollView, Modal } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { TrueFalseItem } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ChallengeResult } from '@/types/domain/History';
@@ -57,7 +59,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
         : 'bg-red-500/10';
 
   return (
-    <View className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
+    <Animated.View entering={FadeInDown.duration(300)} className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={true}
@@ -95,8 +97,10 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
               const isCorrect = answered && option.value === item.answer;
 
               return (
-                <Pressable
+                <AnimatedChoice
                   key={option.id}
+                  isWrong={isWrong}
+                  isCorrect={isCorrect}
                   onPress={() => handleSelectOption(option.id, option.value)}
                   className={`w-full p-4 rounded-xl border flex-row items-center justify-between ${
                     isWrong
@@ -113,13 +117,13 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                   </Text>
                   {isWrong && <Ionicons name="close-circle" size={20} color={colors.destructive} />}
                   {isCorrect && <Ionicons name="checkmark-circle" size={20} color={colors.success} />}
-                </Pressable>
+                </AnimatedChoice>
               );
             })}
           </View>
 
           {answered && (
-            <View className="mt-2 gap-4 animate-fade-in">
+            <Animated.View entering={FadeInDown.duration(250)} className="mt-2 gap-4">
               <View className="bg-muted p-4 rounded-xl border border-border">
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center gap-2">
@@ -140,7 +144,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                 <Text className="text-white font-bold text-lg">Continuar</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>
-            </View>
+            </Animated.View>
           )}
         </View>
       </ScrollView>
@@ -157,7 +161,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="gap-3 pb-4">
-                {item.sourceChunks.map((chunk, index) => (
+                {[...item.sourceChunks].sort((a, b) => b.score - a.score).map((chunk, index) => (
                   <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
@@ -185,6 +189,6 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
           </Card>
         </View>
       </Modal>
-    </View>
+    </Animated.View>
   );
 }
