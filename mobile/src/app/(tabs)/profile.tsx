@@ -1,4 +1,4 @@
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -10,11 +10,10 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 
 import { useMeQuery, useDeleteMeMutation } from '@/hooks/useUser';
-import { useUserStatsQuery } from '@/hooks/useHistory';
 import { authService } from '@/services/authService';
+import { showAlert } from '@/services/alertService';
 import { useTheme, ThemePreference } from '@/lib/ThemeProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
-import { UserStatsSummaryCard } from '@/components/history/UserStatsSummaryCard';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'light', label: 'Claro', icon: 'sunny-outline' },
@@ -28,7 +27,6 @@ export default function Profile() {
   const { preference, setPreference } = useTheme();
 
   const { data: user, isPending, isError, refetch } = useMeQuery();
-  const statsQuery = useUserStatsQuery();
   const deleteMeMutation = useDeleteMeMutation();
 
   async function handleLogout() {
@@ -37,7 +35,7 @@ export default function Profile() {
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
+    showAlert(
       'Excluir conta',
       'Tem certeza que deseja excluir sua conta? Esta ação não pode ser desfeita.',
       [
@@ -52,7 +50,7 @@ export default function Profile() {
               router.replace('/(auth)/login');
             } catch (err) {
               console.error('[Profile] Falha ao excluir conta', err);
-              Alert.alert('Erro', 'Falha ao excluir a conta.');
+              showAlert('Erro', 'Falha ao excluir a conta.');
             }
           },
         },
@@ -87,8 +85,6 @@ export default function Profile() {
               </View>
             </View>
           </Card>
-
-          <UserStatsSummaryCard stats={statsQuery.data} />
 
           <Card className="rounded-3xl p-5 gap-3">
             <Text className="text-lg font-semibold text-foreground">Aparência</Text>

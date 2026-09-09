@@ -13,6 +13,7 @@ import { Scheduler, Challenger, QuizChallenge, FlashcardChallenge, QuizDifficult
 import { ObjectType } from '@/types/domain/Object';
 import { soundSelectionService } from '@/services/soundSelectionService';
 import { formatSoundLabel } from '@/services/soundService';
+import { showAlert } from '@/services/alertService';
 
 import { WeekDays } from './WeekDays';
 import { TimePicker } from './TimePicker';
@@ -34,7 +35,7 @@ interface SchedulerFormProps {
 
 const DEFAULT_SCHEDULER: Scheduler = {
   id: '',
-  name: '',
+  name: 'Sem Nome',
   weekDays: [],
   startTime: '08:30',
   alarmSound: 'chic_pop',
@@ -105,6 +106,16 @@ function challengeTypeLabel(type: Challenger['challengeType']): string {
   return CHALLENGE_TYPE_OPTIONS.find((option) => option.type === type)?.label ?? type;
 }
 
+const OBJECTS_HELP_TEXT =
+  'São os materiais de estudo (documentos) já enviados na aba Objetos. Vincule aqui os que você quer usar -- os desafios deste agendador são gerados a partir do conteúdo deles.';
+
+const CHALLENGES_HELP_TEXT =
+  'Cada desafio é um tipo de exercício (Quiz, Flashcard ou Verdadeiro/Falso) que vai aparecer quando o alarme tocar, montado com base nos objetos vinculados. Dá pra adicionar um de cada tipo, cada um com sua própria dificuldade, quantidade de itens e idioma.';
+
+function showFieldHelp(title: string, message: string) {
+  showAlert(title, message);
+}
+
 type ModalStep = 'SELECT_TYPE' | 'CONFIGURE_CHALLENGE';
 
 export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
@@ -113,7 +124,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
     const colors = useThemeColors();
 
     const [scheduler, setScheduler] = useState<Scheduler>(initialValues ?? DEFAULT_SCHEDULER);
-    
+
     const [isChallengeModalVisible, setChallengeModalVisible] = useState(false);
     const [modalStep, setModalStep] = useState<ModalStep>('SELECT_TYPE');
     const [tempChallenger, setTempChallenger] = useState<Partial<Challenger>>({});
@@ -310,8 +321,28 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
           </Card>
 
           <Card className="rounded-3xl p-5 gap-4">
+            <View className="flex-row items-center gap-1.5">
+              <Text className="text-lg font-semibold text-foreground">Objetos</Text>
+              <Pressable onPress={() => showFieldHelp('Objetos', OBJECTS_HELP_TEXT)} hitSlop={8}>
+                <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
+              </Pressable>
+            </View>
+
+            <ObjectPicker
+              objects={availableObjects}
+              selectedIds={scheduler.objectIds}
+              onChange={(ids) => update('objectIds', ids)}
+            />
+          </Card>
+
+          <Card className="rounded-3xl p-5 gap-4">
             <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-foreground">Desafios</Text>
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-lg font-semibold text-foreground">Desafios</Text>
+                <Pressable onPress={() => showFieldHelp('Desafios', CHALLENGES_HELP_TEXT)} hitSlop={8}>
+                  <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
+                </Pressable>
+              </View>
               <Pressable onPress={openChallengeModal}>
                 <Ionicons name="add-circle" size={28} color={colors.brand} />
               </Pressable>
@@ -348,18 +379,10 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
             )}
           </Card>
 
-          <Card className="rounded-3xl p-5">
-            <ObjectPicker
-              objects={availableObjects}
-              selectedIds={scheduler.objectIds}
-              onChange={(ids) => update('objectIds', ids)}
-            />
-          </Card>
-
           {!!(initialValues && onDelete) && (
             <Button
               onPress={() => onDelete(scheduler.id)}
-              className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2 mt-4"
+              className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
             >
               <Ionicons name="trash-outline" size={20} color="white" />
               <Text className="ml-2 font-semibold text-white">Excluir agendador</Text>

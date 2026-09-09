@@ -4,6 +4,17 @@ install:
 start:
 	npx expo start
 
+# Suíte de testes (Jest + jest-expo + React Native Testing Library) -- unitários e
+# smoke tests de componente. Ver src/**/*.test.ts(x).
+test:
+	npm test
+
+test-watch:
+	npm run test:watch
+
+test-coverage:
+	npx jest --coverage
+
 # Dev client on a connected device/emulator (adb/USB debugging or emulator running),
 # still needs this computer + Metro running.
 android:
@@ -30,4 +41,4 @@ build-apk:
 clean:
 	cd android && ./gradlew clean
 
-.PHONY: install start android prebuild build-apk clean
+.PHONY: install start test test-watch test-coverage android prebuild build-apk clean

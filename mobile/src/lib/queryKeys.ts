@@ -18,6 +18,7 @@ export const queryKeys = {
     tagDetail: (userId: string, tag: string) => ['history', 'tag', userId, tag] as const,
     mistakes: (userId: string) => ['history', 'mistakes', userId] as const,
     sessions: (userId: string) => ['history', 'sessions', userId] as const,
+    dailyActivity: (userId: string, days: number) => ['history', 'dailyActivity', userId, days] as const,
     sessionDetail: (id: string) => ['history', 'session', id] as const,
     attemptDetail: (id: string) => ['history', 'attempt', id] as const,
   },

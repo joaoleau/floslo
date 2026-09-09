@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useRegisterMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { HEX } from '@/lib/theme-tokens';
+import { showAlert } from '@/services/alertService';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function RegisterScreen() {
 
   async function handleRegister() {
     if (!email || !username || !password) {
-      Alert.alert('Atenção', 'Preencha todos os campos.');
+      showAlert('Atenção', 'Preencha todos os campos.');
       return;
     }
 
@@ -31,7 +32,7 @@ export default function RegisterScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('[Register] Falha ao criar conta', error);
-      Alert.alert('Erro', error.message || 'Falha ao criar conta');
+      showAlert('Erro', error.message || 'Falha ao criar conta');
     }
   }
 

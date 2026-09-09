@@ -37,6 +37,7 @@ export function AnimatedHeader({
 }: AnimatedHeaderProps) {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
+  const top = insets.top;
 
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const translateY = interpolate(scrollY.value, [0, HEADER_HEIGHT], [0, -HEADER_HEIGHT], 'clamp');
@@ -75,7 +76,7 @@ export function AnimatedHeader({
           {
             position: 'absolute',
 
-            top: insets.top,
+            top,
 
             left: 0,
             right: 0,
@@ -99,7 +100,7 @@ export function AnimatedHeader({
           {
             position: 'absolute',
 
-            top: insets.top + 8,
+            top: top + 8,
 
             right: 16,
 
@@ -109,7 +110,12 @@ export function AnimatedHeader({
           floatingAnimatedStyle,
         ]}
       >
-        <FloatingAction icon={floatingIcon} onPress={onFloatingPress} backgroundColor={colors.primary} />
+        <FloatingAction
+          icon={floatingIcon}
+          onPress={onFloatingPress}
+          backgroundColor={colors.primary}
+          color={colors.primaryForeground}
+        />
       </Animated.View>
     </>
   );

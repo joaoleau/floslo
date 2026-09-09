@@ -1,7 +1,14 @@
 import { useState } from 'react';
-import { View, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import {
+  View,
+  ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -16,8 +23,15 @@ import { Button } from '@/components/ui/button';
 
 import { ObjectTagsList } from '@/components/object/ObjectTagsList';
 import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
-import { useObjectQuery, useUpdateObjectTagsMutation, useDeleteObjectMutation } from '@/hooks/useObjects';
+import {
+  useObjectQuery,
+  useUpdateObjectTagsMutation,
+  useDeleteObjectMutation,
+} from '@/hooks/useObjects';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { getColorForId } from '@/lib/hashColor';
+import { getExtensionColor } from '@/lib/fileExtensionColors';
+import { showAlert } from '@/services/alertService';
 
 export default function ObjectDetails() {
   const router = useRouter();
@@ -58,29 +72,33 @@ export default function ObjectDetails() {
       router.back();
     } catch (err) {
       console.error(`[ObjectDetails] Falha ao salvar tags do objeto "${object.id}"`, err);
-      Alert.alert('Erro', 'Falha ao salvar as alterações.');
+      showAlert('Erro', 'Falha ao salvar as alterações.');
     }
   }
 
   function handleDelete() {
     if (!object) return;
 
-    Alert.alert('Excluir Objeto', 'Tem certeza que deseja excluir? Esta ação não pode ser desfeita.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Excluir',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteMutation.mutateAsync(object.id);
-            router.back();
-          } catch (err) {
-            console.error(`[ObjectDetails] Falha ao excluir objeto "${object.id}"`, err);
-            Alert.alert('Erro', 'Falha ao excluir o objeto.');
-          }
+    showAlert(
+      'Excluir Objeto',
+      'Tem certeza que deseja excluir? Esta ação não pode ser desfeita.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMutation.mutateAsync(object.id);
+              router.back();
+            } catch (err) {
+              console.error(`[ObjectDetails] Falha ao excluir objeto "${object.id}"`, err);
+              showAlert('Erro', 'Falha ao excluir o objeto.');
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   if (isPending) {
@@ -106,6 +124,11 @@ export default function ObjectDetails() {
   }
 
   const isEditable = object.status === 'active';
+  // Mesma cor por hash do id usada no card da listagem, esmaecendo pro fundo padrão do
+  // app -- só um toque de cor no topo da tela. A badge de extensão usa a mesma cor
+  // semântica por tipo de arquivo do ObjectCard.
+  const accentColor = getColorForId(object.id);
+  const extensionColor = getExtensionColor(object.extension);
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
@@ -120,65 +143,81 @@ export default function ObjectDetails() {
         }
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-        <View className="flex-1 gap-4 p-4">
-          <Card className="flex-1 rounded-3xl p-5 gap-4">
-            <View className="flex-row items-center justify-between">
-              <Text
-                className="text-2xl font-medium text-foreground"
-                style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12, overflow: 'hidden' }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {object.name}
-              </Text>
-              <Badge className="rounded-full bg-muted px-3" style={{ flexShrink: 0 }}>
-                <Text className="uppercase text-foreground">{object.extension}</Text>
-              </Badge>
-            </View>
-
-            {!isEditable && (
+      <LinearGradient colors={[accentColor, colors.background]} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 gap-4 p-4">
+            <Card className="flex-1 rounded-3xl p-5 gap-4">
               <View className="flex-row items-center justify-between">
-                <ObjectStatusBadge status={object.status} />
-                {object.status === 'failed' && (
-                  <Text className="flex-1 text-right text-sm text-muted-foreground">
-                    {object.errorMessage || 'Falha ao processar o documento.'}
-                  </Text>
-                )}
+                <Text
+                  className="text-2xl font-medium text-foreground"
+                  style={{
+                    flexGrow: 1,
+                    flexShrink: 1,
+                    flexBasis: 0,
+                    marginRight: 12,
+                    overflow: 'hidden',
+                  }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {object.name}
+                </Text>
+                <Badge
+                  className="rounded-full px-3 border-transparent"
+                  style={{ flexShrink: 0, backgroundColor: extensionColor }}
+                >
+                  <Text className="uppercase text-white">{object.extension}</Text>
+                </Badge>
               </View>
-            )}
 
-            <Separator />
+              {!isEditable && (
+                <View className="flex-row items-center justify-between">
+                  <ObjectStatusBadge status={object.status} />
+                  {object.status === 'failed' && (
+                    <Text className="flex-1 text-right text-sm text-muted-foreground">
+                      {object.errorMessage || 'Falha ao processar o documento.'}
+                    </Text>
+                  )}
+                </View>
+              )}
 
-            <View className="flex-row gap-2">
-              <Input
-                className="flex-1"
-                value={newTag}
-                onChangeText={setNewTag}
-                placeholder={isEditable ? 'Digite uma nova tag' : 'Disponível após o processamento'}
-                onSubmitEditing={addTag}
-                editable={isEditable}
-              />
-              <Button onPress={addTag} className="bg-brand-100" disabled={!isEditable}>
-                <Ionicons name="add" size={18} color="white" />
-              </Button>
-            </View>
+              <Separator />
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-              <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
-            </ScrollView>
-          </Card>
+              <View className="flex-row gap-2">
+                <Input
+                  className="flex-1"
+                  value={newTag}
+                  onChangeText={setNewTag}
+                  placeholder={
+                    isEditable ? 'Digite uma nova tag' : 'Disponível após o processamento'
+                  }
+                  onSubmitEditing={addTag}
+                  editable={isEditable}
+                />
+                <Button onPress={addTag} className="bg-brand-100" disabled={!isEditable}>
+                  <Ionicons name="add" size={18} color="white" />
+                </Button>
+              </View>
 
-          <Button
-            onPress={handleDelete}
-            disabled={deleteMutation.isPending}
-            className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
-          >
-            <Ionicons name="trash-outline" size={20} color="white" />
-            <Text className="ml-2 font-semibold text-white">Excluir objeto</Text>
-          </Button>
-        </View>
-      </KeyboardAvoidingView>
+              <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
+              </ScrollView>
+            </Card>
+
+            <Button
+              onPress={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
+            >
+              <Ionicons name="trash-outline" size={20} color="white" />
+              <Text className="ml-2 font-semibold text-white">Excluir objeto</Text>
+            </Button>
+          </View>
+        </KeyboardAvoidingView>
+      </LinearGradient>
     </Screen>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Pressable, ScrollView, Modal } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,10 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
 
   return (
     <View className="flex-1 w-full items-center justify-center px-1">
-      <View className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
+      <Animated.View
+        entering={FadeInDown.duration(300)}
+        className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden"
+      >
         <View className="p-6 pb-3 border-b border-border flex-row items-center justify-between gap-2">
           <View
             className="flex-row items-center gap-2"
@@ -80,7 +84,7 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
             <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
           </Button>
         </View>
-      </View>
+      </Animated.View>
 
       <Modal visible={showSources} transparent animationType="slide" onRequestClose={() => setShowSources(false)}>
         <View className="flex-1 justify-end bg-black/40">
@@ -94,7 +98,7 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="gap-3 pb-4">
-                {flashcard.sourceChunks.map((chunk, index) => (
+                {[...flashcard.sourceChunks].sort((a, b) => b.score - a.score).map((chunk, index) => (
                   <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-1.5 flex-1 min-w-0">

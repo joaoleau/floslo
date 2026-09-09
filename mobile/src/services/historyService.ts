@@ -159,6 +159,21 @@ export const historyService = {
     }));
   },
 
+  // Uma linha por dia com pelo menos 1 resposta, últimos `days` dias -- base do heatmap de
+  // estudo no Histórico. 'localtime' na conversão pra não desalinhar o dia perto da
+  // meia-noite pro fuso do usuário (o mesmo raciocínio de todayLocalDate em firing.tsx,
+  // só que calculado no SQLite em vez do JS).
+  getDailyActivity(userId: string, days: number): { date: string; count: number }[] {
+    const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+    return db.getAllSync<{ date: string; count: number }>(
+      `SELECT date(answered_at / 1000, 'unixepoch', 'localtime') as date, COUNT(*) as count
+       FROM attempts
+       WHERE user_id = ? AND answered_at >= ?
+       GROUP BY date`,
+      [userId, sinceMs]
+    );
+  },
+
   getSessions(userId: string, limit = 20): SessionSummary[] {
     const rows = db.getAllSync<{
       id: string;

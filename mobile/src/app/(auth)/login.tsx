@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView } from 'react-native';
+import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useLoginMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { HEX } from '@/lib/theme-tokens';
+import { showAlert } from '@/services/alertService';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!username || !password) {
-      Alert.alert('Atenção', 'Preencha usuário e senha.');
+      showAlert('Atenção', 'Preencha usuário e senha.');
       return;
     }
 
@@ -31,7 +32,7 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('[Login] Falha ao fazer login', error);
-      Alert.alert('Erro', error.message || 'Falha ao fazer login');
+      showAlert('Erro', error.message || 'Falha ao fazer login');
     }
   }
 

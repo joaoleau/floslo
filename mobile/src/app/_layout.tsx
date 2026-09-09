@@ -10,13 +10,17 @@ import { QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { authService } from '@/services/authService';
 import { schedulerService } from '@/services/schedulerService';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
+import { onboardingStorage } from '@/storage/onboardingStorage';
 import { onSessionExpired } from '@/api/http/client';
 import { queryClient } from '@/lib/queryClient';
 import { NAV_THEME } from '@/lib/theme';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeProvider';
+import { AppAlert } from '@/components/common/AppAlert';
 
 // IMPORTANTE: Importe o seu userService (ajuste o caminho de acordo com o seu projeto)
 import { userService } from '@/services/userService';
+
+import '@/styles/global.css';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -113,7 +117,9 @@ export default function RootLayout() {
           try {
             // SUBSTITUIÇÃO AQUI: Usando o seu userService lindamente!
             await userService.getMe();
-            router.replace('/(tabs)');
+
+            const hasSeenOnboarding = await onboardingStorage.hasSeenOnboarding();
+            router.replace(hasSeenOnboarding ? '/(tabs)' : '/onboarding');
 
             // A fresh install / re-login (or a different account on this same device) has
             // no native alarm triggers scheduled yet even though the backend already has
@@ -256,6 +262,7 @@ export default function RootLayout() {
         <AppThemeProvider>
           <ErrorBoundary>
             <RootStack />
+            <AppAlert />
           </ErrorBoundary>
         </AppThemeProvider>
       </QueryClientProvider>
@@ -304,6 +311,7 @@ function RootStack() {
     <ThemeProvider value={mode === 'dark' ? NAV_THEME.dark : NAV_THEME.light}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(object)" />
         <Stack.Screen name="(scheduler)" />

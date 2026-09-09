@@ -93,8 +93,22 @@ export const FIXED_HEX = {
 // Hex mirrors of the tokens above, for native props that can't consume CSS
 // variables (e.g. `<Ionicons color="...">`). Keep these in sync with LIGHT/DARK.
 export const HEX = {
-  light: { brand: '#3B3F45', brandSoft: '#6B7078', primary: '#181C25', foreground: '#181C25' },
-  dark: { brand: '#565A63', brandSoft: '#A4A8AF', primary: '#F3F5F7', foreground: '#F3F5F7' },
+  light: {
+    brand: '#3B3F45',
+    brandSoft: '#6B7078',
+    primary: '#181C25',
+    primaryForeground: '#FFFFFF',
+    foreground: '#181C25',
+    background: '#F9FAFB',
+  },
+  dark: {
+    brand: '#565A63',
+    brandSoft: '#A4A8AF',
+    primary: '#F3F5F7',
+    primaryForeground: '#121621',
+    foreground: '#F3F5F7',
+    background: '#13151B',
+  },
 };
 
 /** Builds the NativeWind `vars()` style object for light or dark mode. */

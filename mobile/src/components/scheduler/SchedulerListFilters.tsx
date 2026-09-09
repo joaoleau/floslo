@@ -1,0 +1,65 @@
+import { Pressable, ScrollView } from 'react-native';
+
+import { Text } from '@/components/ui/text';
+import { Scheduler } from '@/types/domain/Scheduler';
+
+export type SchedulerFilter = 'all' | 'today' | 'tomorrow' | 'disabled';
+
+const FILTER_OPTIONS: { value: SchedulerFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'today', label: 'Hoje' },
+  { value: 'tomorrow', label: 'Amanhã' },
+  { value: 'disabled', label: 'Desativados' },
+];
+
+const WEEKDAY_BY_INDEX = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+// weekDays vazio = alarme "todo dia" (ver calculateNextOneOffTrigger em
+// schedulerService.ts), então conta como "toca hoje" e "toca amanhã" também.
+function firesOn(scheduler: Scheduler, weekdayIndex: number): boolean {
+  return scheduler.weekDays.length === 0 || scheduler.weekDays.includes(WEEKDAY_BY_INDEX[weekdayIndex]);
+}
+
+export function matchesSchedulerFilter(scheduler: Scheduler, filter: SchedulerFilter): boolean {
+  const now = new Date();
+  switch (filter) {
+    case 'all':
+      return true;
+    case 'disabled':
+      return !scheduler.enabled;
+    case 'today':
+      return scheduler.enabled && firesOn(scheduler, now.getDay());
+    case 'tomorrow':
+      return scheduler.enabled && firesOn(scheduler, (now.getDay() + 1) % 7);
+  }
+}
+
+interface SchedulerListFiltersProps {
+  value: SchedulerFilter;
+  onChange: (value: SchedulerFilter) => void;
+}
+
+// Mesmo padrão preto/branco usado em switch/weekdays: filtro selecionado vira pílula
+// preta com texto branco, os demais ficam em outline neutro.
+export function SchedulerListFilters({ value, onChange }: SchedulerListFiltersProps) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+      {FILTER_OPTIONS.map((option) => {
+        const selected = value === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            onPress={() => onChange(option.value)}
+            className={`rounded-full border px-3.5 py-2 ${
+              selected ? 'border-brand-100 bg-brand-100' : 'border-border bg-card'
+            }`}
+          >
+            <Text className={selected ? 'text-sm font-medium text-white' : 'text-sm font-medium text-foreground'}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}

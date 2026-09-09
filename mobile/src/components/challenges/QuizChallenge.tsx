@@ -1,9 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { View, Pressable, ScrollView, Modal } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { Quiz } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ChallengeResult } from '@/types/domain/History';
@@ -55,8 +57,9 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
 
   return (
     // flex-1 + w-full: preenche praticamente toda a área disponível na tela de alarme
-    // (lateral e embaixo), não apenas uma caixinha centralizada.
-    <View className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
+    // (lateral e embaixo), não apenas uma caixinha centralizada. entering: desliza/aparece
+    // suave a cada novo desafio (remonta com key nova em firing.tsx a cada troca).
+    <Animated.View entering={FadeInDown.duration(300)} className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={true}
@@ -100,8 +103,10 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
               const isCorrect = correctAnswerId === alt.id;
 
               return (
-                <Pressable
+                <AnimatedChoice
                   key={alt.id}
+                  isWrong={isWrong}
+                  isCorrect={isCorrect}
                   onPress={() => handleSelectAlternative(alt.id, alt.correct)}
                   className={`w-full p-4 rounded-xl border flex-row items-center justify-between ${
                     isWrong
@@ -118,14 +123,14 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
                   </Text>
                   {isWrong && <Ionicons name="close-circle" size={20} color={colors.destructive} />}
                   {isCorrect && <Ionicons name="checkmark-circle" size={20} color={colors.success} />}
-                </Pressable>
+                </AnimatedChoice>
               );
             })}
           </View>
 
           {/* EXPLICAÇÃO E BOTÃO CONTINUAR (Só aparece quando acerta) */}
           {correctAnswerId && (
-            <View className="mt-2 gap-4 animate-fade-in">
+            <Animated.View entering={FadeInDown.duration(250)} className="mt-2 gap-4">
               <View className="bg-muted p-4 rounded-xl border border-border">
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center gap-2">
@@ -146,7 +151,7 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
                 <Text className="text-white font-bold text-lg">Continuar</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>
-            </View>
+            </Animated.View>
           )}
         </View>
       </ScrollView>
@@ -166,7 +171,7 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="gap-3 pb-4">
-                {quiz.sourceChunks.map((chunk, index) => (
+                {[...quiz.sourceChunks].sort((a, b) => b.score - a.score).map((chunk, index) => (
                   <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
@@ -194,6 +199,6 @@ export function QuizChallenge({ quiz, currentIndex, totalQuizzes, onSuccess }: Q
           </Card>
         </View>
       </Modal>
-    </View>
+    </Animated.View>
   );
 }

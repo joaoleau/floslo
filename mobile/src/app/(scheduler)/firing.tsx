@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 
 import notifee from '@notifee/react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAudioPlayer } from 'expo-audio';
 import * as Application from 'expo-application';
@@ -23,6 +24,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 import { historyService } from '@/services/historyService';
 import { useInvalidateHistory } from '@/hooks/useHistory';
 import { userStatsApi } from '@/api/userStats';
+import { getColorForId } from '@/lib/hashColor';
 
 // "YYYY-MM-DD" no fuso local do aparelho -- o backend não tem como saber o fuso do
 // usuário sozinho, então quem manda a data local é sempre o cliente.
@@ -275,7 +277,10 @@ function FiringScreenContent({
   const canGoForward = currentChallengeIndex < maxReachedIndex;
 
   return (
-    <View className="flex-1 bg-brand-100 relative">
+    <LinearGradient
+      colors={[getColorForId(ragData.scheduler.id), colors.brand]}
+      style={{ flex: 1, position: 'relative' }}
+    >
       {/* BARREIRA 3: Bloqueia arrastar para voltar ou gestos do Expo Router */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
@@ -382,7 +387,7 @@ function FiringScreenContent({
         )}
       </View>
 
-    </View>
+    </LinearGradient>
   );
 }
 

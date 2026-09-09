@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { useResetPasswordMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { HEX } from '@/lib/theme-tokens';
+import { showAlert } from '@/services/alertService';
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function ResetPasswordScreen() {
 
   async function handleReset() {
     if (!email) {
-      Alert.alert('Atenção', 'Preencha o e-mail cadastrado.');
+      showAlert('Atenção', 'Preencha o e-mail cadastrado.');
       return;
     }
 
@@ -29,7 +30,7 @@ export default function ResetPasswordScreen() {
       setIsSuccess(true);
     } catch (error: any) {
       console.error('[ResetPassword] Falha ao enviar e-mail de recuperação', error);
-      Alert.alert('Erro', error.message || 'Falha ao enviar e-mail');
+      showAlert('Erro', error.message || 'Falha ao enviar e-mail');
     }
   }
 
