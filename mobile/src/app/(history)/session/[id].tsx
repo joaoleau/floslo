@@ -34,7 +34,7 @@ export default function SessionDetailScreen() {
           contentContainerClassName="gap-4 p-4 pb-28"
           showsVerticalScrollIndicator={false}
         >
-          <Card className="rounded-3xl p-5 gap-2">
+          <Card className="rounded-3xl p-5 gap-4">
             <Text className="text-lg font-semibold text-foreground">{session.schedulerName}</Text>
             <Text className="text-sm text-muted-foreground">
               {new Date(session.startedAt).toLocaleString('pt-BR')}

@@ -16,6 +16,7 @@ export function useThemeColors() {
     primaryForeground: hex.primaryForeground,
     foreground: hex.foreground,
     background: hex.background,
+    mutedForeground: hex.mutedForeground,
     success: FIXED_HEX.success,
     destructive: FIXED_HEX.destructive,
     white: '#FFFFFF',

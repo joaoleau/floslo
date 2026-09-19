@@ -25,3 +25,22 @@ export interface RefreshTokenRequestDTO {
 export interface RefreshTokenResponseDTO {
   token: string;
 }
+
+export interface ForgotPasswordRequestDTO {
+  email: string;
+}
+
+export interface VerifyResetCodeRequestDTO {
+  email: string;
+  code: string;
+}
+
+export interface ResetPasswordRequestDTO {
+  email: string;
+  code: string;
+  new_password: string;
+}
+
+export interface MessageResponseDTO {
+  message: string;
+}

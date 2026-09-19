@@ -3,8 +3,8 @@ import { CHALLENGE_TYPE_META } from './challengeType';
 const EXPECTED_TYPES = ['QUIZ', 'FLASHCARD', 'TRUE_FALSE'] as const;
 
 // Regression guard for the refactor: every screen that iterates CHALLENGE_TYPE_META
-// (AppStatsHeader's bar, history's mistake badges, the scheduler card's challenge chips)
-// assumes all three types are present with a complete, non-empty entry -- a type added
+// (history's mistake badges, the scheduler card's challenge chips) assumes all three
+// types are present with a complete, non-empty entry -- a type added
 // without updating this map would silently render as "undefined" instead of failing loudly.
 describe('CHALLENGE_TYPE_META', () => {
   it('has an entry for every challenge type', () => {

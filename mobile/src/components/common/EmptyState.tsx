@@ -41,7 +41,7 @@ export function EmptyState({ icon, title, description, actionLabel, onAction, co
       {!!actionLabel && !!onAction && (
         <Button
           onPress={onAction}
-          className="mt-2 flex-row items-center gap-2 rounded-full px-6"
+          className="mt-2 flex-row items-center gap-2 rounded-3xl px-6"
           style={{ backgroundColor: accent }}
         >
           <Ionicons name="add" size={18} color="white" />

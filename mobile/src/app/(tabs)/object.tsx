@@ -115,7 +115,7 @@ export default function ObjectsScreen() {
       ) : isError ? (
         <ErrorState message={error?.message} onRetry={() => refetch()} />
       ) : objects.length === 0 ? (
-        <View className="flex-1 pt-20 px-4">
+        <View className="flex-1 pt-[72px] px-4">
           <EmptyState
             icon="document-text-outline"
             title="Nenhum objeto ainda"
@@ -131,7 +131,7 @@ export default function ObjectsScreen() {
           keyExtractor={(item) => item.id}
           onScroll={scrollHandler}
           scrollEventThrottle={16}
-          contentContainerClassName="w-full px-4 pt-20 pb-32 gap-2"
+          contentContainerClassName="w-full px-4 pt-[72px] pb-32 gap-2"
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <ObjectCard

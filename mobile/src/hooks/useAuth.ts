@@ -20,3 +20,16 @@ export function useResetPasswordMutation() {
     mutationFn: (email: string) => authService.resetPassword(email),
   });
 }
+
+export function useVerifyResetCodeMutation() {
+  return useMutation({
+    mutationFn: ({ email, code }: { email: string; code: string }) => authService.verifyResetCode(email, code),
+  });
+}
+
+export function useConfirmPasswordResetMutation() {
+  return useMutation({
+    mutationFn: ({ email, code, newPassword }: { email: string; code: string; newPassword: string }) =>
+      authService.confirmPasswordReset(email, code, newPassword),
+  });
+}

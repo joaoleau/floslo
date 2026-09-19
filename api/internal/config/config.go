@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3vectors"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 
 	"github.com/joaoleau/floslo/internal/config/logger"
 )
@@ -26,6 +27,7 @@ const (
 	GenerateModelId = "GENERATE_MODEL_ID"
 	EmbeddingModelId = "EMBEDDING_MODEL_ID"
 	MaxUploadSizeMB = "MAX_UPLOAD_SIZE_MB"
+	SESSenderEmail = "SES_SENDER_EMAIL"
 )
 
 const defaultMaxUploadSizeMB = 500
@@ -44,6 +46,8 @@ type Config struct {
 	GenerateModelId string
 	EmbeddingModelId string
 	MaxUploadSizeBytes int64
+	SESClient    *sesv2.Client
+	SESSenderEmail string
 }
 
 func NewConfig(ctx context.Context) (*Config, error) {
@@ -66,6 +70,12 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	if vectorIndexName == "" {
 		return nil, fmt.Errorf("VECTOR_INDEX_NAME environment variable is required")
 	}
+
+	// Opcional aqui de propósito: NewConfig é compartilhado por todas as Lambdas (API e
+	// RAG), mas só a API manda e-mail -- a RAG não declara essa variável no template.yml
+	// e não deveria precisar dela pra subir. Quem realmente precisa do valor (a
+	// construção do EmailService, só em cmd/api) valida isso na hora de usar.
+	sesSenderEmail := os.Getenv(SESSenderEmail)
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -99,6 +109,7 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	bedrockRuntimeClient := bedrockruntime.NewFromConfig(cfg)
 	s3Client := s3.NewFromConfig(cfg)
 	s3VectorsClient := s3vectors.NewFromConfig(cfg)
+	sesClient := sesv2.NewFromConfig(cfg)
 
 	maxUploadSizeMB := defaultMaxUploadSizeMB
 	if raw := os.Getenv(MaxUploadSizeMB); raw != "" {
@@ -125,6 +136,8 @@ func NewConfig(ctx context.Context) (*Config, error) {
 		GenerateModelId: generateModelId,
 		EmbeddingModelId: embeddingModelId,
 		MaxUploadSizeBytes: maxUploadSizeBytes,
+		SESClient: sesClient,
+		SESSenderEmail: sesSenderEmail,
 
 	}, nil
 }

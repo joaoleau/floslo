@@ -6,6 +6,14 @@ import { ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-ro
 import * as SplashScreen from 'expo-splash-screen';
 import notifee, { EventType, AndroidCategory } from '@notifee/react-native';
 import { QueryClientProvider, focusManager } from '@tanstack/react-query';
+import {
+  useFonts,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 
 import { authService } from '@/services/authService';
 import { schedulerService } from '@/services/schedulerService';
@@ -16,6 +24,7 @@ import { queryClient } from '@/lib/queryClient';
 import { NAV_THEME } from '@/lib/theme';
 import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeProvider';
 import { AppAlert } from '@/components/common/AppAlert';
+import { FieldHelpModal } from '@/components/common/FieldHelpModal';
 
 // IMPORTANTE: Importe o seu userService (ajuste o caminho de acordo com o seu projeto)
 import { userService } from '@/services/userService';
@@ -76,9 +85,16 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
 export default function RootLayout() {
   const router = useRouter();
   
-  const navigationState = useRootNavigationState(); 
+  const navigationState = useRootNavigationState();
   const isNavigating = useRef(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
 
   // Expulsa o usuário caso o interceptor do Axios avise que a sessão morreu
   useEffect(() => {
@@ -107,7 +123,9 @@ export default function RootLayout() {
   // EFEITO 1: CHECAR AUTENTICAÇÃO E ROTA INICIAL
   // ==========================================
   useEffect(() => {
-    if (!navigationState?.key) return;
+    // Segura a splash até a fonte custom (Inter) estar pronta -- sem isso, a primeira tela
+    // pisca rapidinho com a fonte padrão do sistema antes da Inter carregar.
+    if (!navigationState?.key || !fontsLoaded) return;
 
     async function checkAuthAndRedirect() {
       try {
@@ -148,7 +166,7 @@ export default function RootLayout() {
     }
 
     checkAuthAndRedirect();
-  }, [navigationState?.key, router]);
+  }, [navigationState?.key, fontsLoaded, router]);
 
   // ==========================================
   // EFEITO 2: NAVEGAR PARA O ALARME
@@ -263,6 +281,7 @@ export default function RootLayout() {
           <ErrorBoundary>
             <RootStack />
             <AppAlert />
+            <FieldHelpModal />
           </ErrorBoundary>
         </AppThemeProvider>
       </QueryClientProvider>

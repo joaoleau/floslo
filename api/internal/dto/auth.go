@@ -41,3 +41,18 @@ type RefreshTokenResponseDTO struct {
 	Token string `json:"token"`
 }
 
+type ForgotPasswordRequestDTO struct {
+	Email string `json:"email"`
+}
+
+type ResetPasswordRequestDTO struct {
+	Email       string `json:"email"`
+	Code        string `json:"code"`
+	NewPassword string `json:"new_password"`
+}
+
+type VerifyResetCodeRequestDTO struct {
+	Email string `json:"email"`
+	Code  string `json:"code"`
+}
+

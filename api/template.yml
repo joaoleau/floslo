@@ -224,6 +224,11 @@ Resources:
                 - s3vectors:DeleteVectors
               Resource: "*"
 
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: arn:aws:ses:us-east-1:980135808459:identity/floslo.com.br
+
       Environment:
         Variables:
           DYNAMO_TABLE: floslo
@@ -234,6 +239,7 @@ Resources:
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
           MAX_UPLOAD_SIZE_MB: "500"
+          SES_SENDER_EMAIL: "no-reply@floslo.com.br"
 
       Events:
         Proxy:

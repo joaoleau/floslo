@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ChallengeType } from '@/types/domain/History';
 
-// Mesma paleta usada nas badges de histórico/estatísticas e na barra do AppStatsHeader,
-// pra manter a associação visual tipo-de-desafio -> cor consistente em todo o app. Tons
+// Mesma paleta usada nas badges de histórico/estatísticas, pra manter a associação
+// visual tipo-de-desafio -> cor consistente em todo o app. Tons
 // "joia" (mais escuros/profundos) de propósito -- se diferenciam da paleta vibrante dos
 // cards (hashColor.ts) pela saturação/luminosidade, não só pelo matiz, já que só existem
 // 3 tipos de desafio contra 8 cores de card (evitar sobreposição de matiz seria

@@ -26,6 +26,22 @@ PDF_OCR_REQUIRED_MESSAGE = (
 
 FAILED_OBJECT_TTL_MINUTES = 10
 TAG_REFINER_SAMPLE_TEXT_LENGTH = 1200
+# Mantém em sincronia com MaxTagLength em api/internal/service/object.go -- sem isso,
+# um keyword do YAKE (frases de até 4 palavras) pode passar de 26 caracteres e travar
+# qualquer edição futura de tags desse objeto no backend.
+MAX_TAG_LENGTH = 26
+
+
+def _clip_tags(tags: list[str]) -> list[str]:
+    seen: set[str] = set()
+    clipped: list[str] = []
+    for tag in tags:
+        value = tag.strip()[:MAX_TAG_LENGTH].strip()
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        clipped.append(value)
+    return clipped
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -165,6 +181,7 @@ class ProcessorHandler:
                 raise RuntimeError(f"No vectors generated for s3://{bucket}/{object_key}")
 
             refined_tags = self.tag_refiner.refine(list(all_tags), tag_refiner_sample_text)
+            refined_tags = _clip_tags(refined_tags)
 
             vector_save_result = self.vector_service.save(vector_objects)
             logger.info(f"Successfully saved {len(vector_objects)} vectors for s3://{bucket}/{object_key}")
@@ -262,6 +279,12 @@ class ProcessorHandler:
         return parts[1]
 
     def _extract_object_name_from_key(self, key: str) -> str | None:
+        # A API dá a cada upload sua própria "pasta" (id único) dentro de
+        # tenants/{userId}/context/ -- tenants/{userId}/context/{id único}/{nome escolhido
+        # pelo usuário} -- pra garantir uma chave S3 exclusiva por upload sem precisar
+        # fundir id e nome num único segmento (ver buildStorageObjectName em
+        # handler/storage.go). O nome de exibição do objeto já é, portanto, só o último
+        # segmento do caminho -- sem nenhum parsing extra de string.
         parts = key.split("/")
         if len(parts) < 3:
             return None

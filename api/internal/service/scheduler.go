@@ -12,24 +12,19 @@ import (
 )
 
 type SchedulerService struct {
-	SchedulerRepository  *repository.SchedulerRepository
+	SchedulerRepository           *repository.SchedulerRepository
 	SchedulerObjectLinkRepository *repository.SchedulerObjectLinkRepository
-	StorageService       *StorageService
+	StorageService                *StorageService
 }
 
 func NewSchedulerService(schedulerRepo *repository.SchedulerRepository, schedulerObjectLinkRepo *repository.SchedulerObjectLinkRepository, storageService *StorageService) *SchedulerService {
 	return &SchedulerService{
-		SchedulerRepository:  schedulerRepo,
+		SchedulerRepository:           schedulerRepo,
 		SchedulerObjectLinkRepository: schedulerObjectLinkRepo,
-		StorageService:       storageService,
+		StorageService:                storageService,
 	}
 }
 
-// validateChallenger is shared by CreateScheduler and UpdateScheduler so a challenger can
-// never reach storage unvalidated regardless of which path wrote it.
-// maxChallengeItemCount caps how many questions/cards a single challenger can request --
-// keep in sync with the Slider's maximumValue in mobile's SchedulerForm.tsx and the clamp in
-// service/rag.go's challengeCount.
 const maxChallengeItemCount = 5
 
 func validateChallenger(c model.Challenger) error {
@@ -122,9 +117,9 @@ func (s *SchedulerService) CreateScheduler(ctx context.Context, userId string, s
 
 	for _, objectId := range scheduler.ObjectIds {
 		schedulerObjectLink := &model.SchedulerObjectLink{
-			UserId: userId,
+			UserId:      userId,
 			SchedulerId: scheduler.Id,
-			ObjectId: objectId,
+			ObjectId:    objectId,
 		}
 		schedulerObjectLink.SetKeys()
 		err = s.SchedulerObjectLinkRepository.CreateLink(ctx, schedulerObjectLink)
@@ -187,9 +182,9 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, u
 		toAdd, toRemove := s.diffObjects(scheduler.ObjectIds, *update.ObjectIds)
 		for _, objectId := range toAdd {
 			schedulerObjectLink := &model.SchedulerObjectLink{
-				UserId: userId,
+				UserId:      userId,
 				SchedulerId: scheduler.Id,
-				ObjectId: objectId,
+				ObjectId:    objectId,
 			}
 			schedulerObjectLink.SetKeys()
 			err = s.SchedulerObjectLinkRepository.CreateLink(ctx, schedulerObjectLink)

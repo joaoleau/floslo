@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Pressable, Platform, ActivityIndicator, BackHandler, Vibration, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 
@@ -19,11 +19,10 @@ import { ChallengeItem, RAG } from '@/types/domain/RAG';
 import { LANGUAGE_FLAGS } from '@/types/domain/Scheduler';
 import { ChallengeResult, ReviewOption } from '@/types/domain/History';
 import { useRagQuery } from '@/hooks/useFiring';
-import { useMeQuery } from '@/hooks/useUser';
+import { useMeQuery, useRecordStreakMutation } from '@/hooks/useUser';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { historyService } from '@/services/historyService';
 import { useInvalidateHistory } from '@/hooks/useHistory';
-import { userStatsApi } from '@/api/userStats';
 import { getColorForId } from '@/lib/hashColor';
 
 // "YYYY-MM-DD" no fuso local do aparelho -- o backend não tem como saber o fuso do
@@ -100,6 +99,7 @@ function FiringScreenContent({
 
   const { data: user } = useMeQuery();
   const invalidateHistory = useInvalidateHistory();
+  const recordStreakMutation = useRecordStreakMutation();
   const historySessionIdRef = useRef<string | null>(null);
 
   // Uma sessão de histórico por disparo de alarme -- criada assim que sabemos quantos
@@ -130,7 +130,14 @@ function FiringScreenContent({
   const packageName = Application.applicationId;
   const audioUri = Platform.OS === 'android' ? `android.resource://${packageName}/raw/${soundName}` : '';
 
-  const player = useAudioPlayer({ uri: audioUri });
+  // A tela reage ao relógio (atualizado a cada segundo, ver efeito abaixo) e re-renderiza
+  // com bastante frequência -- um objeto `{ uri }` literal recriado a cada render faz o
+  // useAudioPlayer recarregar/reiniciar a fonte de áudio o tempo todo, o que na prática
+  // pode nunca deixar o som terminar de carregar pra realmente tocar. Memoizado pra só
+  // recriar quando a URI muda de verdade (suspeita levantada como causa raiz de "às vezes
+  // parece que a música não toca" -- validar em dispositivo físico depois desse fix).
+  const audioSource = useMemo(() => ({ uri: audioUri }), [audioUri]);
+  const player = useAudioPlayer(audioSource);
 
   const stopAlarm = useCallback(() => {
     console.log('[Firing] Desligando alarme', { schedulerId, notificationId });
@@ -239,13 +246,10 @@ function FiringScreenContent({
       });
     }
 
-    // Streak e respondidos-por-tipo agora vivem no backend (DynamoDB) -- fire-and-forget,
-    // não pode travar o fluxo do alarme se a rede estiver fora do ar.
-    if (answered) {
-      userStatsApi
-        .recordAnswer({ challenge_type: answered.type, local_date: todayLocalDate() })
-        .catch((err) => console.warn('[Firing] Falha ao reportar resposta pro backend', err));
-    }
+    // Sequência de dias vive no backend (no próprio item do usuário) -- fire-and-forget,
+    // não pode travar o fluxo do alarme se a rede estiver fora do ar. Sobrevive à troca
+    // de aparelho de propósito: quem decide o streak é o backend, não o SQLite local.
+    recordStreakMutation.mutate(todayLocalDate());
 
     setAnsweredResults((prev) => ({ ...prev, [currentChallengeIndex]: result }));
     setMaxReachedIndex((prev) => Math.max(prev, currentChallengeIndex + 1));
@@ -449,7 +453,7 @@ export default function FiringScreen() {
         <Text className="text-white/75 text-center text-sm">
           {error instanceof Error ? error.message : 'Erro desconhecido.'}
         </Text>
-        <Button onPress={() => refetch()} className="bg-white/15 rounded-full px-6 py-3">
+        <Button onPress={() => refetch()} className="bg-white/15 rounded-3xl px-6 py-3">
           <Text className="font-semibold text-white">Tentar novamente</Text>
         </Button>
       </View>

@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"github.com/joaoleau/floslo/internal/repository"
+
 	"github.com/joaoleau/floslo/internal/config/logger"
 	"github.com/joaoleau/floslo/internal/model"
+	"github.com/joaoleau/floslo/internal/repository"
 )
 
-// GeneratedChallengeResult carries the generated content for one Challenger -- exactly one
-// of Quizzes/Flashcards/TrueFalses is populated, matching the Challenger's ChallengeType.
 type GeneratedChallengeResult struct {
 	ChallengeType string                `json:"challenge_type"`
 	Language      string                `json:"language"`
@@ -21,21 +20,21 @@ type GeneratedChallengeResult struct {
 }
 
 type RetrieveAndGenerateResponse struct {
-	Scheduler  *model.Scheduler             `json:"scheduler"`
+	Scheduler  *model.Scheduler            `json:"scheduler"`
 	Challenges []*GeneratedChallengeResult `json:"challenges"`
 }
 
 type RAGService struct {
-	VectorService     *VectorService
-	GenerationService *GenerationService
+	VectorService       *VectorService
+	GenerationService   *GenerationService
 	SchedulerRepository *repository.SchedulerRepository
 	ObjectRepository    *repository.ObjectRepository
 }
 
-func NewRAGService(vectorService *VectorService, generationService *GenerationService, schedulerRepository *repository.SchedulerRepository,objectRepository *repository.ObjectRepository) *RAGService {
+func NewRAGService(vectorService *VectorService, generationService *GenerationService, schedulerRepository *repository.SchedulerRepository, objectRepository *repository.ObjectRepository) *RAGService {
 	return &RAGService{
-		VectorService:      vectorService,
-		GenerationService:  generationService,
+		VectorService:       vectorService,
+		GenerationService:   generationService,
 		SchedulerRepository: schedulerRepository,
 		ObjectRepository:    objectRepository,
 	}
@@ -88,9 +87,6 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 			topK = 7
 		}
 
-		// Distribute the topK budget across the per-tag queries instead of multiplying it --
-		// keeps total context/cost comparable to a single-tag search, while still querying each
-		// tag independently so one weak/generic tag can't dominate the whole result set.
 		perQueryTopK := int32(topK) / int32(len(queries))
 		if perQueryTopK < 3 {
 			perQueryTopK = 3
@@ -154,8 +150,6 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 	}, nil
 }
 
-// challengeCount extracts the requested item count from a challenger's config, clamped to
-// [1, maxChallengeItemCount] the same way resolveChallengeConfig used to for the single-Quiz case.
 func challengeCount(c model.Challenger) int {
 	count := 1
 	switch c.ChallengeType {
@@ -181,9 +175,6 @@ func challengeCount(c model.Challenger) int {
 	return count
 }
 
-// selectTags picks up to 3 distinct random tags from the object's tag pool. Querying with
-// several tags (instead of a single random one) bounds the risk of one weak/generic tag
-// anchoring the whole retrieval -- see VectorService.RetrieveRelevantChunksMulti.
 func (s *RAGService) selectTags(tags []string) []string {
 	numTags := 3
 	if len(tags) < numTags {
@@ -225,9 +216,9 @@ func (s *RAGService) diversifyChunks(chunks []RetrievedChunk, count int) []Retri
 	return selected
 }
 
-func (s *RAGService) buildContext(chunks []RetrievedChunk,) string {
+func (s *RAGService) buildContext(chunks []RetrievedChunk) string {
 	var builder strings.Builder
-	
+
 	for _, chunk := range chunks {
 		builder.WriteString(chunk.Content)
 		builder.WriteString("\n\n")

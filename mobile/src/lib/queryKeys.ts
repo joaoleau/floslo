@@ -22,7 +22,4 @@ export const queryKeys = {
     sessionDetail: (id: string) => ['history', 'session', id] as const,
     attemptDetail: (id: string) => ['history', 'attempt', id] as const,
   },
-  userStats: {
-    me: ['userStats', 'me'] as const,
-  },
 };

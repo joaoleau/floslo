@@ -28,12 +28,14 @@ export function ObjectCard({ object, onPress, onLongPress, selectionMode = false
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress}>
       <View
-        className="rounded-2xl px-4 py-3.5 gap-2.5"
+        className="rounded-[28px] px-4 py-3.5 gap-2.5"
         style={{
           backgroundColor,
           opacity: selectionMode && !selected ? 0.5 : 1,
           borderWidth: selected ? 3 : 0,
           borderColor: '#FFFFFF',
+          borderBottomWidth: 3,
+          borderBottomColor: selected ? '#FFFFFF' : 'rgba(0,0,0,0.18)',
         }}
       >
         <View className="flex-row items-start justify-between gap-2">

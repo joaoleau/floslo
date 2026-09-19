@@ -20,21 +20,21 @@ var adapter *proxy.ChiLambdaV2
 
 type Repositories struct {
 	UserRepository *irepository.UserRepository
+	PasswordResetRepository *irepository.PasswordResetRepository
 	SchedulerRepository *irepository.SchedulerRepository
 	SchedulerObjectLinkRepository *irepository.SchedulerObjectLinkRepository
 	ObjectRepository *irepository.ObjectRepository
-	UserStatsRepository *irepository.UserStatsRepository
 }
 
 type Services struct {
 	UserService *iservice.UserService
 	AuthService *iservice.AuthService
+	EmailService *iservice.EmailService
 	StorageService *iservice.StorageService
 	SchedulerService *iservice.SchedulerService
 	EmbeddingService *iservice.EmbeddingService
 	VectorService *iservice.VectorService
 	ObjectService *iservice.ObjectService
-	UserStatsService *iservice.UserStatsService
 }
 
 type Handlers struct {
@@ -43,7 +43,6 @@ type Handlers struct {
 	StorageHandler *ihandler.StorageHandler
 	SchedulerHandler *ihandler.SchedulerHandler
 	ObjectHandler *ihandler.ObjectHandler
-	UserStatsHandler *ihandler.UserStatsHandler
 }
 
 func handler(ctx context.Context, req events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
@@ -56,6 +55,10 @@ func main() {
 	r := chi.NewRouter()
 	if err != nil {
 		logger.Log.Error("failed to initialize config: ", logger.Any("error", err),)
+		return
+	}
+	if cfg.SESSenderEmail == "" {
+		logger.Log.Error("failed to initialize config: ", logger.Any("error", "SES_SENDER_EMAIL environment variable is required"))
 		return
 	}
 	repos := setupRepositories(cfg.DynamoClient, cfg.DynamoTable)
@@ -75,6 +78,9 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Post("/register", handlers.AuthHandler.Register)
 			r.Post("/login", handlers.AuthHandler.Login)
 			r.Post("/refresh", handlers.AuthHandler.RefreshToken)
+			r.Post("/forgot-password", handlers.AuthHandler.ForgotPassword)
+			r.Post("/verify-reset-code", handlers.AuthHandler.VerifyResetCode)
+			r.Post("/reset-password", handlers.AuthHandler.ResetPassword)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -82,8 +88,7 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Get("/user/me", handlers.UserHandler.GetMe)
 			r.Put("/user/me", handlers.UserHandler.UpdateMe)
 			r.Delete("/user/me", handlers.UserHandler.DeleteMe)
-			r.Get("/user/me/stats", handlers.UserStatsHandler.GetStats)
-			r.Post("/user/me/stats/answer", handlers.UserStatsHandler.RecordAnswer)
+			r.Post("/user/me/streak", handlers.UserHandler.RecordStreak)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -108,6 +113,7 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Get("/objects", handlers.ObjectHandler.ListObjects)
 			r.Get("/objects/{id}", handlers.ObjectHandler.GetObjectById)
 			r.Put("/objects/{id}/tags", handlers.ObjectHandler.UpdateObjectTags)
+			r.Put("/objects/{id}/name", handlers.ObjectHandler.UpdateObjectName)
 			r.Delete("/objects/{id}", handlers.ObjectHandler.DeleteObject)
 		})
 	})
@@ -120,7 +126,6 @@ func setupHandlers(services *Services) *Handlers {
 		StorageHandler: ihandler.NewStorageHandler(services.StorageService),
 		SchedulerHandler: ihandler.NewSchedulerHandler(services.SchedulerService),
 		ObjectHandler: ihandler.NewObjectHandler(services.ObjectService),
-		UserStatsHandler: ihandler.NewUserStatsHandler(services.UserStatsService),
 	}
 }
 
@@ -129,26 +134,27 @@ func setupServices(cfg *config.Config, repos *Repositories) *Services {
 	embeddingService := iservice.NewEmbeddingService(cfg.BedrockRuntimeClient, cfg.EmbeddingModelId)
 	vectorService := iservice.NewVectorService(cfg.S3VectorsClient, embeddingService, cfg.VectorBucketName, cfg.VectorIndexName)
 	schedulerService := iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService)
-	objectService := iservice.NewObjectService(repos.ObjectRepository, repos.SchedulerObjectLinkRepository, storageService, vectorService)
+	objectService := iservice.NewObjectService(repos.ObjectRepository, repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService, vectorService)
+	emailService := iservice.NewEmailService(cfg.SESClient, cfg.SESSenderEmail)
 
 	return &Services{
 		UserService: iservice.NewUserService(repos.UserRepository, objectService, schedulerService, storageService),
-		AuthService: iservice.NewAuthService(repos.UserRepository, cfg.JWTSecret),
+		AuthService: iservice.NewAuthService(repos.UserRepository, repos.PasswordResetRepository, emailService, cfg.JWTSecret),
+		EmailService: emailService,
 		StorageService: storageService,
 		SchedulerService: schedulerService,
 		EmbeddingService: embeddingService,
 		VectorService: vectorService,
 		ObjectService: objectService,
-		UserStatsService: iservice.NewUserStatsService(repos.UserStatsRepository),
 	}
 }
 
 func setupRepositories(db *dynamodb.Client, table string) *Repositories {
 	return &Repositories{
 		UserRepository: irepository.NewUserRepository(db, table),
+		PasswordResetRepository: irepository.NewPasswordResetRepository(db, table),
 		SchedulerRepository: irepository.NewSchedulerRepository(db, table),
 		SchedulerObjectLinkRepository: irepository.NewSchedulerObjectLinkRepository(db, table),
 		ObjectRepository: irepository.NewObjectRepository(db, table),
-		UserStatsRepository: irepository.NewUserStatsRepository(db, table),
 	}
 }

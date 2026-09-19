@@ -3,7 +3,7 @@
 // cor fixa calculada localmente no app, sem depender da API, então a cor não muda entre
 // aberturas nem depende da ordem da lista.
 const HASH_COLORS = [
-  '#F97066', // coral
+  '#d6481d', // coral
   '#F59E0B', // âmbar
   '#10B981', // esmeralda
   '#14B8A6', // teal

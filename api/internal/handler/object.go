@@ -76,6 +76,28 @@ func (h *ObjectHandler) UpdateObjectTags(w http.ResponseWriter, r *http.Request)
 	utils.ResponseWithData(w, http.StatusOK, dto.ToObjectResponseDTO(updatedObject))
 }
 
+func (h *ObjectHandler) UpdateObjectName(w http.ResponseWriter, r *http.Request) {
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
+	if !ok {
+		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+	id := chi.URLParam(r, "id")
+	input, err := utils.Deserialize[dto.UpdateObjectNameRequestDTO](r)
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	updatedObject, err := h.ObjectService.UpdateObjectName(r.Context(), userId, id, input.Name)
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.ResponseWithData(w, http.StatusOK, dto.ToObjectResponseDTO(updatedObject))
+}
+
 func (h *ObjectHandler) DeleteObject(w http.ResponseWriter, r *http.Request) {
 	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
 	if !ok {

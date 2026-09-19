@@ -7,6 +7,7 @@ export const userMapper = {
       id: raw.id,
       username: raw.username,
       email: raw.email,
+      currentStreak: raw.current_streak,
       createdAt: new Date(raw.created_at),
       updatedAt: new Date(raw.updated_at),
     };

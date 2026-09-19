@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	
+
 	"github.com/joaoleau/floslo/internal/config/logger"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3vectors/types"
 )
 
-// deleteVectorsBatchSize caps each DeleteVectors call to stay within the S3 Vectors API limit per request.
 const deleteVectorsBatchSize = 500
 
 type RetrievedChunk struct {
@@ -26,14 +25,14 @@ type RetrievedChunk struct {
 }
 
 type VectorService struct {
-	Client *s3vectors.Client
+	Client           *s3vectors.Client
 	EmbeddingService *EmbeddingService
-	VectorBucket string
-	VectorIndex  string
+	VectorBucket     string
+	VectorIndex      string
 }
 
 type VectorMetadata struct {
-	User 	string `json:"user"`
+	User       string `json:"user"`
 	ObjectKey  string `json:"object_key"`
 	Language   string `json:"language"`
 	Chunk      string `json:"chunk"`
@@ -43,10 +42,10 @@ type VectorMetadata struct {
 
 func NewVectorService(client *s3vectors.Client, embeddingService *EmbeddingService, vectorBucket string, vectorIndex string) *VectorService {
 	return &VectorService{
-		Client: client,
+		Client:           client,
 		EmbeddingService: embeddingService,
-		VectorBucket: vectorBucket,
-		VectorIndex:  vectorIndex,
+		VectorBucket:     vectorBucket,
+		VectorIndex:      vectorIndex,
 	}
 }
 
@@ -65,16 +64,6 @@ func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId strin
 	return s.sortAndBuildChunks(vectors)
 }
 
-// RetrieveRelevantChunksMulti runs one real vector search per query (e.g. one per tag)
-// instead of a single search over a combined query -- this bounds the blast radius of any
-// one bad/generic tag: even if one query returns weak matches, the others still anchor the
-// context on genuinely different parts of the document. Results are merged (deduplicated by
-// page+chunk_index) and re-sorted by distance. A failure on one query is logged and skipped,
-// not fatal -- only fails if every query fails.
-//
-// language, when non-empty, restricts the search to chunks tagged with that language
-// (VectorMetadata.language, set at ingestion time by the processor). Pass "" for no filter --
-// see RetrieveRelevantChunksMultiForLanguage for the caller-facing version with fallback.
 func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32, language string) ([]RetrievedChunk, error) {
 	type chunkKey struct {
 		page       int
@@ -117,11 +106,6 @@ func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId 
 	return merged, nil
 }
 
-// RetrieveRelevantChunksMultiForLanguage biases retrieval towards chunks tagged with the
-// requested language, falling back to an unfiltered search when nothing matches (e.g. no
-// ingested content has been detected in that language yet) so a challenger's language choice
-// never hard-fails content generation -- GenerationService still gets a language instruction
-// either way and translates when the fallback kicks in.
 func (s *VectorService) RetrieveRelevantChunksMultiForLanguage(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32, language string) ([]RetrievedChunk, error) {
 	if language == "" {
 		return s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, "")
@@ -141,7 +125,7 @@ func (s *VectorService) RetrieveRelevantChunksMultiForLanguage(ctx context.Conte
 
 func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([]RetrievedChunk, error) {
 	var chunks []RetrievedChunk
-	
+
 	for _, vector := range vectors {
 		metadata, err := s.getVectorMetadata(&vector)
 		if err != nil {
@@ -156,7 +140,7 @@ func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([
 			logger.Any("chunk_index", metadata.ChunkIndex),
 			logger.String("language", metadata.Language),
 		)
-		
+
 		chunks = append(chunks, RetrievedChunk{
 			Content:    metadata.Chunk,
 			Score:      float64(*vector.Distance),
@@ -178,7 +162,7 @@ func (s *VectorService) getVectorMetadata(vector *types.QueryOutputVector) (*Vec
 	if vector.Metadata == nil {
 		return nil, fmt.Errorf("vector metadata is nil")
 	}
-	
+
 	var metadata VectorMetadata
 	err := vector.Metadata.UnmarshalSmithyDocument(&metadata)
 	if err != nil {
@@ -227,10 +211,10 @@ func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectK
 			QueryVector: &types.VectorDataMemberFloat32{
 				Value: embedding,
 			},
-			TopK:            aws.Int32(topK),
-			ReturnMetadata:  true,
-			ReturnDistance:  true,
-			Filter:          document.NewLazyDocument(filter),
+			TopK:           aws.Int32(topK),
+			ReturnMetadata: true,
+			ReturnDistance: true,
+			Filter:         document.NewLazyDocument(filter),
 		},
 	)
 
@@ -246,16 +230,11 @@ func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectK
 		return nil, fmt.Errorf("failed querying vectors: %w", err)
 	}
 
-	logger.Log.Info("query vectors success",logger.String("object_key", objectKey),logger.Any("vectors_found", len(output.Vectors)))
+	logger.Log.Info("query vectors success", logger.String("object_key", objectKey), logger.Any("vectors_found", len(output.Vectors)))
 
 	return output.Vectors, nil
 }
 
-// DeleteVectors deletes vectors by their exact keys (as returned by VectorSaveResult at
-// ingestion time and persisted on the object record), batching requests to stay within
-// the S3 Vectors DeleteVectors per-call limit. This is the primary, O(1)-lookup deletion
-// path: no scan or search of the index is needed because the caller already knows exactly
-// which keys belong to the object.
 func (s *VectorService) DeleteVectors(ctx context.Context, keys []string) error {
 	if len(keys) == 0 {
 		return nil

@@ -106,7 +106,7 @@ export default function Onboarding() {
         ))}
       </View>
 
-      <Button onPress={next} className="mb-6 rounded-full bg-brand-100 py-3.5">
+      <Button onPress={next} className="mb-6 rounded-3xl bg-brand-100 py-3.5">
         <Text className="text-center font-semibold text-white">{isLast ? 'Começar' : 'Próximo'}</Text>
       </Button>
     </Screen>

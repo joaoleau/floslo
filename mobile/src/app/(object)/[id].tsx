@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,12 +27,17 @@ import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
 import {
   useObjectQuery,
   useUpdateObjectTagsMutation,
+  useRenameObjectMutation,
   useDeleteObjectMutation,
 } from '@/hooks/useObjects';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { getColorForId } from '@/lib/hashColor';
 import { getExtensionColor } from '@/lib/fileExtensionColors';
 import { showAlert } from '@/services/alertService';
+import { showFieldHelp } from '@/services/fieldHelpService';
+
+const TAGS_HELP_TEXT =
+  'Representam as palavras-chave e os principais conceitos do conteúdo desse objeto, usados para gerar os desafios. Algumas já vêm sugeridas automaticamente pela IA durante o processamento, mas você pode adicionar, remover ou ajustar como preferir.';
 
 export default function ObjectDetails() {
   const router = useRouter();
@@ -40,11 +46,30 @@ export default function ObjectDetails() {
 
   const { data: object, isPending, isError } = useObjectQuery(id);
   const updateTagsMutation = useUpdateObjectTagsMutation();
+  const renameMutation = useRenameObjectMutation();
   const deleteMutation = useDeleteObjectMutation();
 
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [loadedObjectId, setLoadedObjectId] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [editedName, setEditedName] = useState('');
+
+  async function handleRename() {
+    const trimmed = editedName.trim();
+    if (!object || !trimmed || trimmed === object.name) {
+      setIsRenaming(false);
+      return;
+    }
+
+    try {
+      await renameMutation.mutateAsync({ id: object.id, name: trimmed });
+      setIsRenaming(false);
+    } catch (err) {
+      console.error(`[ObjectDetails] Falha ao renomear objeto "${object.id}"`, err);
+      showAlert('Erro', 'Falha ao renomear o objeto.');
+    }
+  }
 
   // Reset local tag state when a (new) object finishes loading, without a
   // setState-in-effect cascade — see https://react.dev/learn/you-might-not-need-an-effect
@@ -53,8 +78,10 @@ export default function ObjectDetails() {
     setTags(object.tags);
   }
 
+  const TAG_MAX_LENGTH = 26;
+
   function addTag() {
-    const tag = newTag.trim();
+    const tag = newTag.trim().slice(0, TAG_MAX_LENGTH);
     if (!tag || tags.includes(tag)) return;
 
     setTags([...tags, tag]);
@@ -151,20 +178,46 @@ export default function ObjectDetails() {
           <View className="flex-1 gap-4 p-4">
             <Card className="flex-1 rounded-3xl p-5 gap-4">
               <View className="flex-row items-center justify-between">
-                <Text
-                  className="text-2xl font-medium text-foreground"
-                  style={{
-                    flexGrow: 1,
-                    flexShrink: 1,
-                    flexBasis: 0,
-                    marginRight: 12,
-                    overflow: 'hidden',
-                  }}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {object.name}
-                </Text>
+                {isRenaming ? (
+                  <View className="flex-1 flex-row items-center gap-2" style={{ marginRight: 12 }}>
+                    <Input
+                      autoFocus
+                      value={editedName}
+                      onChangeText={setEditedName}
+                      onSubmitEditing={handleRename}
+                      maxLength={150}
+                      className="flex-1 text-lg"
+                    />
+                    <Pressable hitSlop={8} onPress={handleRename} disabled={renameMutation.isPending}>
+                      <Ionicons name="checkmark-circle" size={26} color={colors.brand} />
+                    </Pressable>
+                    <Pressable hitSlop={8} onPress={() => setIsRenaming(false)}>
+                      <Ionicons name="close-circle" size={26} color={colors.mutedForeground} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    className="flex-row items-center"
+                    style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12 }}
+                    disabled={!isEditable}
+                    onPress={() => {
+                      setEditedName(object.name);
+                      setIsRenaming(true);
+                    }}
+                  >
+                    <Text
+                      className="text-lg font-semibold text-foreground"
+                      style={{ flexShrink: 1, overflow: 'hidden' }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {object.name}
+                    </Text>
+                    {isEditable && (
+                      <Ionicons name="pencil" size={16} color={colors.mutedForeground} style={{ marginLeft: 8 }} />
+                    )}
+                  </Pressable>
+                )}
                 <Badge
                   className="rounded-full px-3 border-transparent"
                   style={{ flexShrink: 0, backgroundColor: extensionColor }}
@@ -186,6 +239,13 @@ export default function ObjectDetails() {
 
               <Separator />
 
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-lg font-semibold text-foreground">Tags</Text>
+                <Pressable onPress={() => showFieldHelp('Tags', TAGS_HELP_TEXT)} hitSlop={8}>
+                  <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
+                </Pressable>
+              </View>
+
               <View className="flex-row gap-2">
                 <Input
                   className="flex-1"
@@ -196,8 +256,9 @@ export default function ObjectDetails() {
                   }
                   onSubmitEditing={addTag}
                   editable={isEditable}
+                  maxLength={TAG_MAX_LENGTH}
                 />
-                <Button onPress={addTag} className="bg-brand-100" disabled={!isEditable}>
+                <Button onPress={addTag} className="rounded-3xl bg-brand-100" disabled={!isEditable}>
                   <Ionicons name="add" size={18} color="white" />
                 </Button>
               </View>

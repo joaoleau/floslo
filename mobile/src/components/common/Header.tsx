@@ -29,7 +29,7 @@ export function Header({ title, showBackButton = true, onBack, rightAction }: He
   }
 
   return (
-    <View className="h-14 flex-row items-center border-b border-border px-4">
+    <View className="h-14 flex-row items-center border-b border-border bg-background px-4">
       <View className="w-10 items-start justify-center">
         {showBackButton && (
           <Pressable

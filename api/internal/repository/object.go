@@ -34,7 +34,7 @@ func (r *ObjectRepository) GetObjectById(ctx context.Context, userId string, obj
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal key: %w",err)
+		return nil, fmt.Errorf("failed to marshal key: %w", err)
 	}
 
 	result, err := r.db.GetItem(ctx, &dynamodb.GetItemInput{
@@ -61,9 +61,6 @@ func (r *ObjectRepository) GetObjectById(ctx context.Context, userId string, obj
 		return nil, fmt.Errorf("failed to unmarshal object: %w", err)
 	}
 
-	// DynamoDB's TTL sweep is best-effort and can lag well past the expiry timestamp,
-	// so a "failed" object past its ttl is treated as already gone here instead of
-	// waiting on physical deletion to hide it.
 	if object.IsExpired() {
 		return nil, fmt.Errorf("object not found")
 	}
@@ -81,8 +78,8 @@ func (r *ObjectRepository) ListObjectsByUser(ctx context.Context, userId string)
 		return nil, fmt.Errorf("failed to build expression: %w", err)
 	}
 	result, err := r.db.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String(r.table),
-		KeyConditionExpression: expr.KeyCondition(),
+		TableName:                 aws.String(r.table),
+		KeyConditionExpression:    expr.KeyCondition(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 	})
@@ -98,8 +95,6 @@ func (r *ObjectRepository) ListObjectsByUser(ctx context.Context, userId string)
 			logger.Log.Error("failed to unmarshal object: ", logger.Any("error", err))
 			return nil, fmt.Errorf("failed to unmarshal object: %w", err)
 		}
-		// See the comment in GetObjectById: hide expired "failed" objects here rather
-		// than relying on DynamoDB's best-effort TTL sweep to have deleted them yet.
 		if object.IsExpired() {
 			continue
 		}
@@ -133,10 +128,7 @@ func (r *ObjectRepository) UpdateObjectTags(ctx context.Context, userId string, 
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-		// UPDATED_NEW only returns attributes present in the Set expression above — Id, name,
-		// extension, status etc. come back empty since they're not part of this update. ALL_NEW
-		// returns the complete item. Same bug fixed in scheduler.go's UpdateScheduler.
-		ReturnValues: types.ReturnValueAllNew,
+		ReturnValues:              types.ReturnValueAllNew,
 	})
 	if err != nil {
 		logger.Log.Error("failed to update item: ", logger.Any("error", err))
@@ -151,6 +143,47 @@ func (r *ObjectRepository) UpdateObjectTags(ctx context.Context, userId string, 
 	}
 
 	logger.Log.Info("object updated: ", logger.String("object_id", objectId))
+	return &updatedObject, nil
+}
+
+func (r *ObjectRepository) UpdateObjectName(ctx context.Context, userId string, objectId string, name string) (*model.Object, error) {
+	key, err := attributevalue.MarshalMap(map[string]string{
+		"PK": "USER#" + userId,
+		"SK": "OBJECT#" + objectId,
+	})
+	if err != nil {
+		logger.Log.Error("failed to marshal key: ", logger.Any("error", err))
+		return nil, fmt.Errorf("failed to marshal key: %w", err)
+	}
+
+	update := expression.Set(expression.Name("name"), expression.Value(name)).
+		Set(expression.Name("updated_at"), expression.Value(time.Now().UTC().Format(time.RFC3339)))
+	expr, err := expression.NewBuilder().WithUpdate(update).Build()
+	if err != nil {
+		logger.Log.Error("failed to build expression: ", logger.Any("error", err))
+		return nil, fmt.Errorf("failed to build expression: %w", err)
+	}
+	response, err := r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(r.table),
+		Key:                       key,
+		UpdateExpression:          expr.Update(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+		ReturnValues:              types.ReturnValueAllNew,
+	})
+	if err != nil {
+		logger.Log.Error("failed to update item: ", logger.Any("error", err))
+		return nil, fmt.Errorf("failed to update item: %w", err)
+	}
+
+	var updatedObject model.Object
+	err = attributevalue.UnmarshalMap(response.Attributes, &updatedObject)
+	if err != nil {
+		logger.Log.Error("failed to unmarshal updated object: ", logger.Any("error", err))
+		return nil, fmt.Errorf("failed to unmarshal updated object: %w", err)
+	}
+
+	logger.Log.Info("object renamed: ", logger.String("object_id", objectId))
 	return &updatedObject, nil
 }
 

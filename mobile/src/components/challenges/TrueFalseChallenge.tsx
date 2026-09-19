@@ -140,7 +140,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                 <Text className="text-foreground leading-relaxed text-sm">{item.explanation}</Text>
               </View>
 
-              <Button onPress={handleContinue} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
+              <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">
                 <Text className="text-white font-bold text-lg">Continuar</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>

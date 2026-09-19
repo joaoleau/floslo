@@ -18,3 +18,7 @@ export interface ListObjectsResponseDTO {
 export interface UpdateObjectTagsRequestDTO {
   tags: string[];
 }
+
+export interface UpdateObjectNameRequestDTO {
+  name: string;
+}

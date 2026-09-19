@@ -77,7 +77,7 @@ describe('matchesSchedulerFilter', () => {
 
 describe('SchedulerListFilters (component)', () => {
   it('renders every filter option', async () => {
-    await render(<SchedulerListFilters value="all" onChange={jest.fn()} />);
+    await render(<SchedulerListFilters value="all" onChange={jest.fn()} schedulers={[]} />);
     ['Todos', 'Hoje', 'Amanhã', 'Desativados'].forEach((label) => {
       expect(screen.getByText(label)).toBeTruthy();
     });
@@ -85,10 +85,27 @@ describe('SchedulerListFilters (component)', () => {
 
   it('calls onChange with the pressed filter value', async () => {
     const onChange = jest.fn();
-    await render(<SchedulerListFilters value="all" onChange={onChange} />);
+    await render(<SchedulerListFilters value="all" onChange={onChange} schedulers={[]} />);
 
     await fireEvent.press(screen.getByText('Desativados'));
 
     expect(onChange).toHaveBeenCalledWith('disabled');
+  });
+
+  it('shows a count badge next to each filter, matching how many schedulers fall into it', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-03-11T10:00:00')); // Wednesday
+    const schedulers = [
+      makeScheduler({ enabled: true, weekDays: ['wednesday'] }), // today
+      makeScheduler({ enabled: false }), // disabled
+      makeScheduler({ enabled: false }), // disabled
+    ];
+
+    await render(<SchedulerListFilters value="all" onChange={jest.fn()} schedulers={schedulers} />);
+
+    expect(screen.getByText('3')).toBeTruthy(); // Todos
+    expect(screen.getByText('1')).toBeTruthy(); // Hoje
+    expect(screen.getByText('2')).toBeTruthy(); // Desativados
+
+    jest.useRealTimers();
   });
 });

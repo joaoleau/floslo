@@ -62,15 +62,19 @@ export function SchedulerCard({
       testID="scheduler-card"
       onPress={onPress}
       onLongPress={onLongPress}
-      style={!scheduler.enabled && !selectionMode ? { opacity: 0.55 } : undefined}
+      // Um pouco menos vibrante que antes (0.55 -> 0.45) pra "desligado" ler mais claramente
+      // como desligado, sem virar um contorno vazio.
+      style={!scheduler.enabled && !selectionMode ? { opacity: 0.45 } : undefined}
     >
       <View
-        className="rounded-2xl p-3 gap-2"
+        className="rounded-[28px] p-3.5 gap-1.5"
         style={{
           backgroundColor,
           opacity: selectionMode && !selected ? 0.5 : 1,
           borderWidth: selected ? 3 : 0,
           borderColor: '#FFFFFF',
+          borderBottomWidth: 3,
+          borderBottomColor: selected ? '#FFFFFF' : 'rgba(0,0,0,0.18)',
         }}
       >
         <View className="flex-row items-start justify-between gap-2">
@@ -104,10 +108,7 @@ export function SchedulerCard({
         </View>
 
         <View className="flex-row items-center justify-between gap-2">
-          <View>
-            <Text className="text-xs font-medium text-white/70">Toca às</Text>
-            <Text className="text-4xl font-extrabold text-white">{scheduler.startTime}</Text>
-          </View>
+          <Text className="text-3xl font-extrabold text-white">{scheduler.startTime}</Text>
 
           <WeekDays
             weekDays={scheduler.weekDays}

@@ -13,7 +13,7 @@ import { Scheduler, Challenger, QuizChallenge, FlashcardChallenge, QuizDifficult
 import { ObjectType } from '@/types/domain/Object';
 import { soundSelectionService } from '@/services/soundSelectionService';
 import { formatSoundLabel } from '@/services/soundService';
-import { showAlert } from '@/services/alertService';
+import { showFieldHelp } from '@/services/fieldHelpService';
 
 import { WeekDays } from './WeekDays';
 import { TimePicker } from './TimePicker';
@@ -107,14 +107,10 @@ function challengeTypeLabel(type: Challenger['challengeType']): string {
 }
 
 const OBJECTS_HELP_TEXT =
-  'São os materiais de estudo (documentos) já enviados na aba Objetos. Vincule aqui os que você quer usar -- os desafios deste agendador são gerados a partir do conteúdo deles.';
+  'São os materiais de estudo (documentos) já enviados na aba Objetos. Vincule aqui os que você quer usar: os desafios deste agendador são gerados a partir do conteúdo deles.';
 
 const CHALLENGES_HELP_TEXT =
   'Cada desafio é um tipo de exercício (Quiz, Flashcard ou Verdadeiro/Falso) que vai aparecer quando o alarme tocar, montado com base nos objetos vinculados. Dá pra adicionar um de cada tipo, cada um com sua própria dificuldade, quantidade de itens e idioma.';
-
-function showFieldHelp(title: string, message: string) {
-  showAlert(title, message);
-}
 
 type ModalStep = 'SELECT_TYPE' | 'CONFIGURE_CHALLENGE';
 
@@ -542,13 +538,13 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                     <View className="flex-row gap-3 mt-6">
                       <Button
                         onPress={closeChallengeModal}
-                        className="flex-1 bg-secondary"
+                        className="flex-1 rounded-3xl bg-secondary"
                       >
                         <Text className="text-foreground font-semibold text-center w-full">Cancelar</Text>
                       </Button>
                       <Button
                         onPress={handleAddChallenger}
-                        className="flex-1 bg-brand-100"
+                        className="flex-1 rounded-3xl bg-brand-100"
                       >
                         <Text className="text-white font-semibold text-center w-full">Salvar</Text>
                       </Button>
