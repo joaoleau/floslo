@@ -1,4 +1,13 @@
-import { LoginRequestDTO, LoginResponseDTO, RegisterRequestDTO, RegisterResponseDTO } from '@/types/api/AuthDTO';
+import {
+  ForgotPasswordRequestDTO,
+  LoginRequestDTO,
+  LoginResponseDTO,
+  MessageResponseDTO,
+  RegisterRequestDTO,
+  RegisterResponseDTO,
+  ResetPasswordRequestDTO,
+  VerifyResetCodeRequestDTO,
+} from '@/types/api/AuthDTO';
 import { api } from './http/client';
 
 // Note: token refresh is intentionally not exposed here — it's private to
@@ -11,5 +20,17 @@ export const authApi = {
 
   login(payload: LoginRequestDTO) {
     return api.post<LoginResponseDTO>('/api/auth/login', payload, { auth: false });
+  },
+
+  forgotPassword(payload: ForgotPasswordRequestDTO) {
+    return api.post<MessageResponseDTO>('/api/auth/forgot-password', payload, { auth: false });
+  },
+
+  verifyResetCode(payload: VerifyResetCodeRequestDTO) {
+    return api.post<MessageResponseDTO>('/api/auth/verify-reset-code', payload, { auth: false });
+  },
+
+  resetPassword(payload: ResetPasswordRequestDTO) {
+    return api.post<MessageResponseDTO>('/api/auth/reset-password', payload, { auth: false });
   },
 };

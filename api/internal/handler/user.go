@@ -35,6 +35,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		Id:       user.Id,
 		Username: user.Username,
 		Email:    user.Email,
+		CurrentStreak: user.CurrentStreak,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	})
@@ -62,9 +63,32 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		Id:       updatedUser.Id,
 		Username: updatedUser.Username,
 		Email:    updatedUser.Email,
+		CurrentStreak: updatedUser.CurrentStreak,
 		CreatedAt: updatedUser.CreatedAt,
 		UpdatedAt: updatedUser.UpdatedAt,
 	})
+}
+
+func (h *UserHandler) RecordStreak(w http.ResponseWriter, r *http.Request) {
+	userId, ok := r.Context().Value(middleware.UserIdKey).(string)
+	if !ok {
+		utils.ResponseWithError(w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+		return
+	}
+
+	input, err := utils.Deserialize[dto.RecordStreakRequestDTO](r)
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	currentStreak, err := h.userService.RecordStreak(r.Context(), userId, input.LocalDate)
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	utils.ResponseWithData(w, http.StatusOK, dto.RecordStreakResponseDTO{CurrentStreak: currentStreak})
 }
 
 func (h *UserHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 package dto
 
 type RAGRequestDTO struct {
-	SchedulerId    string   `json:"scheduler_id"`
+	SchedulerId string `json:"scheduler_id"`
 }
 
 type QuizAlternativeDTO struct {
@@ -20,12 +20,12 @@ type ChunkDTO struct {
 }
 
 type GeneratedQuizDTO struct {
-	Question     string             `json:"question"`
-	Alternatives []QuizAlternativeDTO  `json:"alternatives"`
-	Explanation  string             `json:"explanation"`
-	Difficulty   string             `json:"difficulty"`
-	Tag          string             `json:"tag"`
-	SourceChunks []ChunkDTO   `json:"source_chunks"`
+	Question     string               `json:"question"`
+	Alternatives []QuizAlternativeDTO `json:"alternatives"`
+	Explanation  string               `json:"explanation"`
+	Difficulty   string               `json:"difficulty"`
+	Tag          string               `json:"tag"`
+	SourceChunks []ChunkDTO           `json:"source_chunks"`
 }
 
 type FlashcardDTO struct {
@@ -44,17 +44,15 @@ type TrueFalseDTO struct {
 	SourceChunks []ChunkDTO `json:"source_chunks"`
 }
 
-// ChallengeResultDTO mirrors service.GeneratedChallengeResult: exactly one of
-// Quizzes/Flashcards/TrueFalses is populated, matching ChallengeType.
 type ChallengeResultDTO struct {
-	ChallengeType string         `json:"challenge_type"`
-	Language      string         `json:"language"`
+	ChallengeType string             `json:"challenge_type"`
+	Language      string             `json:"language"`
 	Quizzes       []GeneratedQuizDTO `json:"quizzes,omitempty"`
 	Flashcards    []FlashcardDTO     `json:"flashcards,omitempty"`
 	TrueFalses    []TrueFalseDTO     `json:"true_falses,omitempty"`
 }
 
 type RAGResponseDTO struct {
-	Scheduler  SchedulerResponseDTO  `json:"scheduler"`
+	Scheduler  SchedulerResponseDTO `json:"scheduler"`
 	Challenges []ChallengeResultDTO `json:"challenges"`
 }

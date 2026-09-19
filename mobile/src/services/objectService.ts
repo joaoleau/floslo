@@ -25,6 +25,12 @@ export const objectService = {
     return objectMapper.toDomain(updated);
   },
 
+  async rename(id: string, name: string): Promise<ObjectType> {
+    console.log(`[Object] Renomeando "${id}" para "${name}"`);
+    const updated = await objectsApi.updateName(id, name);
+    return objectMapper.toDomain(updated);
+  },
+
   async deleteObject(id: string): Promise<void> {
     console.log(`[Object] Excluindo "${id}"`);
     // Cascades server-side: S3 file, S3 Vectors embeddings, scheduler links and the

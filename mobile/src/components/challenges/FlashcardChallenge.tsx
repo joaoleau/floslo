@@ -72,14 +72,14 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
             contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
           >
             {!!flashcard.title && (
-              <Text className="text-2xl font-bold text-foreground leading-snug mb-3">{flashcard.title}</Text>
+              <Text className="text-center text-2xl font-bold text-foreground leading-snug mb-3">{flashcard.title}</Text>
             )}
-            <Text className="text-base text-foreground leading-relaxed">{flashcard.content}</Text>
+            <Text className="text-center text-base text-foreground leading-relaxed">{flashcard.content}</Text>
           </ScrollView>
         </View>
 
         <View className="p-4 pt-0">
-          <Button onPress={handleContinue} className="bg-brand-100 rounded-xl h-12 flex-row items-center justify-center">
+          <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">
             <Text className="text-white font-bold text-lg">Continuar</Text>
             <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
           </Button>

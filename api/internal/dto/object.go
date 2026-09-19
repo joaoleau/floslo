@@ -45,3 +45,7 @@ type ListObjectsResponseDTO struct {
 type UpdateObjectTagsRequestDTO struct {
 	Tags []string `json:"tags"`
 }
+
+type UpdateObjectNameRequestDTO struct {
+	Name string `json:"name"`
+}

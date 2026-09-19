@@ -19,4 +19,9 @@ export const userService = {
     console.log('[User] Excluindo conta');
     await userApi.deleteMe();
   },
+
+  async recordStreak(localDate: string): Promise<number> {
+    const { current_streak } = await userApi.recordStreak({ local_date: localDate });
+    return current_streak;
+  },
 };

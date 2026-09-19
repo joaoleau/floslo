@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
 	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/utils"
 )
@@ -22,8 +23,6 @@ type TrueFalseChallengeConfigDTO struct {
 	QuestionCount int    `json:"question_count"`
 }
 
-// ChallengerDTO's Challenge field holds a concrete *ConfigDTO (Quiz/Flashcard/TrueFalse) on
-// encode, and is dispatched by ChallengeType via UnmarshalJSON on decode -- see below.
 type ChallengerDTO struct {
 	ChallengeType string      `json:"challenge_type"`
 	Language      string      `json:"language"`
@@ -69,8 +68,6 @@ func (c *ChallengerDTO) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ChallengerToDTO is the single place that maps a model.Challenger to its wire shape --
-// reused by every scheduler/RAG response so the type switch only lives in one place.
 func ChallengerToDTO(c model.Challenger) ChallengerDTO {
 	dto := ChallengerDTO{
 		ChallengeType: c.ChallengeType.String(),
@@ -124,15 +121,15 @@ func challengersToDTOList(challengers []model.Challenger) []ChallengerDTO {
 }
 
 type CreateSchedulerRequestDTO struct {
-	Name           string   `json:"name"`
-	WeekDays       []string `json:"weekdays"`
-	StartTime      string   `json:"start_time"`
-	AlarmSound     string   `json:"alarm_sound"`
-	Vibration      bool     `json:"vibration"`
-	SoundEnabled   bool     `json:"sound_enabled"`
-	ObjectIds   []string `json:"object_ids"`
-	Challengers []ChallengerDTO `json:"challengers"`
-	Enabled        bool     `json:"enabled"`
+	Name         string          `json:"name"`
+	WeekDays     []string        `json:"weekdays"`
+	StartTime    string          `json:"start_time"`
+	AlarmSound   string          `json:"alarm_sound"`
+	Vibration    bool            `json:"vibration"`
+	SoundEnabled bool            `json:"sound_enabled"`
+	ObjectIds    []string        `json:"object_ids"`
+	Challengers  []ChallengerDTO `json:"challengers"`
+	Enabled      bool            `json:"enabled"`
 }
 
 func (dto *CreateSchedulerRequestDTO) ToModel() (*model.Scheduler, error) {
@@ -148,58 +145,58 @@ func (dto *CreateSchedulerRequestDTO) ToModel() (*model.Scheduler, error) {
 	}
 
 	return &model.Scheduler{
-		Name:           dto.Name,
-		WeekDays:       weekdays,
-		StartTime:      dto.StartTime,
-		AlarmSound:     dto.AlarmSound,
-		Vibration:      dto.Vibration,
-		SoundEnabled:   &dto.SoundEnabled,
-		ObjectIds:   dto.ObjectIds,
-		Challengers: challengers,
-		Enabled:          dto.Enabled,
+		Name:         dto.Name,
+		WeekDays:     weekdays,
+		StartTime:    dto.StartTime,
+		AlarmSound:   dto.AlarmSound,
+		Vibration:    dto.Vibration,
+		SoundEnabled: &dto.SoundEnabled,
+		ObjectIds:    dto.ObjectIds,
+		Challengers:  challengers,
+		Enabled:      dto.Enabled,
 	}, nil
 }
 
 type SchedulerResponseDTO struct {
-	SchedulerId    string   `json:"scheduler_id"`
-	Name           string   `json:"name"`
-	WeekDays       []string `json:"weekdays"`
-	StartTime      string   `json:"start_time"`
-	AlarmSound     string   `json:"alarm_sound"`
-	Vibration      bool     `json:"vibration"`
-	SoundEnabled   bool     `json:"sound_enabled"`
-	ObjectIds   []string `json:"object_ids"`
-	Challengers []ChallengerDTO `json:"challengers"`
-	Enabled        bool     `json:"enabled"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
+	SchedulerId  string          `json:"scheduler_id"`
+	Name         string          `json:"name"`
+	WeekDays     []string        `json:"weekdays"`
+	StartTime    string          `json:"start_time"`
+	AlarmSound   string          `json:"alarm_sound"`
+	Vibration    bool            `json:"vibration"`
+	SoundEnabled bool            `json:"sound_enabled"`
+	ObjectIds    []string        `json:"object_ids"`
+	Challengers  []ChallengerDTO `json:"challengers"`
+	Enabled      bool            `json:"enabled"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 type GetSchedulerResponseDTO struct {
-	SchedulerId    string   `json:"scheduler_id"`
-	Name           string   `json:"name"`
-	WeekDays       []string `json:"weekdays"`
-	StartTime      string   `json:"start_time"`
-	AlarmSound     string   `json:"alarm_sound"`
-	Vibration      bool     `json:"vibration"`
-	SoundEnabled   bool     `json:"sound_enabled"`
-	ObjectIds   []string `json:"object_ids"`
-	Challengers []ChallengerDTO `json:"challengers"`
-	Enabled        bool     `json:"enabled"`
-	CreatedAt      time.Time   `json:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at"`
+	SchedulerId  string          `json:"scheduler_id"`
+	Name         string          `json:"name"`
+	WeekDays     []string        `json:"weekdays"`
+	StartTime    string          `json:"start_time"`
+	AlarmSound   string          `json:"alarm_sound"`
+	Vibration    bool            `json:"vibration"`
+	SoundEnabled bool            `json:"sound_enabled"`
+	ObjectIds    []string        `json:"object_ids"`
+	Challengers  []ChallengerDTO `json:"challengers"`
+	Enabled      bool            `json:"enabled"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 type UpdateSchedulerRequestDTO struct {
-	Name           *string   `json:"name"`
-	WeekDays       *[]string `json:"weekdays"`
-	StartTime      *string   `json:"start_time"`
-	AlarmSound     *string   `json:"alarm_sound"`
-	Vibration      *bool     `json:"vibration"`
-	SoundEnabled   *bool     `json:"sound_enabled"`
-	ObjectIds   *[]string `json:"object_ids"`
-	Challengers *[]ChallengerDTO `json:"challengers"`
-	Enabled        *bool     `json:"enabled"`
+	Name         *string          `json:"name"`
+	WeekDays     *[]string        `json:"weekdays"`
+	StartTime    *string          `json:"start_time"`
+	AlarmSound   *string          `json:"alarm_sound"`
+	Vibration    *bool            `json:"vibration"`
+	SoundEnabled *bool            `json:"sound_enabled"`
+	ObjectIds    *[]string        `json:"object_ids"`
+	Challengers  *[]ChallengerDTO `json:"challengers"`
+	Enabled      *bool            `json:"enabled"`
 }
 
 func (dto *UpdateSchedulerRequestDTO) ToModel() (*model.UpdateScheduler, error) {
@@ -223,15 +220,15 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() (*model.UpdateScheduler, error) 
 	}
 
 	return &model.UpdateScheduler{
-		Name:            dto.Name,
-		WeekDays:        weekdays,
-		StartTime:       dto.StartTime,
-		AlarmSound:      dto.AlarmSound,
-		Vibration:       dto.Vibration,
-		SoundEnabled:    dto.SoundEnabled,
+		Name:         dto.Name,
+		WeekDays:     weekdays,
+		StartTime:    dto.StartTime,
+		AlarmSound:   dto.AlarmSound,
+		Vibration:    dto.Vibration,
+		SoundEnabled: dto.SoundEnabled,
 		ObjectIds:    dto.ObjectIds,
-		Challengers: challengers,
-		Enabled:         dto.Enabled,
+		Challengers:  challengers,
+		Enabled:      dto.Enabled,
 	}, nil
 }
 
@@ -239,9 +236,6 @@ type ListSchedulersResponseDTO struct {
 	Schedulers []*SchedulerResponseDTO `json:"schedulers"`
 }
 
-// BoolOrFallback resolves a scheduler's SoundEnabled: nil means the scheduler
-// was created before the field existed (no attribute in Dynamo), so fall back to
-// whatever it implicitly meant before -- see ToSchedulerResponseDTOList.
 func BoolOrFallback(value *bool, fallback bool) bool {
 	if value == nil {
 		return fallback
@@ -253,19 +247,18 @@ func ToSchedulerResponseDTOList(schedulers []*model.Scheduler) []*SchedulerRespo
 	result := make([]*SchedulerResponseDTO, len(schedulers))
 	for i, scheduler := range schedulers {
 		result[i] = &SchedulerResponseDTO{
-			SchedulerId:    scheduler.Id,
-			Name:           scheduler.Name,
-			WeekDays:       utils.WeekdaysToStrings(scheduler.WeekDays),
-			StartTime:      scheduler.StartTime,
-			AlarmSound:     scheduler.AlarmSound,
-			Vibration:      scheduler.Vibration,
-			// Antes desse campo existir: som sempre tocava.
+			SchedulerId:  scheduler.Id,
+			Name:         scheduler.Name,
+			WeekDays:     utils.WeekdaysToStrings(scheduler.WeekDays),
+			StartTime:    scheduler.StartTime,
+			AlarmSound:   scheduler.AlarmSound,
+			Vibration:    scheduler.Vibration,
 			SoundEnabled: BoolOrFallback(scheduler.SoundEnabled, true),
-			ObjectIds:   scheduler.ObjectIds,
-			Challengers: challengersToDTOList(scheduler.Challengers),
-			Enabled:        scheduler.Enabled,
-			CreatedAt:      scheduler.CreatedAt,
-			UpdatedAt:      scheduler.UpdatedAt,
+			ObjectIds:    scheduler.ObjectIds,
+			Challengers:  challengersToDTOList(scheduler.Challengers),
+			Enabled:      scheduler.Enabled,
+			CreatedAt:    scheduler.CreatedAt,
+			UpdatedAt:    scheduler.UpdatedAt,
 		}
 	}
 

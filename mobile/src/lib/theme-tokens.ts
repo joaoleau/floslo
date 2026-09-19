@@ -46,7 +46,10 @@ export const LIGHT: ModeTokens = {
   secondary: '210 20% 95%',
   secondaryForeground: '222 20% 20%',
   muted: '210 16% 93%',
-  mutedForeground: '215 15% 45%',
+  // Era 45% de luminosidade (cinza médio, "lavado") -- escurecido pra ler como um
+  // preto-acinzentado, seguindo o padrão do resto do texto no modo light, mantendo só a
+  // diferença mínima de contraste (12% vs 32%) pra ainda comunicar hierarquia secundária.
+  mutedForeground: '218 12% 32%',
   accent: '210 16% 94%',
   accentForeground: '222 20% 12%',
   destructive: '0 84% 60%',
@@ -100,6 +103,7 @@ export const HEX = {
     primaryForeground: '#FFFFFF',
     foreground: '#181C25',
     background: '#F9FAFB',
+    mutedForeground: '#484F5B',
   },
   dark: {
     brand: '#565A63',
@@ -108,6 +112,7 @@ export const HEX = {
     primaryForeground: '#121621',
     foreground: '#F3F5F7',
     background: '#13151B',
+    mutedForeground: '#9BA4B0',
   },
 };
 

@@ -65,7 +65,7 @@ export function AlarmPermissionBanner() {
         </View>
       </View>
 
-      <Button onPress={handleOpenSettings} className="rounded-full bg-primary">
+      <Button onPress={handleOpenSettings} className="rounded-3xl bg-primary">
         <Text className="font-semibold text-primary-foreground">Ativar agora</Text>
       </Button>
     </Card>

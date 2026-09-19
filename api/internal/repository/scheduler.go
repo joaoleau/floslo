@@ -2,25 +2,33 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
-    "time"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/config/logger"
+	"github.com/joaoleau/floslo/internal/model"
 )
 
+// ErrSchedulerNotFound deixa "não encontrei o agendador" distinguível de qualquer outro
+// erro de infra -- quem chama (ex.: limpeza de vínculos ao excluir um objeto) precisa
+// tratar diferente um agendador já excluído (ok, ignora) de uma falha real do Dynamo
+// (deve propagar).
+var ErrSchedulerNotFound = errors.New("scheduler not found")
+
 type SchedulerRepository struct {
-	db        *dynamodb.Client
+	db    *dynamodb.Client
 	table string
 }
 
 func NewSchedulerRepository(db *dynamodb.Client, table string) *SchedulerRepository {
 	return &SchedulerRepository{
-		db:        db,
+		db:    db,
 		table: table,
 	}
 }
@@ -32,15 +40,15 @@ func (r *SchedulerRepository) NewScheduler(ctx context.Context, scheduler *model
 		return fmt.Errorf("failed to marshal scheduler: %w", err)
 	}
 	_, err = r.db.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.table),
-		Item:      item,
+		TableName:           aws.String(r.table),
+		Item:                item,
 		ConditionExpression: aws.String("attribute_not_exists(SK)"),
 	})
 	if err != nil {
 		logger.Log.Error("failed to put item: ", logger.Any("error", err))
 		return fmt.Errorf("failed to put item: %w", err)
 	}
-	
+
 	logger.Log.Info("scheduler created: ", logger.String("scheduler_id", scheduler.Id))
 	return nil
 }
@@ -55,8 +63,8 @@ func (r *SchedulerRepository) ListSchedulers(ctx context.Context, userId string)
 		return nil, fmt.Errorf("failed to build expression: %w", err)
 	}
 	result, err := r.db.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String(r.table),
-		KeyConditionExpression: expr.KeyCondition(),
+		TableName:                 aws.String(r.table),
+		KeyConditionExpression:    expr.KeyCondition(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 	})
@@ -74,7 +82,7 @@ func (r *SchedulerRepository) ListSchedulers(ctx context.Context, userId string)
 		}
 		schedulers = append(schedulers, &scheduler)
 	}
-	
+
 	logger.Log.Info("schedulers found: ", logger.Any("count", len(schedulers)))
 	return schedulers, nil
 }
@@ -97,8 +105,7 @@ func (r *SchedulerRepository) GetSchedulerById(ctx context.Context, userId strin
 		return nil, fmt.Errorf("failed to get item: %w", err)
 	}
 	if result.Item == nil {
-		logger.Log.Error("scheduler not found", logger.Any("scheduler_id", schedulerId))
-		return nil, fmt.Errorf("scheduler not found")
+		return nil, ErrSchedulerNotFound
 	}
 	var scheduler model.Scheduler
 	err = attributevalue.UnmarshalMap(result.Item, &scheduler)
@@ -106,7 +113,7 @@ func (r *SchedulerRepository) GetSchedulerById(ctx context.Context, userId strin
 		logger.Log.Error("failed to unmarshal scheduler: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to unmarshal scheduler: %w", err)
 	}
-	
+
 	logger.Log.Info("scheduler found: ", logger.String("scheduler_id", scheduler.Id))
 	return &scheduler, nil
 }
@@ -133,11 +140,7 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-		// UPDATED_NEW only returns the attributes present in the Set expression above — Id
-		// (derived from SK, never part of the update set) and CreatedAt come back empty,
-		// which is exactly the bug that made every edited scheduler report an empty id to
-		// the client. ALL_NEW returns the complete item after the update.
-		ReturnValues: types.ReturnValueAllNew,
+		ReturnValues:              types.ReturnValueAllNew,
 	})
 	if err != nil {
 		logger.Log.Error("failed to update item: ", logger.Any("error", err))
@@ -150,9 +153,62 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 		logger.Log.Error("failed to unmarshal updated scheduler: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to unmarshal updated scheduler: %w", err)
 	}
-	
+
 	logger.Log.Info("scheduler updated: ", logger.String("scheduler_id", updatedScheduler.Id))
 	return &updatedScheduler, nil
+}
+
+// RemoveObjectId tira um objectId de object_ids sem tocar no resto do agendador --
+// usado na exclusão de um objeto, pra limpar toda referência a ele. Se o agendador já
+// não existe (ErrSchedulerNotFound) ou já não referencia esse objeto, não faz nada e
+// retorna sem erro: nenhum dos dois casos é um problema real pra quem chamou.
+func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string, schedulerId string, objectId string) error {
+	scheduler, err := r.GetSchedulerById(ctx, userId, schedulerId)
+	if err != nil {
+		return err
+	}
+
+	updatedIds := make([]string, 0, len(scheduler.ObjectIds))
+	for _, id := range scheduler.ObjectIds {
+		if id != objectId {
+			updatedIds = append(updatedIds, id)
+		}
+	}
+	if len(updatedIds) == len(scheduler.ObjectIds) {
+		return nil
+	}
+
+	key, err := attributevalue.MarshalMap(map[string]string{
+		"PK": "USER#" + userId,
+		"SK": "SCHEDULER#" + schedulerId,
+	})
+	if err != nil {
+		logger.Log.Error("failed to marshal key: ", logger.Any("error", err))
+		return fmt.Errorf("failed to marshal key: %w", err)
+	}
+
+	update := expression.Set(expression.Name("object_ids"), expression.Value(updatedIds)).
+		Set(expression.Name("updated_at"), expression.Value(time.Now().UTC().Format(time.RFC3339)))
+	expr, err := expression.NewBuilder().WithUpdate(update).Build()
+	if err != nil {
+		logger.Log.Error("failed to build expression: ", logger.Any("error", err))
+		return fmt.Errorf("failed to build expression: %w", err)
+	}
+
+	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(r.table),
+		Key:                       key,
+		UpdateExpression:          expr.Update(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	})
+	if err != nil {
+		logger.Log.Error("failed to update item: ", logger.Any("error", err))
+		return fmt.Errorf("failed to update item: %w", err)
+	}
+
+	logger.Log.Info("object id removed from scheduler: ", logger.String("scheduler_id", schedulerId), logger.String("object_id", objectId))
+	return nil
 }
 
 func (r *SchedulerRepository) DeleteScheduler(ctx context.Context, userId string, schedulerId string) error {

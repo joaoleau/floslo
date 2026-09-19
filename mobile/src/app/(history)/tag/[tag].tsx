@@ -39,7 +39,7 @@ export default function TagDetailScreen() {
           contentContainerClassName="gap-4 p-4 pb-28"
           showsVerticalScrollIndicator={false}
         >
-          <Card className="rounded-3xl p-5 gap-3">
+          <Card className="rounded-3xl p-5 gap-4">
             <View className="flex-row justify-between pt-1">
               <View className="items-center gap-1">
                 <Text className="text-xl font-bold text-foreground">{detail.stat.total}</Text>
@@ -57,7 +57,7 @@ export default function TagDetailScreen() {
             )}
           </Card>
 
-          <Card className="rounded-3xl p-5 gap-3">
+          <Card className="rounded-3xl p-5 gap-4">
             <Text className="text-lg font-semibold text-foreground">Respostas recentes</Text>
             <View className="gap-3">
               {detail.recentAttempts.map((attempt) => {

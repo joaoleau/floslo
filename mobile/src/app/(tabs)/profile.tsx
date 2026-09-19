@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,12 +9,15 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { PasswordRequirements } from '@/components/common/PasswordRequirements';
 
-import { useMeQuery, useDeleteMeMutation } from '@/hooks/useUser';
+import { useMeQuery, useDeleteMeMutation, useUpdateMeMutation } from '@/hooks/useUser';
 import { authService } from '@/services/authService';
 import { showAlert } from '@/services/alertService';
 import { useTheme, ThemePreference } from '@/lib/ThemeProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { isPasswordValid } from '@/lib/passwordPolicy';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'light', label: 'Claro', icon: 'sunny-outline' },
@@ -28,6 +32,69 @@ export default function Profile() {
 
   const { data: user, isPending, isError, refetch } = useMeQuery();
   const deleteMeMutation = useDeleteMeMutation();
+  const updateMeMutation = useUpdateMeMutation();
+
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [editedUsername, setEditedUsername] = useState('');
+
+  function startEditingUsername() {
+    if (!user) return;
+    setEditedUsername(user.username);
+    setIsEditingUsername(true);
+  }
+
+  async function handleSaveUsername() {
+    if (!user) return;
+    const username = editedUsername.trim();
+    if (!username) {
+      showAlert('Atenção', 'O apelido não pode ficar em branco.');
+      return;
+    }
+    if (username === user.username) {
+      setIsEditingUsername(false);
+      return;
+    }
+
+    try {
+      await updateMeMutation.mutateAsync({ username });
+      setIsEditingUsername(false);
+    } catch (err: any) {
+      console.error('[Profile] Falha ao atualizar apelido', err);
+      showAlert('Erro', err.message || 'Falha ao salvar. O apelido pode já estar em uso.');
+    }
+  }
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+
+  async function handleChangePassword() {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      showAlert('Atenção', 'Preencha sua senha atual, a nova senha e a confirmação.');
+      return;
+    }
+    if (!isPasswordValid(newPassword)) {
+      showAlert('Senha fraca', 'Sua nova senha precisa atender aos requisitos listados abaixo do campo.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      showAlert('Atenção', 'A confirmação não é igual à nova senha.');
+      return;
+    }
+
+    try {
+      await updateMeMutation.mutateAsync({ password: newPassword, current_password: currentPassword });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+      setShowChangePassword(false);
+      showAlert('Sucesso', 'Sua senha foi alterada.');
+    } catch (err: any) {
+      console.error('[Profile] Falha ao trocar senha', err);
+      showAlert('Erro', err.message || 'Senha atual incorreta ou falha ao trocar a senha.');
+    }
+  }
 
   async function handleLogout() {
     await authService.logout();
@@ -80,13 +147,81 @@ export default function Profile() {
                 <Ionicons name="person" size={28} color="white" />
               </View>
               <View className="flex-1">
-                <Text className="text-lg font-semibold text-foreground">{user.username}</Text>
+                {isEditingUsername ? (
+                  <View className="gap-2">
+                    <Input
+                      autoFocus
+                      value={editedUsername}
+                      onChangeText={setEditedUsername}
+                      onSubmitEditing={handleSaveUsername}
+                      autoCapitalize="none"
+                    />
+                    <View className="flex-row gap-2">
+                      <Pressable hitSlop={8} onPress={handleSaveUsername} disabled={updateMeMutation.isPending}>
+                        <Ionicons name="checkmark-circle" size={24} color={colors.brand} />
+                      </Pressable>
+                      <Pressable hitSlop={8} onPress={() => setIsEditingUsername(false)}>
+                        <Ionicons name="close-circle" size={24} color={colors.mutedForeground} />
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-lg font-semibold text-foreground">{user.username}</Text>
+                    <Pressable hitSlop={8} onPress={startEditingUsername}>
+                      <Ionicons name="pencil" size={14} color={colors.mutedForeground} />
+                    </Pressable>
+                  </View>
+                )}
                 <Text className="text-sm text-muted-foreground">{user.email}</Text>
               </View>
             </View>
+
+            <View className="gap-4 border-t border-border pt-4">
+              <Pressable
+                onPress={() => setShowChangePassword((prev) => !prev)}
+                className="flex-row items-center justify-between"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Ionicons name="lock-closed-outline" size={16} color={colors.brand} />
+                  <Text className="font-semibold text-foreground">Trocar senha</Text>
+                </View>
+                <Ionicons name={showChangePassword ? 'chevron-up' : 'chevron-down'} size={18} color={colors.brandSoft} />
+              </Pressable>
+
+              {showChangePassword && (
+                <View className="gap-3">
+                  <Input
+                    placeholder="Senha atual"
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    secureTextEntry
+                  />
+                  <Input placeholder="Nova senha" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+                  <Input
+                    placeholder="Confirmar nova senha"
+                    value={confirmNewPassword}
+                    onChangeText={setConfirmNewPassword}
+                    secureTextEntry
+                  />
+                  {newPassword.length > 0 && (
+                    <View className="rounded-xl bg-secondary p-3">
+                      <PasswordRequirements password={newPassword} />
+                    </View>
+                  )}
+                  <Button onPress={handleChangePassword} disabled={updateMeMutation.isPending} className="rounded-3xl bg-brand-100">
+                    {updateMeMutation.isPending ? (
+                      <ActivityIndicator color="white" />
+                    ) : (
+                      <Text className="font-semibold text-white">Confirmar troca</Text>
+                    )}
+                  </Button>
+                </View>
+              )}
+            </View>
           </Card>
 
-          <Card className="rounded-3xl p-5 gap-3">
+          <Card className="rounded-3xl p-5 gap-4">
             <Text className="text-lg font-semibold text-foreground">Aparência</Text>
             <View className="flex-row gap-3">
               {THEME_OPTIONS.map((option) => {

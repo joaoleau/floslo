@@ -19,10 +19,6 @@ type Object struct {
 	UpdatedAt    time.Time `dynamodbav:"updated_at"`
 }
 
-// IsExpired reports whether the object carries a ttl (only ever set by the processor
-// on the "failed" status transition) that is already due. DynamoDB's own TTL sweep is
-// best-effort and can lag well past the timestamp, so the API treats an expired item as
-// already gone instead of relying on physical deletion to hide it.
 func (o *Object) IsExpired() bool {
 	return o.TTL != nil && *o.TTL <= time.Now().Unix()
 }

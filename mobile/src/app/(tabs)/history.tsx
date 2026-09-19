@@ -12,13 +12,13 @@ import { TagAccuracyRow } from '@/components/history/TagAccuracyRow';
 import { StudyWeekStrip } from '@/components/history/StudyWeekStrip';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
 import { getColorForId } from '@/lib/hashColor';
+import { getCardEdgeColor } from '@/lib/cardEdge';
 
 import {
   useRecentMistakesQuery,
   useSessionsQuery,
   useStudyActivityQuery,
   useTagBreakdownQuery,
-  useUserStatsQuery,
 } from '@/hooks/useHistory';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useTheme } from '@/lib/ThemeProvider';
@@ -33,20 +33,16 @@ export default function HistoryScreen() {
   // sempre visível em vez de só durante o toque.
   const scrollIndicatorStyle = mode === 'dark' ? 'white' : 'black';
 
-  const statsQuery = useUserStatsQuery();
   const tagsQuery = useTagBreakdownQuery();
   const mistakesQuery = useRecentMistakesQuery(8);
   const sessionsQuery = useSessionsQuery(10);
   const activityQuery = useStudyActivityQuery(30);
 
-  const isPending = statsQuery.isPending || tagsQuery.isPending;
-  const isError = statsQuery.isError || tagsQuery.isError;
-  const totalAnswered = statsQuery.data
-    ? Object.values(statsQuery.data.answeredByType).reduce((sum, n) => sum + n, 0)
-    : 0;
+  const isPending = tagsQuery.isPending;
+  const isError = tagsQuery.isError;
+  const totalAnswered = tagsQuery.data ? tagsQuery.data.reduce((sum, stat) => sum + stat.total, 0) : 0;
 
   function retryAll() {
-    statsQuery.refetch();
     tagsQuery.refetch();
     mistakesQuery.refetch();
     sessionsQuery.refetch();
@@ -81,14 +77,14 @@ export default function HistoryScreen() {
           showsVerticalScrollIndicator={false}
         >
           {!!activityQuery.data && (
-            <Card className="rounded-3xl p-5 gap-3">
+            <Card className="rounded-3xl p-5 gap-4">
               <Text className="text-lg font-semibold text-foreground">Sua sequência de estudos</Text>
               <StudyWeekStrip activity={activityQuery.data} weeksBack={4} />
             </Card>
           )}
 
           {tagsQuery.data && tagsQuery.data.length > 0 && (
-            <Card className="rounded-3xl p-5 gap-3">
+            <Card className="rounded-3xl p-5 gap-4">
               <Text className="text-lg font-semibold text-foreground">Por assunto</Text>
               {/* Altura fixa com scroll próprio -- sem isso, uma lista longa de assuntos
                   empurrava as seções seguintes pra baixo da tela toda, virando uma rolagem
@@ -108,7 +104,7 @@ export default function HistoryScreen() {
           )}
 
           {mistakesQuery.data && mistakesQuery.data.length > 0 && (
-            <Card className="rounded-3xl p-5 gap-3">
+            <Card className="rounded-3xl p-5 gap-4">
               <Text className="text-lg font-semibold text-foreground">Erros recentes</Text>
               <ScrollView style={{ maxHeight: 320 }} nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle={scrollIndicatorStyle} persistentScrollbar>
                 <View className="gap-3">
@@ -118,6 +114,7 @@ export default function HistoryScreen() {
                       <View
                         key={mistake.id}
                         className="rounded-xl border border-border p-3 gap-1.5"
+                        style={{ borderBottomWidth: 2, borderBottomColor: getCardEdgeColor(mode) }}
                       >
                         <View className="flex-row items-center gap-1.5">
                           <View
@@ -145,7 +142,7 @@ export default function HistoryScreen() {
           )}
 
           {sessionsQuery.data && sessionsQuery.data.length > 0 && (
-            <Card className="rounded-3xl p-5 gap-3">
+            <Card className="rounded-3xl p-5 gap-4">
               <Text className="text-lg font-semibold text-foreground">Sessões recentes</Text>
               <View className="gap-2">
                 {sessionsQuery.data.map((session) => {
@@ -154,6 +151,7 @@ export default function HistoryScreen() {
                     <Pressable
                       key={session.id}
                       className="flex-row items-center gap-3 justify-between rounded-xl border border-border p-3"
+                      style={{ borderBottomWidth: 2, borderBottomColor: getCardEdgeColor(mode) }}
                       onPress={() => router.push({ pathname: '/(history)/session/[id]', params: { id: session.id } })}
                     >
                       <View

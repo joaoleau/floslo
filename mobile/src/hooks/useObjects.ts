@@ -36,6 +36,17 @@ export function useUpdateObjectTagsMutation() {
   });
 }
 
+export function useRenameObjectMutation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => objectService.rename(id, name),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.objects.all });
+      qc.invalidateQueries({ queryKey: queryKeys.objects.detail(id) });
+    },
+  });
+}
+
 export function useDeleteObjectMutation() {
   const qc = useQueryClient();
   return useMutation({

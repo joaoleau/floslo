@@ -2,26 +2,60 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/joaoleau/floslo/internal/model"
-	"github.com/joaoleau/floslo/internal/utils"
-	"github.com/joaoleau/floslo/internal/repository"
 	"github.com/joaoleau/floslo/internal/config/logger"
+	"github.com/joaoleau/floslo/internal/model"
+	"github.com/joaoleau/floslo/internal/repository"
+	"github.com/joaoleau/floslo/internal/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AuthService struct {
-	userRepository *repository.UserRepository
-	jwtSecret 	[]byte
+const passwordResetCodeTTL = 15 * time.Minute
+
+func ValidatePasswordStrength(password string) error {
+	if len(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters long")
+	}
+	var hasLetter, hasNumber bool
+	for _, r := range password {
+		switch {
+		case unicode.IsLetter(r):
+			hasLetter = true
+		case unicode.IsNumber(r):
+			hasNumber = true
+		}
+	}
+	if !hasLetter || !hasNumber {
+		return fmt.Errorf("password must contain at least one letter and one number")
+	}
+	return nil
 }
 
-func NewAuthService(userRepository *repository.UserRepository, jwtSecret []byte) *AuthService {
+type AuthService struct {
+	userRepository          *repository.UserRepository
+	passwordResetRepository *repository.PasswordResetRepository
+	emailService            *EmailService
+	jwtSecret               []byte
+}
+
+func NewAuthService(
+	userRepository *repository.UserRepository,
+	passwordResetRepository *repository.PasswordResetRepository,
+	emailService *EmailService,
+	jwtSecret []byte,
+) *AuthService {
 	return &AuthService{
-		userRepository: userRepository,
-		jwtSecret:      jwtSecret,
+		userRepository:          userRepository,
+		passwordResetRepository: passwordResetRepository,
+		emailService:            emailService,
+		jwtSecret:               jwtSecret,
 	}
 }
 
@@ -34,6 +68,9 @@ func (s *AuthService) Register(ctx context.Context, user *model.User) error {
 	}
 	if user.Email == "" {
 		return fmt.Errorf("email is required")
+	}
+	if err := ValidatePasswordStrength(user.Password); err != nil {
+		return err
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -51,12 +88,23 @@ func (s *AuthService) Register(ctx context.Context, user *model.User) error {
 		logger.Log.Error("failed to create user: ", logger.Any("error", err))
 		return fmt.Errorf("failed to create user: %w", err)
 	}
+
+	if err := s.userRepository.SaveEmailLookup(ctx, model.NewEmailLookup(user.Email, user.Id)); err != nil {
+		logger.Log.Error("failed to save email lookup for new user: ", logger.Any("error", err))
+	}
+
 	logger.Log.Info("user created: ", logger.String("username", user.Username))
 	return nil
 }
 
-func (s *AuthService) Login(ctx context.Context, username, password string) (string, string, error) {
-	user, err := s.userRepository.GetUserByUsername(ctx, username)
+func (s *AuthService) Login(ctx context.Context, identifier, password string) (string, string, error) {
+	var user *model.User
+	var err error
+	if strings.Contains(identifier, "@") {
+		user, err = s.userRepository.GetUserByEmail(ctx, identifier)
+	} else {
+		user, err = s.userRepository.GetUserByUsername(ctx, identifier)
+	}
 	if err != nil {
 		return "", "", fmt.Errorf("invalid credentials")
 	}
@@ -77,6 +125,109 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	}
 
 	return access, refresh, nil
+}
+
+func generateResetCode() (string, error) {
+	n, err := rand.Int(rand.Reader, big.NewInt(1000000))
+	if err != nil {
+		return "", fmt.Errorf("failed to generate reset code: %w", err)
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
+}
+
+func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
+	user, err := s.userRepository.GetUserByEmail(ctx, email)
+	if err != nil {
+		logger.Log.Info("forgot-password requested for an email with no matching account")
+		return nil
+	}
+
+	code, err := generateResetCode()
+	if err != nil {
+		return err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash reset code: %w", err)
+	}
+
+	now := time.Now().UTC()
+	expiresAt := now.Add(passwordResetCodeTTL)
+	resetCode := &model.PasswordResetCode{
+		UserId:    user.Id,
+		CodeHash:  string(hash),
+		ExpiresAt: expiresAt.Unix(),
+		TTL:       expiresAt.Unix(),
+		CreatedAt: now,
+	}
+	resetCode.SetKeys()
+
+	if err := s.passwordResetRepository.Save(ctx, resetCode); err != nil {
+		return err
+	}
+
+	if err := s.emailService.SendPasswordResetCode(ctx, user.Email, user.Username, code); err != nil {
+		return err
+	}
+
+	logger.Log.Info("password reset code sent: ", logger.String("user_id", user.Id))
+	return nil
+}
+
+func (s *AuthService) getValidResetCode(ctx context.Context, email string, code string) (*model.User, error) {
+	genericErr := fmt.Errorf("invalid or expired code")
+
+	user, err := s.userRepository.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, genericErr
+	}
+
+	resetCode, err := s.passwordResetRepository.Get(ctx, user.Id)
+	if err != nil {
+		return nil, genericErr
+	}
+	if resetCode.IsExpired() {
+		return nil, genericErr
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(resetCode.CodeHash), []byte(code)); err != nil {
+		return nil, genericErr
+	}
+
+	return user, nil
+}
+
+func (s *AuthService) VerifyResetCode(ctx context.Context, email string, code string) error {
+	_, err := s.getValidResetCode(ctx, email, code)
+	return err
+}
+
+func (s *AuthService) ResetPasswordWithCode(ctx context.Context, email string, code string, newPassword string) error {
+	if err := ValidatePasswordStrength(newPassword); err != nil {
+		return err
+	}
+
+	user, err := s.getValidResetCode(ctx, email, code)
+	if err != nil {
+		return err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	user.Password = string(hash)
+	user.UpdatedAt = time.Now().UTC()
+	if _, err := s.userRepository.UpdateUserByUserId(ctx, user.Id, user); err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	if err := s.passwordResetRepository.Delete(ctx, user.Id); err != nil {
+		logger.Log.Error("failed to delete used password reset code: ", logger.Any("error", err))
+	}
+
+	logger.Log.Info("password reset completed: ", logger.String("user_id", user.Id))
+	return nil
 }
 
 func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (string, error) {
@@ -107,7 +258,6 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenStr string) (string
 
 	return generateAccessToken(s.jwtSecret, userId)
 }
-
 
 func generateAccessToken(jwtSecret []byte, userId string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

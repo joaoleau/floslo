@@ -28,12 +28,12 @@ type GenerateResponseContent struct {
 }
 
 type GeneratedQuiz struct {
-	Question     string             `json:"question"`
-	Alternatives []QuizAlternative  `json:"alternatives"`
-	Explanation  string             `json:"explanation"`
-	Difficulty   string             `json:"difficulty"`
-	Tag          string             `json:"tag"`
-	SourceChunks []RetrievedChunk   `json:"source_chunks"`
+	Question     string            `json:"question"`
+	Alternatives []QuizAlternative `json:"alternatives"`
+	Explanation  string            `json:"explanation"`
+	Difficulty   string            `json:"difficulty"`
+	Tag          string            `json:"tag"`
+	SourceChunks []RetrievedChunk  `json:"source_chunks"`
 }
 
 type QuizAlternative struct {
@@ -42,11 +42,6 @@ type QuizAlternative struct {
 	Correct bool   `json:"correct"`
 }
 
-// GeneratedFlashcard is a single self-contained knowledge nugget (a "did you know" style fact
-// or already-explained concept) -- unlike Quiz/TrueFalse it is not a question, has no
-// right/wrong answer, and requires no interaction from the reader beyond reading it. Title is
-// a short hook and Content is the fuller explanation -- split so the card reads as a genuine
-// mini-article instead of one bare sentence.
 type GeneratedFlashcard struct {
 	Title        string           `json:"title"`
 	Content      string           `json:"content"`
@@ -68,15 +63,13 @@ type GenerationService struct {
 	ModelId     string
 }
 
-func NewGenerationService(modelClient *bedrockruntime.Client,modelId string) *GenerationService {
+func NewGenerationService(modelClient *bedrockruntime.Client, modelId string) *GenerationService {
 	return &GenerationService{
 		ModelClient: modelClient,
 		ModelId:     modelId,
 	}
 }
 
-// languageNames maps a Language code to the name used in generation prompts. Keep in sync
-// with model.Language / api/processor/services/tag.py SUPPORTED_LANGUAGES.
 var languageNames = map[string]string{
 	"pt": "Portuguese (pt-BR)",
 	"en": "English",
@@ -86,17 +79,6 @@ var languageNames = map[string]string{
 	"it": "Italian",
 }
 
-// languageHeaderInstruction and languageReminderInstruction reinforce, at the prompt level,
-// the language that VectorService.RetrieveRelevantChunksMultiForLanguage already tried to bias
-// retrieval towards -- this is what's supposed to make the model translate when the language
-// filter fell back to unfiltered (non-matching-language) context.
-//
-// The instruction is stated TWICE (once up top, right after the role sentence, once again
-// right before the JSON schema) deliberately -- Nova Lite was observed in practice defaulting
-// to the CONTEXT's language (e.g. Portuguese source material) for some target languages (it,
-// es) even with a single mid-prompt instruction, while others (en) worked. Bracketing the
-// instruction at both the start and end of the prompt is a standard mitigation for weaker
-// models under-weighting an instruction buried in the middle of a long context-heavy prompt.
 func languageHeaderInstruction(language string) string {
 	name, ok := languageNames[language]
 	if !ok {
@@ -129,9 +111,6 @@ func topicsListText(tags []string) string {
 	return topicsList.String()
 }
 
-// invoke sends prompt to the configured Bedrock model and returns the raw (already
-// ```-fence-stripped) text of its first response block. Shared by every GenerateX function --
-// prompt building and response parsing are the parts that differ per challenge type.
 func (s *GenerationService) invoke(ctx context.Context, prompt string, maxTokens int) (string, error) {
 	body := map[string]interface{}{
 		"messages": []map[string]interface{}{
@@ -180,11 +159,6 @@ func (s *GenerationService) invoke(ctx context.Context, prompt string, maxTokens
 	return cleanJSONResponse(response.Output.Message.Content[0].Text), nil
 }
 
-// parseWrappedArray parses the model's JSON response into a list of T, tolerating two shapes:
-// the requested `{"<key>": [...]}` envelope, or a bare `[...]` array -- observed in practice:
-// the model sometimes drops the envelope object and returns the array directly, which used to
-// hard-fail with "cannot unmarshal array into Go value of type struct{...}". Falls back to the
-// bare-array shape only when the envelope shape fails to parse.
 func parseWrappedArray[T any](raw string, key string) ([]T, error) {
 	envelope := map[string]json.RawMessage{}
 	if err := json.Unmarshal([]byte(raw), &envelope); err == nil {
@@ -278,10 +252,6 @@ SEARCH QUERY (what was used to retrieve the context above):
 		return nil, err
 	}
 
-	// The model is only ever asked nicely in the prompt to return exactly `count` quizzes —
-	// nothing there guarantees it. Observed in practice: with a low count and several topics
-	// listed, the model sometimes returns one quiz per topic instead of respecting the total.
-	// Enforce it here instead of trusting the prompt alone.
 	if len(quizzes) > count {
 		logger.Log.Info(
 			"model returned more quizzes than requested, truncating",
@@ -397,11 +367,6 @@ SEARCH QUERY (what was used to retrieve the context above):
 	return generated, nil
 }
 
-// rawFlashcard tolerates a few field-name variants the model has drifted to in practice
-// despite the prompt asking specifically for "title"/"content" -- most commonly falling back to
-// the older question/answer-style "front"/"back" shape. resolveContent/resolveTitle pick
-// whichever variant is actually populated so a formatting drift degrades gracefully instead of
-// shipping a blank card.
 type rawFlashcard struct {
 	Title   string `json:"title"`
 	Content string `json:"content"`
@@ -417,8 +382,6 @@ func (r rawFlashcard) resolveTitle() string {
 	case strings.TrimSpace(r.Title) != "":
 		return strings.TrimSpace(r.Title)
 	case strings.TrimSpace(r.Front) != "" && strings.TrimSpace(r.Back) != "":
-		// Front/Back drift already gets combined into Content by resolveContent, so the title
-		// here is left empty on purpose -- the UI just renders content-only in that case.
 		return ""
 	default:
 		return ""
@@ -438,7 +401,6 @@ func (r rawFlashcard) resolveContent() string {
 	case strings.TrimSpace(r.Front) != "":
 		return strings.TrimSpace(r.Front)
 	case strings.TrimSpace(r.Title) != "":
-		// Last resort: the model put everything into "title" and left "content" empty.
 		return strings.TrimSpace(r.Title)
 	default:
 		return ""

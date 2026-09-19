@@ -3,47 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { historyService } from '@/services/historyService';
-import { userStatsApi } from '@/api/userStats';
 import { useMeQuery } from '@/hooks/useUser';
-import { useSchedulersQuery } from '@/hooks/useSchedulers';
-import { useObjectsQuery } from '@/hooks/useObjects';
-import { ChallengeType } from '@/types/domain/History';
-import { UserStats } from '@/types/domain/UserStats';
-
-const EMPTY_ANSWERED_BY_TYPE: Record<ChallengeType, number> = { QUIZ: 0, FLASHCARD: 0, TRUE_FALSE: 0 };
-
-// Combina o agregado do backend (streak + respondidos por tipo) com a contagem de
-// schedulers/objetos, que já vem de graça das queries que essas telas já usam --
-// não existe (nem precisa existir) um endpoint dedicado só pra contagem.
-export function useUserStatsQuery() {
-  const statsQuery = useQuery({
-    queryKey: queryKeys.userStats.me,
-    queryFn: () => userStatsApi.getStats(),
-  });
-  const schedulersQuery = useSchedulersQuery();
-  const objectsQuery = useObjectsQuery();
-
-  const isPending = statsQuery.isPending || schedulersQuery.isPending || objectsQuery.isPending;
-  const isError = statsQuery.isError || schedulersQuery.isError || objectsQuery.isError;
-
-  const data: UserStats | undefined =
-    !isPending && !isError
-      ? {
-          streakDays: statsQuery.data!.current_streak,
-          answeredByType: { ...EMPTY_ANSWERED_BY_TYPE, ...statsQuery.data!.answered_by_type },
-          schedulerCount: schedulersQuery.data!.length,
-          objectCount: objectsQuery.data!.length,
-        }
-      : undefined;
-
-  function refetch() {
-    statsQuery.refetch();
-    schedulersQuery.refetch();
-    objectsQuery.refetch();
-  }
-
-  return { data, isPending, isError, refetch };
-}
 
 export function useTagBreakdownQuery() {
   const { data: user } = useMeQuery();
@@ -115,6 +75,5 @@ export function useInvalidateHistory() {
 
   return () => {
     queryClient.invalidateQueries({ queryKey: ['history'] });
-    queryClient.invalidateQueries({ queryKey: queryKeys.userStats.me });
   };
 }

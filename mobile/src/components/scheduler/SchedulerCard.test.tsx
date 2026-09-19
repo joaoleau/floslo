@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { screen, fireEvent } from '@testing-library/react-native';
+import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { SchedulerCard } from './SchedulerCard';
 import { Scheduler } from '@/types/domain/Scheduler';
 
@@ -19,20 +20,20 @@ const scheduler: Scheduler = {
 
 describe('SchedulerCard', () => {
   it('shows the scheduler name and start time', async () => {
-    await render(<SchedulerCard scheduler={scheduler} />);
+    await renderWithProviders(<SchedulerCard scheduler={scheduler} />);
     expect(screen.getByText('Revisão de Inglês')).toBeTruthy();
     expect(screen.getByText('07:30')).toBeTruthy();
   });
 
   it('shows the label for every linked challenge', async () => {
-    await render(<SchedulerCard scheduler={scheduler} />);
+    await renderWithProviders(<SchedulerCard scheduler={scheduler} />);
     expect(screen.getByText('Quiz')).toBeTruthy();
   });
 
   it('calls onPress when tapped and onLongPress when held', async () => {
     const onPress = jest.fn();
     const onLongPress = jest.fn();
-    await render(<SchedulerCard scheduler={scheduler} onPress={onPress} onLongPress={onLongPress} />);
+    await renderWithProviders(<SchedulerCard scheduler={scheduler} onPress={onPress} onLongPress={onLongPress} />);
 
     await fireEvent.press(screen.getByText('Revisão de Inglês'));
     expect(onPress).toHaveBeenCalledTimes(1);
@@ -42,7 +43,7 @@ describe('SchedulerCard', () => {
   });
 
   it('shows a checkbox indicator only in selection mode', async () => {
-    const { rerender } = await render(<SchedulerCard scheduler={scheduler} />);
+    const { rerender } = await renderWithProviders(<SchedulerCard scheduler={scheduler} />);
     expect(screen.queryByTestId('scheduler-card-checkbox')).toBeNull();
 
     await rerender(<SchedulerCard scheduler={scheduler} selectionMode selected />);
@@ -54,7 +55,7 @@ describe('SchedulerCard', () => {
       ...scheduler,
       challengers: [{ challengeType: 'TRUE_FALSE', language: 'pt', challenge: { questionCount: 4, difficulty: 'hard' } }],
     };
-    await render(<SchedulerCard scheduler={trueFalseScheduler} />);
+    await renderWithProviders(<SchedulerCard scheduler={trueFalseScheduler} />);
 
     expect(screen.getByText('Verdadeiro ou Falso')).toBeTruthy();
     expect(screen.getByText('4 afirmações')).toBeTruthy();
@@ -66,7 +67,7 @@ describe('SchedulerCard', () => {
       ...scheduler,
       challengers: [{ challengeType: 'FLASHCARD', language: 'pt', challenge: { cardCount: 7 } }],
     };
-    await render(<SchedulerCard scheduler={flashcardScheduler} />);
+    await renderWithProviders(<SchedulerCard scheduler={flashcardScheduler} />);
 
     expect(screen.getByText('Flashcard')).toBeTruthy();
     expect(screen.getByText('7 cartões')).toBeTruthy();
@@ -77,18 +78,18 @@ describe('SchedulerCard', () => {
   });
 
   it('hides the object-count badge when no objects are linked', async () => {
-    await render(<SchedulerCard scheduler={{ ...scheduler, objectIds: [] }} />);
+    await renderWithProviders(<SchedulerCard scheduler={{ ...scheduler, objectIds: [] }} />);
     expect(screen.queryByText('1')).toBeNull();
   });
 
   it('does not render the challenges section at all when there are none', async () => {
-    await render(<SchedulerCard scheduler={{ ...scheduler, challengers: [] }} />);
+    await renderWithProviders(<SchedulerCard scheduler={{ ...scheduler, challengers: [] }} />);
     expect(screen.queryByText('Quiz')).toBeNull();
   });
 
   it('dims a disabled scheduler outside of selection mode, but not while selecting', async () => {
-    const { rerender } = await render(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
-    expect(screen.getByTestId('scheduler-card').props.style).toEqual({ opacity: 0.55 });
+    const { rerender } = await renderWithProviders(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
+    expect(screen.getByTestId('scheduler-card').props.style).toEqual({ opacity: 0.45 });
 
     // Being dimmed as "off" would be confusing feedback while the user is mid-selection --
     // the selection-mode dimming (on the inner View) takes over instead.

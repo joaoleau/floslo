@@ -1,4 +1,9 @@
-import { ListObjectsResponseDTO, ObjectDTO, UpdateObjectTagsRequestDTO } from '@/types/api/ObjectDTO';
+import {
+  ListObjectsResponseDTO,
+  ObjectDTO,
+  UpdateObjectNameRequestDTO,
+  UpdateObjectTagsRequestDTO,
+} from '@/types/api/ObjectDTO';
 import { api } from './http/client';
 
 export const objectsApi = {
@@ -13,6 +18,11 @@ export const objectsApi = {
   updateTags(id: string, tags: string[]) {
     const body: UpdateObjectTagsRequestDTO = { tags };
     return api.put<ObjectDTO>(`/api/objects/${id}/tags`, body);
+  },
+
+  updateName(id: string, name: string) {
+    const body: UpdateObjectNameRequestDTO = { name };
+    return api.put<ObjectDTO>(`/api/objects/${id}/name`, body);
   },
 
   remove(id: string) {

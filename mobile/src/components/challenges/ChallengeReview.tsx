@@ -65,8 +65,8 @@ export function FlashcardReview({ promptText, explanationText }: { promptText: s
 
   return (
     <Card className="rounded-3xl p-6 gap-3">
-      {showTitle && <Text className="text-2xl font-bold text-foreground leading-snug">{promptText}</Text>}
-      <Text className="text-base text-foreground leading-relaxed">{explanationText ?? promptText}</Text>
+      {showTitle && <Text className="text-center text-2xl font-bold text-foreground leading-snug">{promptText}</Text>}
+      <Text className="text-center text-base text-foreground leading-relaxed">{explanationText ?? promptText}</Text>
     </Card>
   );
 }

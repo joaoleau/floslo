@@ -53,6 +53,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# AWS credentials (ex.: CSV de SMTP user do SES) -- nunca deve ir pro repo
+*credentials*.csv
+floslo_credentials.csv
+
 # typescript
 *.tsbuildinfo
 

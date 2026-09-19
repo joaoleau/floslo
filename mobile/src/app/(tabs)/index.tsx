@@ -10,7 +10,6 @@ import { HeaderAction } from '@/components/common/HeaderAction';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { AlarmPermissionBanner } from '@/components/common/AlarmPermissionBanner';
-import { AppStatsHeader } from '@/components/common/AppStatsHeader';
 import { Text } from '@/components/ui/text';
 import { SchedulerCard } from '@/components/scheduler/SchedulerCard';
 import {
@@ -47,9 +46,8 @@ export default function Home() {
   // recriado a cada render de Home e remontaria a AlarmPermissionBanner sem necessidade.
   const listHeader = (
     <View className="gap-4">
-      <AppStatsHeader />
       <AlarmPermissionBanner />
-      <SchedulerListFilters value={filter} onChange={setFilter} />
+      <SchedulerListFilters value={filter} onChange={setFilter} schedulers={schedulers} />
     </View>
   );
 
@@ -140,8 +138,7 @@ export default function Home() {
       ) : isError ? (
         <ErrorState message={error?.message} onRetry={() => refetch()} />
       ) : schedulers.length === 0 ? (
-        <View className="flex-1 pt-20 px-4 gap-4">
-          <AppStatsHeader />
+        <View className="flex-1 pt-[72px] px-4 gap-4">
           <AlarmPermissionBanner />
           <EmptyState
             icon="alarm-outline"
@@ -162,7 +159,7 @@ export default function Home() {
           ListEmptyComponent={
             <Text className="pt-6 text-center text-muted-foreground">Nenhum agendador encontrado para esse filtro.</Text>
           }
-          contentContainerClassName="w-full px-4 pt-20 pb-32 gap-2"
+          contentContainerClassName="w-full px-4 pt-[72px] pb-32 gap-4"
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <SchedulerCard

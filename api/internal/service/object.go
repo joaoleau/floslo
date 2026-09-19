@@ -2,15 +2,22 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/joaoleau/floslo/internal/config/logger"
 	"github.com/joaoleau/floslo/internal/model"
 	"github.com/joaoleau/floslo/internal/repository"
 )
 
+const MaxTagLength = 26
+const MaxTagsPerObject = 150
+const MaxObjectNameLength = 150
+
 type ObjectService struct {
 	ObjectRepository              *repository.ObjectRepository
+	SchedulerRepository           *repository.SchedulerRepository
 	SchedulerObjectLinkRepository *repository.SchedulerObjectLinkRepository
 	StorageService                *StorageService
 	VectorService                 *VectorService
@@ -18,12 +25,14 @@ type ObjectService struct {
 
 func NewObjectService(
 	objectRepo *repository.ObjectRepository,
+	schedulerRepo *repository.SchedulerRepository,
 	schedulerObjectLinkRepo *repository.SchedulerObjectLinkRepository,
 	storageService *StorageService,
 	vectorService *VectorService,
 ) *ObjectService {
 	return &ObjectService{
 		ObjectRepository:              objectRepo,
+		SchedulerRepository:           schedulerRepo,
 		SchedulerObjectLinkRepository: schedulerObjectLinkRepo,
 		StorageService:                storageService,
 		VectorService:                 vectorService,
@@ -50,8 +59,34 @@ func (s *ObjectService) GetObjectById(ctx context.Context, userId string, object
 	return object, nil
 }
 
+// sanitizeTags nunca rejeita a lista inteira por causa de uma tag comprida -- ela só
+// corta pro limite. Tags vindas do processor (keywords do YAKE, até 4 palavras) podem
+// passar de MaxTagLength; se isso virasse erro aqui, qualquer edição futura desse objeto
+// (mesmo sem mexer nas tags) ficaria bloqueada por uma tag que o usuário nem escreveu.
+func sanitizeTags(tags []string) []string {
+	cleanTags := make([]string, 0, len(tags))
+	seen := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		trimmed := strings.TrimSpace(tag)
+		if len(trimmed) > MaxTagLength {
+			trimmed = strings.TrimSpace(trimmed[:MaxTagLength])
+		}
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		cleanTags = append(cleanTags, trimmed)
+	}
+	if len(cleanTags) > MaxTagsPerObject {
+		cleanTags = cleanTags[:MaxTagsPerObject]
+	}
+	return cleanTags
+}
+
 func (s *ObjectService) UpdateObjectTags(ctx context.Context, userId string, objectId string, tags []string) (*model.Object, error) {
-	updatedObject, err := s.ObjectRepository.UpdateObjectTags(ctx, userId, objectId, tags)
+	cleanTags := sanitizeTags(tags)
+
+	updatedObject, err := s.ObjectRepository.UpdateObjectTags(ctx, userId, objectId, cleanTags)
 	if err != nil {
 		logger.Log.Error("failed to update object tags: ", logger.Any("error", err))
 		return nil, fmt.Errorf("failed to update object tags: %w", err)
@@ -60,12 +95,60 @@ func (s *ObjectService) UpdateObjectTags(ctx context.Context, userId string, obj
 	return updatedObject, nil
 }
 
-// DeleteObject removes an object from every system that stores data about it: its S3
-// Vector embeddings, its S3 file, the scheduler links that reference it, and finally its
-// DynamoDB record. The DynamoDB record is deleted last on purpose: it's what
-// ListObjects/GetObjectById rely on, so if an earlier step fails the object still shows
-// up and the caller can safely retry the delete instead of ending up with an
-// orphaned/ghost record.
+// objectExtension extrai a extensão (com o ponto, ex.: ".pdf") de um nome de arquivo --
+// mesma regra usada pelo mapper do mobile (mappers/objectMapper.ts), pra manter os dois
+// lados consistentes: um ponto líder (ex.: ".gitignore") não conta como extensão.
+func objectExtension(filename string) string {
+	dot := strings.LastIndex(filename, ".")
+	if dot <= 0 {
+		return ""
+	}
+	return filename[dot:]
+}
+
+func objectBaseName(filename string) string {
+	dot := strings.LastIndex(filename, ".")
+	if dot <= 0 {
+		return filename
+	}
+	return filename[:dot]
+}
+
+// UpdateObjectName renomeia só a parte "base" do nome -- a extensão sempre vem do nome
+// já salvo (imutável desde o upload), nunca do que o usuário digitou. Mesmo que o campo
+// enviado inclua um ponto/sufixo, ele é descartado: o usuário não deve conseguir trocar
+// a extensão de um objeto por esse caminho.
+func (s *ObjectService) UpdateObjectName(ctx context.Context, userId string, objectId string, name string) (*model.Object, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return nil, fmt.Errorf("name cannot be empty")
+	}
+
+	existing, err := s.ObjectRepository.GetObjectById(ctx, userId, objectId)
+	if err != nil {
+		logger.Log.Error("failed to load object for rename: ", logger.Any("error", err))
+		return nil, fmt.Errorf("object not found")
+	}
+
+	newBase := objectBaseName(trimmed)
+	if newBase == "" {
+		return nil, fmt.Errorf("name cannot be empty")
+	}
+
+	newName := newBase + objectExtension(existing.Name)
+	if len(newName) > MaxObjectNameLength {
+		return nil, fmt.Errorf("name exceeds max length of %d characters", MaxObjectNameLength)
+	}
+
+	updatedObject, err := s.ObjectRepository.UpdateObjectName(ctx, userId, objectId, newName)
+	if err != nil {
+		logger.Log.Error("failed to update object name: ", logger.Any("error", err))
+		return nil, fmt.Errorf("failed to update object name: %w", err)
+	}
+	logger.Log.Info("object name updated: ", logger.String("object_id", objectId))
+	return updatedObject, nil
+}
+
 func (s *ObjectService) DeleteObject(ctx context.Context, userId string, objectId string) error {
 	object, err := s.ObjectRepository.GetObjectById(ctx, userId, objectId)
 	if err != nil {
@@ -78,7 +161,8 @@ func (s *ObjectService) DeleteObject(ctx context.Context, userId string, objectI
 		return fmt.Errorf("failed to delete object vectors: %w", err)
 	}
 
-	if err := s.StorageService.DeleteObject(ctx, userId, object.Name); err != nil {
+	storageKeyPrefix := fmt.Sprintf("tenants/%s/context/", userId)
+	if err := s.StorageService.DeleteObject(ctx, userId, strings.TrimPrefix(object.Key, storageKeyPrefix)); err != nil {
 		logger.Log.Error("failed to delete object from storage: ", logger.Any("error", err))
 		return fmt.Errorf("failed to delete object from storage: %w", err)
 	}
@@ -89,6 +173,13 @@ func (s *ObjectService) DeleteObject(ctx context.Context, userId string, objectI
 		return fmt.Errorf("failed to list scheduler links for object: %w", err)
 	}
 	for _, link := range links {
+		// Tira o objeto de object_ids do agendador (a lista que de fato conta/exibe os
+		// objetos vinculados) -- se o agendador já foi excluído, não é motivo de erro,
+		// só não tem mais nada pra limpar ali.
+		if err := s.SchedulerRepository.RemoveObjectId(ctx, userId, link.SchedulerId, objectId); err != nil && !errors.Is(err, repository.ErrSchedulerNotFound) {
+			logger.Log.Error("failed to remove object from scheduler: ", logger.Any("error", err))
+			return fmt.Errorf("failed to remove object from scheduler: %w", err)
+		}
 		if err := s.SchedulerObjectLinkRepository.DeleteLink(ctx, userId, objectId, link.SchedulerId); err != nil {
 			logger.Log.Error("failed to delete scheduler link for object: ", logger.Any("error", err))
 			return fmt.Errorf("failed to delete scheduler link for object: %w", err)
