@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from .chunk import Chunk
-from .utils import build_id_with_prefix
+from .utils import build_vector_id
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -45,12 +45,13 @@ class VectorService:
         self.vector_bucket_name = config.vector_bucket_name
         self.vector_index_arn = config.vector_index_arn
 
-    def save(self, objects: list[VectorObject]) -> VectorSaveResult:
+    def save(self, objects: list[VectorObject], object_id: str) -> VectorSaveResult:
         if not objects:
             raise ValueError("Documents list cannot be empty.")
 
         payload = []
         vector_ids = []
+        seen_ids: set[str] = set()
 
         for obj in objects:
             if not obj.embedding:
@@ -58,7 +59,10 @@ class VectorService:
                     f"Document chunk_index={obj.metadata.chunk_index} has empty embedding."
                 )
 
-            vector_id = build_id_with_prefix("vec")
+            vector_id = build_vector_id(object_id, obj.metadata.page, obj.metadata.chunk_index)
+            if vector_id in seen_ids:
+                raise ValueError(f"Duplicate vector id {vector_id}.")
+            seen_ids.add(vector_id)
             vector_ids.append(vector_id)
 
             payload.append({

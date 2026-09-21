@@ -183,7 +183,7 @@ class ProcessorHandler:
             refined_tags = self.tag_refiner.refine(list(all_tags), tag_refiner_sample_text)
             refined_tags = _clip_tags(refined_tags)
 
-            vector_save_result = self.vector_service.save(vector_objects)
+            vector_save_result = self.vector_service.save(vector_objects, object_id=object_id)
             logger.info(f"Successfully saved {len(vector_objects)} vectors for s3://{bucket}/{object_key}")
 
             self.dynamo_service.save_object(

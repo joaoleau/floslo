@@ -11,4 +11,4 @@ from .tag_refiner import (
 )
 from .vector import VectorService, VectorServiceData, VectorObject, VectorMetadata, VectorSaveResult
 from .dynamo import DynamoService, DynamoServiceData, Object
-from .utils import normalize_text, build_id_with_prefix
+from .utils import normalize_text, build_id_with_prefix, build_vector_id
