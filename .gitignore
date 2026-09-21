@@ -10,10 +10,11 @@ api/cmd/api/build
 api/cmd/rag/build
 api/docker/
 .aws-sam/
-processor/
+/processor/
 processor/venv/*
 processor/output/*
 !processor/output/.gitkeep
+__pycache__/
 tmp/
 mobile/node_modules
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
