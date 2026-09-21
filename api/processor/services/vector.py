@@ -8,6 +8,9 @@ from .utils import build_vector_id
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Limite do S3 Vectors por requisição de PutVectors e de DeleteVectors.
+VECTORS_BATCH_SIZE = 500
+
 
 @dataclass(slots=True)
 class VectorMetadata:
@@ -71,20 +74,28 @@ class VectorService:
                 "metadata": asdict(obj.metadata)
             })
 
+        stored_ids: list[str] = []
+
         try:
-            self.client.put_vectors(
-                indexArn=self.vector_index_arn,
-                vectors=payload
-            )
-            
+            for start in range(0, len(payload), VECTORS_BATCH_SIZE):
+                batch = payload[start:start + VECTORS_BATCH_SIZE]
+                self.client.put_vectors(
+                    indexArn=self.vector_index_arn,
+                    vectors=batch
+                )
+                stored_ids.extend(vector["key"] for vector in batch)
+
             logger.info(f"Successfully saved {len(vector_ids)} vectors to index='{self.vector_index_arn}'")
-            
+
             return VectorSaveResult(
                 vector_ids=vector_ids,
                 object_key=objects[0].metadata.object_key
             )
         except Exception:
             logger.exception("Failed batch vector save.")
+            # Com mais de um lote, uma falha no meio deixaria vetores órfãos que o handler
+            # não conhece (ele só recebe os ids quando save() termina) -- limpa aqui.
+            self._delete_stored_after_failure(stored_ids)
             raise
 
     def query_vectors(self, filters: dict[str, Any], embedding: list[float] | None = None, top_k: int = 10) -> list[str]:
@@ -115,12 +126,22 @@ class VectorService:
             return
 
         try:
-            self.client.delete_vectors(
-                indexArn=self.vector_index_arn,
-                keys=vector_ids
-            )
+            for start in range(0, len(vector_ids), VECTORS_BATCH_SIZE):
+                self.client.delete_vectors(
+                    indexArn=self.vector_index_arn,
+                    keys=vector_ids[start:start + VECTORS_BATCH_SIZE]
+                )
             logger.info(f"Successfully deleted {len(vector_ids)} vectors.")
         except Exception:
             logger.exception("Failed deleting vectors.")
             raise
+
+    def _delete_stored_after_failure(self, stored_ids: list[str]) -> None:
+        if not stored_ids:
+            return
+
+        try:
+            self.delete(stored_ids)
+        except Exception:
+            logger.exception(f"Failed cleaning up {len(stored_ids)} vectors stored before a failed save.")
 
