@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Text } from '@/components/ui/text';
 import { ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import notifee, { EventType, AndroidCategory } from '@notifee/react-native';
+import notifee, { EventType, AndroidCategory, Notification } from '@notifee/react-native';
 import { QueryClientProvider, focusManager } from '@tanstack/react-query';
 import {
   useFonts,
@@ -18,6 +18,7 @@ import {
 import { authService } from '@/services/authService';
 import { schedulerService } from '@/services/schedulerService';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
+import { activeFiring } from '@/lib/activeFiring';
 import { onboardingStorage } from '@/storage/onboardingStorage';
 import { onSessionExpired } from '@/api/http/client';
 import { queryClient } from '@/lib/queryClient';
@@ -43,6 +44,20 @@ ErrorUtils.setGlobalHandler((error, isFatal) => {
   defaultErrorHandler(error, isFatal);
 });
 
+// O alarme só se encerra pelos desafios: a notificação é fixa, mas o Android 14 ou superior
+// ainda deixa o usuário descartá-la. Descartada, ela volta a ser exibida (e a tocar). Quando a
+// tela de disparo tira a notificação da barra, isso não conta como descarte.
+async function redisplayDismissedAlarm(type: EventType, notification: Notification | undefined): Promise<boolean> {
+  if (type !== EventType.DISMISSED || notification?.android?.category !== AndroidCategory.ALARM) return false;
+  console.log('[Notifee] Alarme descartado sem os desafios, exibindo de novo', notification.id);
+  try {
+    await notifee.displayNotification(notification);
+  } catch (err) {
+    console.error('[Notifee] Falha ao exibir de novo o alarme descartado', err);
+  }
+  return true;
+}
+
 notifee.onBackgroundEvent(async ({ type, detail }) => {
   const { notification, pressAction } = detail;
 
@@ -53,6 +68,8 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   });
 
   if (!notification) return;
+
+  if (await redisplayDismissedAlarm(type, notification)) return;
 
   // O app estava apenas em segundo plano (não morto) quando o toque aconteceu — esse evento
   // não passa pelo onForegroundEvent, e getInitialNotification()/getDisplayedNotifications()
@@ -213,6 +230,13 @@ export default function RootLayout() {
           }
         }
 
+        // A tela de disparo deste alarme já está aberta (o app só voltou ao primeiro plano, ou
+        // a notificação ainda estava na barra enquanto os desafios carregavam): não abre outra.
+        if (targetSchedulerId && activeFiring.isOpen(targetSchedulerId as string)) {
+          console.log('[RootLayout] Disparo já aberto, mantendo a tela atual', targetSchedulerId);
+          return;
+        }
+
         if (targetSchedulerId) {
           isNavigating.current = true;
 
@@ -250,9 +274,13 @@ export default function RootLayout() {
         data: detail.notification?.data,
       });
 
+      redisplayDismissedAlarm(type, detail.notification);
+
       if (type === EventType.PRESS && detail.notification?.android?.category === AndroidCategory.ALARM) {
         const payload = detail.notification.data;
-        if (payload?.schedulerId) {
+        if (payload?.schedulerId && activeFiring.isOpen(payload.schedulerId as string)) {
+          console.log('[Notifee][foreground] Disparo já aberto, mantendo a tela atual', payload.schedulerId);
+        } else if (payload?.schedulerId) {
           console.log('[Notifee][foreground] navegando para firing', payload.schedulerId);
           router.replace({
             pathname: '/(scheduler)/firing',

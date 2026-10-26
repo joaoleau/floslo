@@ -10,6 +10,7 @@ import notifee, {
 import { schedulerApi } from '@/api/scheduler';
 import { schedulerMapper } from '@/mappers/schedulerMapper';
 import { Scheduler } from '@/types/domain/Scheduler';
+import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
 
 // ============================================================================
 // NATIVE HELPER FUNCTIONS
@@ -94,6 +95,59 @@ async function cancelAllForScheduler(schedulerId: string): Promise<void> {
   }
 }
 
+function alarmSettingsOf(scheduler: Scheduler): AlarmSettings {
+  return {
+    schedulerId: scheduler.id,
+    name: scheduler.name,
+    alarmSound: scheduler.alarmSound,
+    vibration: scheduler.vibration,
+    soundEnabled: scheduler.soundEnabled,
+  };
+}
+
+/**
+ * Cria (ou reaproveita) o canal do agendador e monta a notificação do alarme. A notificação é
+ * fixa (ongoing, sem autoCancel): o alarme só se encerra pelos desafios, então ela não pode ser
+ * descartada com um gesto nem sumir ao ser tocada. Quem a remove é a tela de disparo, ao
+ * assumir o som.
+ */
+async function prepareAlarmNotification(settings: AlarmSettings) {
+  // Sound name must be lowercase, no spaces, matching the raw resource filename.
+  const soundName = settings.alarmSound ? settings.alarmSound.toLowerCase().replace(/\s+/g, '_') : 'default';
+
+  // Baking sound + vibration into the channel id forces Android to create a fresh
+  // channel whenever either setting changes (channel settings are otherwise immutable —
+  // toggling `scheduler.vibration` later would silently do nothing without this).
+  const channelId = `alarm_${settings.schedulerId}_${soundName}_${settings.vibration ? 'vib' : 'novib'}`;
+
+  await notifee.createChannel({
+    id: channelId,
+    name: `Canal: ${settings.name}`,
+    importance: AndroidImportance.HIGH,
+    sound: soundName,
+    vibration: settings.vibration,
+  });
+
+  return {
+    title: '⏰ ' + (settings.name || 'Agendador'),
+    body: 'Seu agendador está tocando. Toque para abrir.',
+    android: {
+      channelId,
+      category: AndroidCategory.ALARM,
+      autoCancel: false,
+      ongoing: true,
+      loopSound: true,
+      // launchActivity precisa estar aqui, igual na tela cheia do próprio firing.tsx --
+      // sem ele, o Android pode simplesmente não lançar a activity automaticamente com a
+      // tela bloqueada e cair de volta pra uma notificação comum (vibra + aparece, mas não
+      // abre nada sozinho). Todo agendador é um alarme de verdade (acorda a tela), sem
+      // opção de virar só lembrete/notificação.
+      fullScreenAction: { id: 'default', launchActivity: 'default' },
+      pressAction: { id: 'default', launchActivity: 'default' },
+    },
+  };
+}
+
 /** Communicates with Android to schedule or cancel the notification */
 async function syncWithAndroid(scheduler: Scheduler) {
   console.log(`[Scheduler][native] Sincronizando "${scheduler.name}" (${scheduler.id})`, {
@@ -115,40 +169,11 @@ async function syncWithAndroid(scheduler: Scheduler) {
   const permission = await notifee.requestPermission();
   console.log('[Scheduler][native] Permissão de notificação', permission);
 
-  // Sound name must be lowercase, no spaces, matching the raw resource filename.
-  const soundName = scheduler.alarmSound ? scheduler.alarmSound.toLowerCase().replace(/\s+/g, '_') : 'default';
-
-  // Baking sound + vibration into the channel id forces Android to create a fresh
-  // channel whenever either setting changes (channel settings are otherwise immutable —
-  // toggling `scheduler.vibration` later would silently do nothing without this).
-  const channelId = `alarm_${scheduler.id}_${soundName}_${scheduler.vibration ? 'vib' : 'novib'}`;
-
-  await notifee.createChannel({
-    id: channelId,
-    name: `Canal: ${scheduler.name}`,
-    importance: AndroidImportance.HIGH,
-    sound: soundName,
-    vibration: scheduler.vibration,
+  const settings = alarmSettingsOf(scheduler);
+  await alarmSettingsStorage.save(settings).catch((err) => {
+    console.warn(`[Scheduler][native] Falha ao guardar os ajustes do alarme "${scheduler.name}"`, err);
   });
-
-  const baseNotification = {
-    title: '⏰ ' + (scheduler.name || 'Agendador'),
-    body: 'Seu agendador está tocando. Toque para abrir.',
-    android: {
-      channelId,
-      category: AndroidCategory.ALARM,
-      autoCancel: true,
-      ongoing: false,
-      loopSound: true,
-      // launchActivity precisa estar aqui, igual na tela cheia do próprio firing.tsx --
-      // sem ele, o Android pode simplesmente não lançar a activity automaticamente com a
-      // tela bloqueada e cair de volta pra uma notificação comum (vibra + aparece, mas não
-      // abre nada sozinho). Todo agendador é um alarme de verdade (acorda a tela), sem
-      // opção de virar só lembrete/notificação.
-      fullScreenAction: { id: 'default', launchActivity: 'default' },
-      pressAction: { id: 'default', launchActivity: 'default' },
-    },
-  };
+  const baseNotification = await prepareAlarmNotification(settings);
 
   try {
     if (!scheduler.weekDays || scheduler.weekDays.length === 0) {
@@ -261,6 +286,17 @@ export const schedulerService = {
     console.log(`[Scheduler] Excluindo "${id}"`);
     await schedulerApi.remove(id);
     await cancelAllForScheduler(id);
+    await alarmSettingsStorage.remove(id).catch(() => undefined);
+  },
+
+  /**
+   * Volta a exibir o alarme de um disparo que ainda tem desafio pendente, por exemplo quando o
+   * estudante sai da tela de desafios pelo botão de início. A notificação toca de novo e, ao ser
+   * tocada, reabre o disparo.
+   */
+  async showRingingAlarm(settings: AlarmSettings, notificationId: string): Promise<void> {
+    const notification = await prepareAlarmNotification(settings);
+    await notifee.displayNotification({ ...notification, id: notificationId, data: { schedulerId: settings.schedulerId } });
   },
 
   /**

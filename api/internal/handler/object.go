@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -68,6 +69,10 @@ func (h *ObjectHandler) UpdateObjectTags(w http.ResponseWriter, r *http.Request)
 	}
 
 	updatedObject, err := h.ObjectService.UpdateObjectTags(r.Context(), userId, id, input.Tags)
+	if errors.Is(err, service.ErrNoTags) {
+		utils.ResponseWithError(w, http.StatusBadRequest, err)
+		return
+	}
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return

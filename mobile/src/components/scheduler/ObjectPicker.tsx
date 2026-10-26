@@ -9,6 +9,15 @@ import { Text } from '@/components/ui/text';
 import { ObjectType } from '@/types/domain/Object';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
+// Por que um documento ainda não pode ser vinculado a um agendador, ou null se pode. Os desafios
+// saem da busca pelas tags do documento: sem nenhuma, ele não forneceria conteúdo ao disparo.
+export function unavailableReason(object: ObjectType): string | null {
+  if (object.status === 'processing') return 'Em processamento';
+  if (object.status === 'failed') return 'O processamento falhou';
+  if (object.tags.length === 0) return 'Sem tags: adicione uma na aba Objetos';
+  return null;
+}
+
 interface ObjectPickerProps {
   objects: ObjectType[];
   selectedIds: string[];
@@ -76,17 +85,25 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
             </View>
 
             <ScrollView>
-              {availableObjects.map((object) => (
-                <Pressable
-                  key={object.id}
-                  onPress={() => addObject(object.id)}
-                  className="flex-row items-center justify-between border-b border-border py-4"
-                >
-                  <Text>{object.name}</Text>
+              {availableObjects.map((object) => {
+                const reason = unavailableReason(object);
+                return (
+                  <Pressable
+                    key={object.id}
+                    onPress={() => addObject(object.id)}
+                    disabled={reason !== null}
+                    className="flex-row items-center justify-between border-b border-border py-4"
+                    style={{ opacity: reason ? 0.5 : 1 }}
+                  >
+                    <View className="flex-1 pr-3">
+                      <Text>{object.name}</Text>
+                      {reason && <Text className="text-xs text-muted-foreground">{reason}</Text>}
+                    </View>
 
-                  <Ionicons name="add-circle-outline" size={20} color={colors.brand} />
-                </Pressable>
-              ))}
+                    {!reason && <Ionicons name="add-circle-outline" size={20} color={colors.brand} />}
+                  </Pressable>
+                );
+              })}
 
               {availableObjects.length === 0 && (
                 <Text className="py-8 text-center text-muted-foreground">

@@ -152,7 +152,6 @@ describe('historyService.recordAttempt', () => {
       options: [{ id: 'a1', text: 'Certo', correct: true }],
       isCorrect: true,
       wrongAttempts: 1,
-      timeSpentMs: 5000,
       sourceObjectKey: 'obj-1',
       sourcePage: 2,
     });
@@ -174,7 +173,6 @@ describe('historyService.recordAttempt', () => {
       options: null,
       isCorrect: null,
       wrongAttempts: 0,
-      timeSpentMs: null,
       sourceObjectKey: null,
       sourcePage: null,
     });
@@ -196,7 +194,6 @@ describe('historyService.recordAttempt', () => {
       options: null,
       isCorrect: false,
       wrongAttempts: 2,
-      timeSpentMs: 1000,
       sourceObjectKey: null,
       sourcePage: null,
     });
@@ -258,8 +255,8 @@ describe('historyService.getSessionDetail', () => {
       total_challenges: 5,
     });
     mockGetAllSync.mockReturnValue([
-      { id: 'a1', session_id: 'session-1', is_correct: 1, answered_at: 1, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 0, time_spent_ms: null, source_object_key: null, source_page: null },
-      { id: 'a2', session_id: 'session-1', is_correct: 0, answered_at: 2, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 1, time_spent_ms: null, source_object_key: null, source_page: null },
+      { id: 'a1', session_id: 'session-1', is_correct: 1, answered_at: 1, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 0, source_object_key: null, source_page: null },
+      { id: 'a2', session_id: 'session-1', is_correct: 0, answered_at: 2, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 1, source_object_key: null, source_page: null },
     ]);
 
     const result = historyService.getSessionDetail('session-1');
@@ -288,8 +285,7 @@ describe('historyService.getAttemptDetail', () => {
       options_json: null,
       is_correct: 1,
       wrong_attempts: 0,
-      answered_at: 1,
-      time_spent_ms: null,
+      answered_at: 1,
       source_object_key: null,
       source_page: null,
       scheduler_name: 'Revisão de Inglês',

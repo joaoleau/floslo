@@ -3,9 +3,7 @@
 export type ChallengeType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'DISCOVERY';
 
 // Resultado que cada componente de desafio devolve ao concluir, pra firing.tsx gravar o
-// attempt correspondente no histórico. O tempo gasto é medido pelo firing.tsx (não aqui) --
-// ele não fica aninhado num worklet de gesto, então Date.now() ali não esbarra na regra de
-// pureza que pegou os componentes de desafio quando cada um tentava medir seu próprio tempo.
+// attempt correspondente no histórico.
 export interface ChallengeResult {
   wrongAttempts: number;
 }
@@ -58,7 +56,6 @@ export interface AttemptEntry {
   isCorrect: boolean | null;
   wrongAttempts: number;
   answeredAt: number;
-  timeSpentMs: number | null;
   sourceObjectKey: string | null;
   sourcePage: number | null;
 }
@@ -88,7 +85,6 @@ export interface RecordAttemptInput {
   options: ReviewOption[] | null;
   isCorrect: boolean | null;
   wrongAttempts: number;
-  timeSpentMs: number | null;
   sourceObjectKey: string | null;
   sourcePage: number | null;
 }

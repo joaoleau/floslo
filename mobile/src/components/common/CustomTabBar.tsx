@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/text';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useMeQuery } from '@/hooks/useUser';
+import { displayedStreak } from '@/lib/streak';
 
 type CustomTabBarProps = Parameters<NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>>[0];
 
@@ -53,7 +54,7 @@ export default function CustomTabBar(props: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
   const { data: user } = useMeQuery();
-  const streak = user?.currentStreak;
+  const streak = user ? displayedStreak(user.currentStreak, user.lastActiveDate) : undefined;
 
   return (
     <View

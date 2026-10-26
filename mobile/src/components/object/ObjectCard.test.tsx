@@ -26,6 +26,17 @@ describe('ObjectCard', () => {
     expect(screen.getByText('Processando')).toBeTruthy();
   });
 
+  it('dims the card while the object is processing or after it failed, keeping the badge', async () => {
+    const { rerender } = await renderWithProviders(<ObjectCard object={object} />);
+    expect(screen.getByTestId('object-card').props.style).toBeUndefined();
+
+    for (const status of ['processing', 'failed'] as const) {
+      await rerender(<ObjectCard object={{ ...object, status }} />);
+      expect(screen.getByTestId('object-card').props.style).toEqual({ opacity: 0.45 });
+    }
+    expect(screen.getByText('Falhou')).toBeTruthy();
+  });
+
   it('calls onPress and onLongPress', async () => {
     const onPress = jest.fn();
     const onLongPress = jest.fn();

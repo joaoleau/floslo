@@ -3,6 +3,7 @@ const mockRequestPermission = jest.fn().mockResolvedValue(1);
 const mockCreateChannel = jest.fn();
 const mockCreateTriggerNotification = jest.fn();
 const mockCancelAllNotifications = jest.fn();
+const mockDisplayNotification = jest.fn();
 
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
@@ -12,6 +13,7 @@ jest.mock('@notifee/react-native', () => ({
     createChannel: (...args: unknown[]) => mockCreateChannel(...args),
     createTriggerNotification: (...args: unknown[]) => mockCreateTriggerNotification(...args),
     cancelAllNotifications: (...args: unknown[]) => mockCancelAllNotifications(...args),
+    displayNotification: (...args: unknown[]) => mockDisplayNotification(...args),
   },
   AlarmType: { SET_ALARM_CLOCK: 'SET_ALARM_CLOCK' },
   AndroidCategory: { ALARM: 'ALARM' },
@@ -38,6 +40,7 @@ jest.mock('@/api/scheduler', () => ({
 
 import { calculateNextOneOffTrigger, calculateNextTriggerForDay, schedulerService } from './schedulerService';
 import { SchedulerDTO } from '@/types/api/SchedulerDTO';
+import { alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
 
 const ALL_WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -183,6 +186,49 @@ describe('schedulerService.toggleStatus', () => {
     expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(2);
     const ids = mockCreateTriggerNotification.mock.calls.map(([notification]) => notification.id);
     expect(ids).toEqual(['sched-1__monday', 'sched-1__wednesday']);
+  });
+});
+
+describe('alarm notification', () => {
+  it('cannot be swiped away nor disappear when tapped, so the alarm only ends through the challenges', async () => {
+    mockUpdate.mockResolvedValue(makeDTO({ scheduler_id: 'sched-1', enabled: true, weekdays: ['MON'] }));
+
+    await schedulerService.toggleStatus('sched-1', true);
+
+    const [notification] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notification.android.ongoing).toBe(true);
+    expect(notification.android.autoCancel).toBe(false);
+    expect(notification.android.loopSound).toBe(true);
+  });
+
+  it('keeps the sound and vibration of the scheduler on the device for the firing screen', async () => {
+    mockUpdate.mockResolvedValue(
+      makeDTO({ scheduler_id: 'sched-1', name: 'Revisão', enabled: true, weekdays: ['MON'], alarm_sound: 'bell', vibration: false })
+    );
+
+    await schedulerService.toggleStatus('sched-1', true);
+
+    await expect(alarmSettingsStorage.get('sched-1')).resolves.toEqual({
+      schedulerId: 'sched-1',
+      name: 'Revisão',
+      alarmSound: 'bell',
+      vibration: false,
+      soundEnabled: true,
+    });
+  });
+
+  it('shows the ringing alarm again with the same id when the student leaves the firing screen', async () => {
+    await schedulerService.showRingingAlarm(
+      { schedulerId: 'sched-1', name: 'Revisão', alarmSound: 'chic_pop', vibration: true, soundEnabled: true },
+      'sched-1__monday'
+    );
+
+    expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'alarm_sched-1_chic_pop_vib' }));
+    const [notification] = mockDisplayNotification.mock.calls[0];
+    expect(notification.id).toBe('sched-1__monday');
+    expect(notification.data).toEqual({ schedulerId: 'sched-1' });
+    expect(notification.android.category).toBe('ALARM');
+    expect(notification.android.ongoing).toBe(true);
   });
 });
 

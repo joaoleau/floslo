@@ -36,6 +36,7 @@ func (h *UserHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		Username: user.Username,
 		Email:    user.Email,
 		CurrentStreak: user.CurrentStreak,
+		LastActiveDate: user.LastActiveDate,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 	})
@@ -64,6 +65,7 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		Username: updatedUser.Username,
 		Email:    updatedUser.Email,
 		CurrentStreak: updatedUser.CurrentStreak,
+		LastActiveDate: updatedUser.LastActiveDate,
 		CreatedAt: updatedUser.CreatedAt,
 		UpdatedAt: updatedUser.UpdatedAt,
 	})

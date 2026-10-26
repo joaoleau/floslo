@@ -141,3 +141,12 @@ func TestRAGResponseCarriesTheCurrentStreakOnlyWhenRecorded(t *testing.T) {
 	assertKeys(t, "rag response", marshalToMap(t, RAGResponseDTO{CurrentStreak: &streak}), "current_streak")
 	assertNoKeys(t, "rag response without a recorded day", marshalToMap(t, RAGResponseDTO{}), "current_streak")
 }
+
+func TestUserResponseCarriesTheLastActiveDate(t *testing.T) {
+	decoded := marshalToMap(t, UserResponseDTO{CurrentStreak: 3, LastActiveDate: "2026-10-24"})
+
+	assertKeys(t, "user", decoded, "current_streak", "last_active_date")
+	if decoded["last_active_date"] != "2026-10-24" {
+		t.Errorf("last_active_date = %v, want 2026-10-24", decoded["last_active_date"])
+	}
+}

@@ -1,14 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Pressable, Platform, ActivityIndicator, BackHandler, Vibration, ScrollView } from 'react-native';
+import { View, Pressable, ActivityIndicator, BackHandler, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
-import notifee from '@notifee/react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
-import { useAudioPlayer } from 'expo-audio';
-import * as Application from 'expo-application';
 
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -23,10 +19,27 @@ import { ChallengeResult, ReviewOption } from '@/types/domain/History';
 import { useRagQuery } from '@/hooks/useFiring';
 import { useMeQuery } from '@/hooks/useUser';
 import { queryKeys } from '@/lib/queryKeys';
+import { todayLocalDate } from '@/lib/localDate';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { historyService } from '@/services/historyService';
 import { useInvalidateHistory } from '@/hooks/useHistory';
 import { getColorForId } from '@/lib/hashColor';
+import { activeFiring } from '@/lib/activeFiring';
+import { RingingAlarm, useRingingAlarm } from '@/hooks/useRingingAlarm';
+import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
+
+// Botão de silenciar, o mesmo no carregamento, na tela de erro e nos desafios.
+function MuteButton({ alarm }: { alarm: RingingAlarm }) {
+  return (
+    <Pressable
+      onPress={alarm.mute}
+      className="absolute top-14 left-6 z-10 flex-row items-center bg-black/20 px-3 py-2 rounded-full"
+    >
+      <Ionicons name={alarm.muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
+      {alarm.muteCountdown > 0 && <Text className="text-white font-bold ml-2">{alarm.muteCountdown}s</Text>}
+    </Pressable>
+  );
+}
 
 // Extrai os campos específicos de cada tipo de desafio pro registro no histórico --
 // centralizado aqui pra manter o TypeScript estreitando `answered.data` corretamente por tipo.
@@ -72,10 +85,12 @@ function FiringScreenContent({
   ragData,
   schedulerId,
   notificationId,
+  alarm,
 }: {
   ragData: RAG;
   schedulerId: string;
   notificationId: string;
+  alarm: RingingAlarm;
 }) {
   const router = useRouter();
   const colors = useThemeColors();
@@ -86,7 +101,6 @@ function FiringScreenContent({
   const [maxReachedIndex, setMaxReachedIndex] = useState(0);
   const [answeredResults, setAnsweredResults] = useState<Record<number, ChallengeResult>>({});
   const [currentTime, setCurrentTime] = useState('');
-  const [muteCountdown, setMuteCountdown] = useState(0);
 
   const { data: user } = useMeQuery();
   const invalidateHistory = useInvalidateHistory();
@@ -95,11 +109,13 @@ function FiringScreenContent({
 
   // A floslo-rag já registrou o dia de estudo ao gerar este disparo (a data local vai no
   // próprio pedido, ver firingService) e devolveu a sequência atualizada, que entra direto no
-  // cache do usuário, sem outra chamada à nuvem.
+  // cache do usuário, sem outra chamada à nuvem. Hoje passa a ser o último dia de estudo.
   const currentStreak = ragData.currentStreak;
   useEffect(() => {
     if (currentStreak === undefined) return;
-    queryClient.setQueryData<User>(queryKeys.user.me, (cached) => (cached ? { ...cached, currentStreak } : cached));
+    queryClient.setQueryData<User>(queryKeys.user.me, (cached) =>
+      cached ? { ...cached, currentStreak, lastActiveDate: todayLocalDate() } : cached
+    );
   }, [queryClient, currentStreak]);
 
   // O backend devolve sucesso com challenges=[] quando o agendador ficou sem nenhum objeto
@@ -122,40 +138,15 @@ function FiringScreenContent({
     });
   }, [user, ragData, hasNoChallenges]);
 
-  // Quanto tempo o usuário passou no desafio atual, pro histórico -- medido aqui (não
-  // dentro de cada componente de desafio) porque esses componentes rodam callbacks de
-  // gesto/pressable registrados durante o render, e Date.now() ali esbarra na regra de
-  // pureza dos hooks; handleChallengeSuccess é um callback comum, sem essa restrição.
-  const challengeStartedAtRef = useRef(0);
-  useEffect(() => {
-    challengeStartedAtRef.current = Date.now();
-  }, [currentChallengeIndex]);
-
-  const vibrationEnabled = ragData.scheduler.vibration;
-  const soundEnabled = ragData.scheduler.soundEnabled;
-  const soundName = ragData.scheduler.alarmSound || 'chic_pop';
-  const packageName = Application.applicationId;
-  const audioUri = Platform.OS === 'android' ? `android.resource://${packageName}/raw/${soundName}` : '';
-
-  // A tela reage ao relógio (atualizado a cada segundo, ver efeito abaixo) e re-renderiza
-  // com bastante frequência -- um objeto `{ uri }` literal recriado a cada render faz o
-  // useAudioPlayer recarregar/reiniciar a fonte de áudio o tempo todo, o que na prática
-  // pode nunca deixar o som terminar de carregar pra realmente tocar. Memoizado pra só
-  // recriar quando a URI muda de verdade (suspeita levantada como causa raiz de "às vezes
-  // parece que a música não toca" -- validar em dispositivo físico depois desse fix).
-  const audioSource = useMemo(() => ({ uri: audioUri }), [audioUri]);
-  const player = useAudioPlayer(audioSource);
-
   const stopAlarm = useCallback(() => {
     console.log('[Firing] Desligando alarme', { schedulerId, notificationId });
-    player.pause();
-    Vibration.cancel();
+    alarm.stop();
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/(tabs)');
     }
-  }, [player, router, schedulerId, notificationId]);
+  }, [alarm, router, schedulerId, notificationId]);
 
   // Relógio
   useEffect(() => {
@@ -169,62 +160,6 @@ function FiringScreenContent({
     const intervalId = setInterval(updateClock, 1000);
     return () => clearInterval(intervalId);
   }, []);
-
-  // ==========================================
-  // BARREIRA 1: BLOQUEAR BOTÃO VOLTAR
-  // ==========================================
-  // Não existe mais atalho pra desligar o alarme sem responder o desafio, nem no modo
-  // normal — então o botão voltar nunca deve desligar, só ser engolido.
-  useEffect(() => {
-    const onBackPress = () => true;
-
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => backHandler.remove();
-  }, []);
-
-  // Assumir o controle do Alarme
-  useEffect(() => {
-    async function takeoverAlarm() {
-      try {
-        if (notificationId) {
-          await notifee.cancelNotification(notificationId);
-        }
-        if (Platform.OS === 'android' && soundEnabled) {
-          player.loop = true;
-          player.play();
-          console.log('[Firing] Alarme assumido pela tela de firing, tocando som', { schedulerId, notificationId });
-        }
-      } catch (err) {
-        console.error('[Firing] Falha ao assumir o alarme (cancelar notificação / tocar som)', err);
-      }
-    }
-    takeoverAlarm();
-  }, [player, notificationId, schedulerId, soundEnabled]);
-
-  // Vibração contínua enquanto o alarme toca (mesmo espírito do loop de som acima)
-  useEffect(() => {
-    if (vibrationEnabled && Platform.OS === 'android') {
-      Vibration.vibrate([500, 1000, 500], true);
-    }
-    return () => Vibration.cancel();
-  }, [vibrationEnabled]);
-
-  // Lógica de Silenciar (Mute)
-  useEffect(() => {
-    if (muteCountdown > 0) {
-      const timer = setInterval(() => setMuteCountdown((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    } else if (muteCountdown === 0 && !player.playing && soundEnabled && Platform.OS === 'android') {
-      player.play();
-    }
-  }, [muteCountdown, player, soundEnabled]);
-
-  function handleMute() {
-    if (muteCountdown > 0) return;
-    console.log('[Firing] Silenciando por 10s');
-    setMuteCountdown(10);
-    player.pause();
-  }
 
   function handleChallengeSuccess(result: ChallengeResult) {
     console.log(`[Firing] Desafio ${currentChallengeIndex + 1}/${ragData.challenges.length} concluído`);
@@ -246,7 +181,6 @@ function FiringScreenContent({
         options: fields.options,
         isCorrect: fields.isCorrect,
         wrongAttempts: result.wrongAttempts,
-        timeSpentMs: Date.now() - challengeStartedAtRef.current,
         sourceObjectKey: primarySource?.objectKey ?? null,
         sourcePage: primarySource?.page ?? null,
       });
@@ -289,13 +223,7 @@ function FiringScreenContent({
       {/* BARREIRA 3: Bloqueia arrastar para voltar ou gestos do Expo Router */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
-      <Pressable
-        onPress={handleMute}
-        className="absolute top-14 left-6 z-10 flex-row items-center bg-black/20 px-3 py-2 rounded-full"
-      >
-        <Ionicons name={muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
-        {muteCountdown > 0 && <Text className="text-white font-bold ml-2">{muteCountdown}s</Text>}
-      </Pressable>
+      <MuteButton alarm={alarm} />
 
       {/* Cabeçalho compacto: só a hora, nome do alarme e progresso (quando houver mais de 1 desafio) */}
       <View className="items-center pt-14 pb-3 px-5">
@@ -451,15 +379,56 @@ function ChallengeReviewPane({
 // ==========================================
 export default function FiringScreen() {
   const { schedulerId, notificationId } = useLocalSearchParams<{ schedulerId: string; notificationId?: string }>();
+  const ringingNotificationId = notificationId || schedulerId;
   const { data: ragData, isPending, isError, error, refetch } = useRagQuery(schedulerId);
+
+  // Som e vibração do alarme antes de os desafios chegarem: os ajustes guardados no aparelho
+  // quando o alarme foi agendado (ver alarmSettingsStorage), ou um padrão se não houver.
+  const [storedSettings, setStoredSettings] = useState<AlarmSettings | null>(null);
+  useEffect(() => {
+    alarmSettingsStorage.get(schedulerId).then(setStoredSettings).catch(() => undefined);
+  }, [schedulerId]);
+
+  const settings = useMemo<AlarmSettings>(() => {
+    if (ragData) {
+      return {
+        schedulerId: ragData.scheduler.id,
+        name: ragData.scheduler.name,
+        alarmSound: ragData.scheduler.alarmSound,
+        vibration: ragData.scheduler.vibration,
+        soundEnabled: ragData.scheduler.soundEnabled,
+      };
+    }
+    return storedSettings ?? { schedulerId, name: '', alarmSound: 'chic_pop', vibration: true, soundEnabled: true };
+  }, [ragData, storedSettings, schedulerId]);
+
+  const alarm = useRingingAlarm(settings, ringingNotificationId);
+
+  useEffect(() => {
+    activeFiring.start(schedulerId);
+    return () => activeFiring.finish(schedulerId);
+  }, [schedulerId]);
+
+  // ==========================================
+  // BARREIRA 1: BLOQUEAR BOTÃO VOLTAR
+  // ==========================================
+  // Não existe atalho pra desligar o alarme sem responder os desafios, nem enquanto eles são
+  // preparados ou na tela de erro, então o botão voltar nunca sai do disparo, só é engolido.
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => backHandler.remove();
+  }, []);
 
   // Sem isso, uma falha aqui (rede fora do ar, backend fora do ar, etc.) prendia o usuário
   // pra sempre na tela de "Preparando desafio..." sem nenhuma indicação do que houve — o
-  // queryCache global (queryClient.ts) já loga o erro, isso só dá uma saída pro usuário.
+  // queryCache global (queryClient.ts) já loga o erro, isso só dá uma saída pro usuário. O
+  // alarme continua tocando: o disparo só se encerra pelos desafios.
   if (isError) {
     console.error('[FiringScreen] Falha ao carregar o desafio do alarme', { schedulerId, error });
     return (
       <View className="flex-1 justify-center items-center gap-4 bg-brand-100 px-8">
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
+        <MuteButton alarm={alarm} />
         <Text className="text-white text-center font-medium">
           Não foi possível carregar o desafio deste alarme.
         </Text>
@@ -476,6 +445,8 @@ export default function FiringScreen() {
   if (isPending || !ragData) {
     return (
       <View className="flex-1 justify-center items-center bg-brand-100">
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
+        <MuteButton alarm={alarm} />
         <ActivityIndicator size="large" color="#ffffff" />
         <Text className="text-white mt-4 font-medium">Preparando desafio...</Text>
       </View>
@@ -483,6 +454,6 @@ export default function FiringScreen() {
   }
 
   return (
-    <FiringScreenContent ragData={ragData} schedulerId={schedulerId} notificationId={notificationId || schedulerId} />
+    <FiringScreenContent ragData={ragData} schedulerId={schedulerId} notificationId={ringingNotificationId} alarm={alarm} />
   );
 }

@@ -26,7 +26,15 @@ export function ObjectCard({ object, onPress, onLongPress, selectionMode = false
   const extensionColor = getExtensionColor(object.extension);
 
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress}>
+    <Pressable
+      testID="object-card"
+      onPress={onPress}
+      onLongPress={onLongPress}
+      // Em processamento ou com falha, o documento ainda não gera desafios: o card fica
+      // esmaecido, como o agendador desligado, e o selo continua dizendo qual dos dois é, para o
+      // estado não depender só da cor.
+      style={object.status !== 'active' && !selectionMode ? { opacity: 0.45 } : undefined}
+    >
       <View
         className="rounded-[28px] px-4 py-3.5 gap-2.5"
         style={{

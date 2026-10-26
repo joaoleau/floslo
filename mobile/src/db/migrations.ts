@@ -37,7 +37,6 @@ const migrations: Migration[] = [
           is_correct INTEGER,
           wrong_attempts INTEGER NOT NULL DEFAULT 0,
           answered_at INTEGER NOT NULL,
-          time_spent_ms INTEGER,
           source_object_key TEXT,
           source_page INTEGER
         );

@@ -112,8 +112,15 @@ func sanitizeTags(tags []string, limits TagLimits) []string {
 	return cleanTags
 }
 
+// ErrNoTags recusa deixar um documento sem conceitos: a busca do disparo parte das tags, então
+// um documento sem nenhuma não forneceria conteúdo ao agendador.
+var ErrNoTags = errors.New("a document needs at least one tag")
+
 func (s *ObjectService) UpdateObjectTags(ctx context.Context, userId string, objectId string, tags []string) (*model.Object, error) {
 	cleanTags := sanitizeTags(tags, s.TagLimits)
+	if len(cleanTags) == 0 {
+		return nil, ErrNoTags
+	}
 
 	updatedObject, err := s.ObjectRepository.UpdateObjectTags(ctx, userId, objectId, cleanTags)
 	if err != nil {

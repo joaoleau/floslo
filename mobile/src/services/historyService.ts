@@ -30,7 +30,6 @@ interface AttemptRow {
   is_correct: number | null;
   wrong_attempts: number;
   answered_at: number;
-  time_spent_ms: number | null;
   source_object_key: string | null;
   source_page: number | null;
 }
@@ -58,7 +57,6 @@ function mapAttemptRow(row: AttemptRow): AttemptEntry {
     isCorrect: row.is_correct === null ? null : row.is_correct === 1,
     wrongAttempts: row.wrong_attempts,
     answeredAt: row.answered_at,
-    timeSpentMs: row.time_spent_ms,
     sourceObjectKey: row.source_object_key,
     sourcePage: row.source_page,
   };
@@ -89,8 +87,8 @@ export const historyService = {
       `INSERT INTO attempts (
          id, session_id, user_id, challenge_type, tag, language,
          prompt_text, explanation_text, options_json, is_correct, wrong_attempts, answered_at,
-         time_spent_ms, source_object_key, source_page
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         source_object_key, source_page
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         generateId(),
         input.sessionId,
@@ -104,7 +102,6 @@ export const historyService = {
         input.isCorrect === null ? null : input.isCorrect ? 1 : 0,
         input.wrongAttempts,
         Date.now(),
-        input.timeSpentMs,
         input.sourceObjectKey,
         input.sourcePage,
       ]

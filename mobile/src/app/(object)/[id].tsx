@@ -94,6 +94,11 @@ export default function ObjectDetails() {
 
   async function handleSave() {
     if (!object) return;
+    // Os desafios saem da busca pelas tags: sem nenhuma, o documento não fornece conteúdo.
+    if (tags.length === 0) {
+      showAlert('Adicione uma tag', 'O documento precisa de pelo menos uma tag para gerar desafios.');
+      return;
+    }
     try {
       await updateTagsMutation.mutateAsync({ id: object.id, tags });
       router.back();
@@ -265,6 +270,11 @@ export default function ObjectDetails() {
 
               <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
+                {isEditable && tags.length === 0 && (
+                  <Text className="text-sm text-muted-foreground">
+                    Sem tags, este documento não gera desafios. Adicione pelo menos uma.
+                  </Text>
+                )}
               </ScrollView>
             </Card>
 
