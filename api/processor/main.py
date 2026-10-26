@@ -66,9 +66,7 @@ try:
         chunk_service=chunk_service,
         dynamo_service=dynamo_service,
         tag_refiner=tag_refiner_service,
-        tag_refiner_max_candidates=cfg.tag_refiner_max_candidates,
         tag_max_length=cfg.tag_max_length,
-        tag_window_chars=cfg.tag_window_chars,
     )
     processor = ProcessorHandler(config_handler)
 

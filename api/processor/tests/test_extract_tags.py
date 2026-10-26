@@ -1,7 +1,7 @@
 import importlib.util
 import pathlib
 import unittest
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from unittest.mock import MagicMock
 import sys
 
@@ -54,14 +54,6 @@ class FakeTagService:
         return self.result
 
 
-@dataclass
-class FakeTagCandidates:
-    calls: list = field(default_factory=list)
-
-    def add_page(self, tags, language=None):
-        self.calls.append((list(tags), language))
-
-
 def make_handler(tag_service):
     config = _handler_module.HandlerData(
         s3_service=None,
@@ -76,28 +68,31 @@ def make_handler(tag_service):
 
 
 class ExtractTagsTests(unittest.TestCase):
-    def test_extracts_tags_from_the_given_text_and_returns_the_language(self):
+    def test_extracts_the_candidates_of_the_whole_text_and_returns_the_language(self):
         tags = [FakeTag("hash"), FakeTag("grafo")]
         tag_service = FakeTagService(result=FakeTagResult(language="pt", tags=tags))
         handler = make_handler(tag_service)
-        candidates = FakeTagCandidates()
 
-        language = handler._extract_tags("obj-key", 5, "texto da janela", candidates)
+        language, candidates = handler._extract_tags("obj-key", "texto do documento inteiro")
 
         self.assertEqual(language, "pt")
-        self.assertEqual(tag_service.texts_received, ["texto da janela"])
-        self.assertEqual(candidates.calls, [(tags, "pt")])
+        self.assertEqual(candidates, ["hash", "grafo"])
+        self.assertEqual(tag_service.texts_received, ["texto do documento inteiro"])
 
-    def test_a_failed_extraction_still_counts_the_position_and_returns_unknown(self):
+    def test_a_failed_extraction_returns_unknown_and_no_candidates(self):
         tag_service = FakeTagService(error=RuntimeError("boom"))
         handler = make_handler(tag_service)
-        candidates = FakeTagCandidates()
 
         with self.assertLogs(_handler_module.logger.name, level="ERROR"):
-            language = handler._extract_tags("obj-key", 12, "texto", candidates)
+            language, candidates = handler._extract_tags("obj-key", "texto")
 
         self.assertEqual(language, "unknown")
-        self.assertEqual(candidates.calls, [([], None)])
+        self.assertEqual(candidates, [])
+
+    def test_the_handler_no_longer_has_windows_or_bands(self):
+        source = _HANDLER.read_text(encoding="utf-8")
+        for removed in ("TagWindowBuffer", "TagCandidates", "TAG_WINDOW_CHARS", "TAG_REFINER_MAX_CANDIDATES", "bands("):
+            self.assertNotIn(removed, source)
 
 
 if __name__ == "__main__":

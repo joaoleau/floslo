@@ -70,10 +70,10 @@ class BedrockTagRefinerTests(unittest.TestCase):
         tags, _ = refine('```json\n{"tags": ["dijkstra"]}\n```')
         self.assertEqual(tags, ["dijkstra"])
 
-    def test_the_request_caps_the_answer_of_a_band(self):
+    def test_the_request_caps_the_answer(self):
         _, bedrock = refine('{"tags": ["dijkstra"]}')
         self.assertEqual(bedrock.requests[0]["inferenceConfig"]["max_new_tokens"], tag_refiner.MAX_NEW_TOKENS)
-        # Folga grande para as poucas dezenas de tags de uma faixa, sem pagar um laço inteiro.
+        # Folga para as tags do documento inteiro, sem pagar um laço inteiro.
         self.assertGreaterEqual(tag_refiner.MAX_NEW_TOKENS, 1000)
 
     def test_a_truncated_answer_keeps_the_complete_tags(self):
@@ -208,14 +208,15 @@ class PromptTests(unittest.TestCase):
         self.assertIn("in Portuguese", sent)
         self.assertIn("livro.pdf", sent)
 
-    def test_the_prompt_says_the_candidates_are_one_part_of_the_document(self):
+    def test_the_prompt_says_the_candidates_come_from_the_whole_document(self):
         instructions = self.prompt(["hash"]).split("CANDIDATES:")[0]
-        self.assertIn("ONE PART of it", instructions)
+        self.assertIn("come from the whole document", instructions)
+        self.assertNotIn("ONE PART", instructions)
 
     def test_the_prompt_does_not_fix_a_number_of_tags(self):
         prompt = self.prompt([f"c{index}" for index in range(300)])
         instructions = prompt.split("CANDIDATES:")[0].lower()
-        self.assertIn("as many tags as this part really has", instructions)
+        self.assertIn("as many tags as the document really has", instructions)
         self.assertNotRegex(instructions, r"\b(top|exactly|at most|up to|between)\b")
         self.assertNotRegex(instructions, r"\d+\s+(tags|keywords|concepts)")
 
@@ -241,76 +242,57 @@ class PromptTests(unittest.TestCase):
 
 
 class RecordingClient:
-    """Devolve, a cada chamada, o próximo item de `answers` (None simula uma faixa que falhou)."""
+    """Devolve `answer` (None simula uma chamada que falhou) e guarda o que recebeu."""
 
-    def __init__(self, answers):
-        self.answers = list(answers)
-        self.bands_received: list[list[str]] = []
+    def __init__(self, answer):
+        self.answer = answer
+        self.calls: list[list[str]] = []
 
     def refine(self, candidates, context=None):
-        self.bands_received.append(list(candidates))
-        return self.answers.pop(0) if self.answers else None
+        self.calls.append(list(candidates))
+        return self.answer
 
 
 class TagRefinerServiceTests(unittest.TestCase):
-    def test_it_calls_the_client_once_per_band_and_joins_the_answers(self):
-        client = RecordingClient([["dijkstra"], ["tabela hash"], ["grafos"]])
+    def test_it_calls_the_client_once_with_every_candidate(self):
+        client = RecordingClient(["dijkstra", "tabela hash", "grafos"])
         service = TagRefinerService(TagRefinerData(), client)
 
         with silenced():
-            tags = service.refine([["a", "b"], ["c"], ["d", "e"]])
+            tags = service.refine(["a", "b", "c", "d"])
 
         self.assertEqual(tags, ["dijkstra", "tabela hash", "grafos"])
-        self.assertEqual(client.bands_received, [["a", "b"], ["c"], ["d", "e"]])
+        self.assertEqual(client.calls, [["a", "b", "c", "d"]])
 
-    def test_the_same_tag_in_two_bands_is_kept_once(self):
-        client = RecordingClient([["hash", "grafos"], ["Hash", " grafos ", "árvores"]])
+    def test_the_same_tag_repeated_in_the_answer_is_kept_once(self):
+        client = RecordingClient(["hash", "grafos", "Hash", " grafos ", "árvores"])
         service = TagRefinerService(TagRefinerData(), client)
 
         with silenced():
-            tags = service.refine([["a"], ["b"]])
+            tags = service.refine(["a"])
 
         self.assertEqual(tags, ["hash", "grafos", "árvores"])
 
-    def test_a_band_that_fails_is_skipped_and_the_others_still_count(self):
-        client = RecordingClient([["hash"], None, ["grafos"]])
-        service = TagRefinerService(TagRefinerData(), client)
+    def test_a_failed_call_falls_back_to_the_candidates(self):
+        service = TagRefinerService(TagRefinerData(), RecordingClient(None))
 
         with silenced():
-            tags = service.refine([["a"], ["b"], ["c"]])
-
-        self.assertEqual(tags, ["hash", "grafos"])
-
-    def test_only_when_every_band_fails_the_document_falls_back_to_the_candidates(self):
-        client = RecordingClient([None, None])
-        service = TagRefinerService(TagRefinerData(), client)
-
-        with silenced():
-            tags = service.refine([["a", "b"], ["c"]])
+            tags = service.refine(["a", "b", "c"])
 
         self.assertEqual(tags, ["a", "b", "c"])
 
-    def test_empty_bands_are_not_sent_to_the_client(self):
-        client = RecordingClient([["hash"]])
-        service = TagRefinerService(TagRefinerData(), client)
-
-        with silenced():
-            service.refine([[], ["a"], []])
-
-        self.assertEqual(client.bands_received, [["a"]])
-
     def test_the_service_caps_the_refined_tags_at_max_tags(self):
-        client = RecordingClient([[f"t{index}" for index in range(20)]])
+        client = RecordingClient([f"t{index}" for index in range(20)])
         service = TagRefinerService(TagRefinerData(enabled=True, max_tags=5), client)
 
         with silenced():
-            self.assertEqual(service.refine([["a"]]), [f"t{index}" for index in range(5)])
+            self.assertEqual(service.refine(["a"]), [f"t{index}" for index in range(5)])
 
     def test_the_fallback_is_capped_at_max_tags_too(self):
-        service = TagRefinerService(TagRefinerData(enabled=True, max_tags=2), RecordingClient([None]))
+        service = TagRefinerService(TagRefinerData(enabled=True, max_tags=2), RecordingClient(None))
 
         with silenced():
-            self.assertEqual(service.refine([["a", "b", "c", "d"]]), ["a", "b"])
+            self.assertEqual(service.refine(["a", "b", "c", "d"]), ["a", "b"])
 
     def test_the_default_cap_is_200(self):
         self.assertEqual(TagRefinerData().max_tags, 200)
@@ -325,23 +307,22 @@ class TagRefinerServiceTests(unittest.TestCase):
 
         context = DocumentContext(language="en")
         with silenced():
-            TagRefinerService(TagRefinerData(), ContextClient()).refine([["x"]], context)
+            TagRefinerService(TagRefinerData(), ContextClient()).refine(["x"], context)
         self.assertIs(received["context"], context)
 
     def test_a_disabled_refiner_returns_the_candidates_untouched(self):
-        client = RecordingClient([["dijkstra"]])
+        client = RecordingClient(["dijkstra"])
         service = TagRefinerService(TagRefinerData(enabled=False), client)
 
-        self.assertEqual(service.refine([["a", "b"], ["c"]]), ["a", "b", "c"])
-        self.assertEqual(client.bands_received, [])
+        self.assertEqual(service.refine(["a", "b", "c"]), ["a", "b", "c"])
+        self.assertEqual(client.calls, [])
 
     def test_no_candidates_at_all_means_no_call(self):
-        client = RecordingClient([["dijkstra"]])
+        client = RecordingClient(["dijkstra"])
         service = TagRefinerService(TagRefinerData(), client)
 
         self.assertEqual(service.refine([]), [])
-        self.assertEqual(service.refine([[], []]), [])
-        self.assertEqual(client.bands_received, [])
+        self.assertEqual(client.calls, [])
 
 
 if __name__ == "__main__":

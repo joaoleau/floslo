@@ -9,10 +9,8 @@ from services import (
     EmbeddingService,
     DocumentContext,
     S3Service,
-    TagCandidates,
     TagService,
     TagRefinerService,
-    TagWindowBuffer,
     VectorObject,
     VectorMetadata,
     VectorService,
@@ -29,16 +27,9 @@ PDF_OCR_REQUIRED_MESSAGE = (
 )
 
 FAILED_OBJECT_TTL_MINUTES = 10
-# Padrões (variáveis TAG_MAX_LENGTH e TAG_REFINER_MAX_CANDIDATES). Tamanho máximo de uma tag, em
-# caracteres: o backend em Go usa a mesma variável (TAG_MAX_LENGTH) e corta tag maior numa edição.
+# Padrão de TAG_MAX_LENGTH. Tamanho máximo de uma tag, em caracteres: o backend em Go usa a
+# mesma variável e corta tag maior numa edição.
 MAX_TAG_LENGTH = 32
-# Teto de candidatas enviadas ao refinador. A lista sai intercalada por faixa do documento (ver
-# TagCandidates), então o corte tira de todas as partes do livro, não só do fim.
-TAG_REFINER_MAX_CANDIDATES = 1000
-# Padrão de TAG_WINDOW_CHARS: 0 extrai tags página por página; um valor positivo junta páginas
-# seguidas até esse tamanho antes de extrair (ver TagWindowBuffer), dando ao YAKE um texto maior
-# pra reconhecer um conceito que se repete.
-TAG_WINDOW_CHARS = 8000
 
 
 def _clip_tags(tags: list[str], max_length: int = MAX_TAG_LENGTH) -> list[str]:
@@ -65,9 +56,7 @@ class HandlerData:
     chunk_service: ChunkService
     dynamo_service: DynamoService
     tag_refiner: TagRefinerService
-    tag_refiner_max_candidates: int = TAG_REFINER_MAX_CANDIDATES
     tag_max_length: int = MAX_TAG_LENGTH
-    tag_window_chars: int = TAG_WINDOW_CHARS
 
 
 class ProcessorHandler:
@@ -79,9 +68,7 @@ class ProcessorHandler:
         self.chunk_service = config.chunk_service
         self.dynamo_service = config.dynamo_service
         self.tag_refiner = config.tag_refiner
-        self.tag_refiner_max_candidates = config.tag_refiner_max_candidates
         self.tag_max_length = config.tag_max_length
-        self.tag_window_chars = config.tag_window_chars
 
     def process_all(self, records: list[dict]) -> None:
         total_records = len(records)
@@ -152,26 +139,15 @@ class ProcessorHandler:
         try:
             total_pages = 0
             total_chunks = 0
-            tag_candidates = TagCandidates()
-            # None (TAG_WINDOW_CHARS=0) extrai tags de cada página sozinha; com um valor positivo,
-            # as páginas são acumuladas até esse tamanho antes de extrair (ver TagWindowBuffer).
-            tag_window = TagWindowBuffer(self.tag_window_chars) if self.tag_window_chars > 0 else None
+            # O texto de todas as páginas, para o YAKE ler o documento inteiro de uma vez no fim.
+            page_texts: list[str] = []
             vector_objects: list[VectorObject] = []
-
-            # Atualizado só quando uma extração de tags termina (a cada página, ou a cada janela
-            # fechada); os chunks embedados entre uma atualização e outra usam o último idioma
-            # conhecido -- o campo é só informativo (ver VectorMetadata), nenhuma busca filtra por
-            # ele, então essa imprecisão não tem efeito prático.
-            page_language = "unknown"
 
             for content in self.s3_service.get_file_content(bucket=bucket, key=object_key):
                 total_pages += 1
                 page = content.page
                 text = content.text
-
-                unit_text = tag_window.add(text) if tag_window is not None else text
-                if unit_text is not None:
-                    page_language = self._extract_tags(object_key, page, unit_text, tag_candidates)
+                page_texts.append(text)
 
                 for chunk in self.chunk_service.chunk(text):
                     total_chunks += 1
@@ -188,7 +164,8 @@ class ProcessorHandler:
                         object_key=object_key,
                         page=page,
                         chunk_index=chunk.index,
-                        language=page_language,
+                        # Preenchido com o idioma do documento depois da extração de tags.
+                        language="unknown",
                         chunk=chunk.text
                     )
 
@@ -196,27 +173,23 @@ class ProcessorHandler:
                         VectorObject(chunk=chunk, embedding=embedding_result.vector, metadata=metadata)
                     )
 
-            if tag_window is not None:
-                remainder = tag_window.flush()
-                if remainder is not None:
-                    self._extract_tags(object_key, total_pages, remainder, tag_candidates)
-
             if not vector_objects:
                 raise RuntimeError(f"No vectors generated for s3://{bucket}/{object_key}")
 
-            # Uma chamada ao refinador por faixa do documento, não uma com tudo: assim a
-            # cobertura não depende de o modelo chegar ao fim de uma lista gigante.
-            bands = tag_candidates.bands(self.tag_refiner_max_candidates)
+            # O YAKE roda uma vez sobre o texto do documento inteiro, e as candidatas vão ao
+            # refinador numa chamada só.
+            language, candidates = self._extract_tags(object_key, "\n".join(page_texts))
+            for vector_object in vector_objects:
+                vector_object.metadata.language = language
+
             refiner_context = DocumentContext(
-                language=tag_candidates.dominant_language(),
+                language=language if language != "unknown" else None,
                 filename=object_name,
             )
             logger.info(
-                f"[{object_key}] Tag candidates: {len(tag_candidates)} unique, "
-                f"{sum(len(band) for band in bands)} sent to the refiner in {len(bands)} band(s), "
-                f"language={refiner_context.language}."
+                f"[{object_key}] Tag candidates: {len(candidates)} sent to the refiner, language={language}."
             )
-            refined_tags = self.tag_refiner.refine(bands, refiner_context)
+            refined_tags = self.tag_refiner.refine(candidates, refiner_context)
             refined_tags = _clip_tags(refined_tags, self.tag_max_length)
 
             vector_save_result = self.vector_service.save(vector_objects, object_id=object_id)
@@ -261,18 +234,16 @@ class ProcessorHandler:
                 vector_ids=vector_save_result.vector_ids if vector_save_result else [],
             )
 
-    def _extract_tags(self, object_key: str, page: int, text: str, tag_candidates: TagCandidates) -> str:
-        """Extrai as tags de uma unidade de texto (uma página, ou uma janela de várias páginas) e
-        as acrescenta a `tag_candidates`. Devolve o idioma detectado, ou "unknown" se a extração
-        falhar -- nesse caso a unidade ainda conta na posição do documento, só sem candidatas."""
+    def _extract_tags(self, object_key: str, text: str) -> tuple[str, list[str]]:
+        """Extrai as candidatas do texto do documento inteiro. Devolve o idioma detectado e as
+        candidatas, ou ("unknown", []) se a extração falhar: o documento ainda é indexado, só
+        sem tags."""
         try:
             tag_result = self.tag_service.get_tags(text)
-            tag_candidates.add_page(tag_result.tags, tag_result.language)
-            return tag_result.language
+            return tag_result.language, [tag.value for tag in tag_result.tags]
         except Exception:
-            logger.exception(f"[{object_key}] Failed extracting tags ending at page={page}")
-            tag_candidates.add_page([])
-            return "unknown"
+            logger.exception(f"[{object_key}] Failed extracting tags from the document")
+            return "unknown", []
 
     def _handle_ingestion_failure(
         self,

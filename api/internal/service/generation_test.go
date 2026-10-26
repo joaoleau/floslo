@@ -10,6 +10,7 @@ func testSlots(count int, withSupport bool) []GenerationSlot {
 	slots := make([]GenerationSlot, count)
 	for i := range slots {
 		slots[i].Main = RetrievedChunk{Key: fmt.Sprintf("vec_obj_abc_1_%d", i*2), Content: fmt.Sprintf("main passage %d", i+1)}
+		slots[i].Tag = fmt.Sprintf("tag %d", i+1)
 		if withSupport {
 			slots[i].Support = &RetrievedChunk{Key: fmt.Sprintf("vec_obj_abc_1_%d", i*2+1), Content: fmt.Sprintf("support passage %d", i+1)}
 		}
@@ -88,7 +89,7 @@ func TestItemsFromResponseBindsItemsToSlotsByPosition(t *testing.T) {
 	slots := testSlots(3, true)
 	raw := fmt.Sprintf(`{"multiple_choices":[%s,%s,%s]}`, multipleChoiceJSON("q1", 1), multipleChoiceJSON("q2", 1), multipleChoiceJSON("q3", 1))
 
-	items, err := itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots, []string{"topic"})
+	items, err := itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -97,6 +98,9 @@ func TestItemsFromResponseBindsItemsToSlotsByPosition(t *testing.T) {
 		t.Fatalf("got %d items, want 3", len(items))
 	}
 	for i, item := range items {
+		if item.Tag != slots[i].Tag {
+			t.Errorf("item %d tag = %q, want the tag of its slot %q", i, item.Tag, slots[i].Tag)
+		}
 		if len(item.SourceChunks) != 2 || item.SourceChunks[0].Key != slots[i].Main.Key || item.SourceChunks[1].Key != slots[i].Support.Key {
 			t.Errorf("item %d sources = %+v, want the slot's main and support chunks", i, item.SourceChunks)
 		}
@@ -109,7 +113,7 @@ func TestItemsFromResponseBindsItemsToSlotsByPosition(t *testing.T) {
 func TestItemsFromResponseWithoutSupport(t *testing.T) {
 	slots := testSlots(1, false)
 
-	items, err := itemsFromResponse[GeneratedMultipleChoice](`{"multiple_choices":[`+multipleChoiceJSON("q1", 1)+`]}`, "multiple_choices", slots, nil)
+	items, err := itemsFromResponse[GeneratedMultipleChoice](`{"multiple_choices":[`+multipleChoiceJSON("q1", 1)+`]}`, "multiple_choices", slots)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -118,46 +122,28 @@ func TestItemsFromResponseWithoutSupport(t *testing.T) {
 	}
 }
 
-func TestItemsFromResponseDoesNotBindWhenTheCountIsWrong(t *testing.T) {
-	tests := []struct {
-		name      string
-		returned  int
-		wantItems int
-	}{
-		{name: "fewer than requested", returned: 2, wantItems: 2},
-		{name: "more than requested is truncated", returned: 5, wantItems: 3},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+func TestItemsFromResponseDiscardsTheTypeWhenTheCountIsWrong(t *testing.T) {
+	for _, returned := range []int{2, 5} {
+		t.Run(fmt.Sprintf("%d items for 3 slots", returned), func(t *testing.T) {
 			slots := testSlots(3, true)
-			multiple_choices := make([]string, tt.returned)
-			for i := range multiple_choices {
-				multiple_choices[i] = multipleChoiceJSON(fmt.Sprintf("q%d", i+1), 1)
+			multipleChoices := make([]string, returned)
+			for i := range multipleChoices {
+				multipleChoices[i] = multipleChoiceJSON(fmt.Sprintf("q%d", i+1), 1)
 			}
 
-			items, err := itemsFromResponse[GeneratedMultipleChoice](`{"multiple_choices":[`+strings.Join(multiple_choices, ",")+`]}`, "multiple_choices", slots, nil)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			if len(items) != tt.wantItems {
-				t.Fatalf("got %d items, want %d", len(items), tt.wantItems)
-			}
-			for i, item := range items {
-				if len(item.SourceChunks) != 6 {
-					t.Errorf("item %d should list every chunk of the call, got %d", i, len(item.SourceChunks))
-				}
+			items, err := itemsFromResponse[GeneratedMultipleChoice](`{"multiple_choices":[`+strings.Join(multipleChoices, ",")+`]}`, "multiple_choices", slots)
+			if err == nil || items != nil {
+				t.Errorf("got %d items (err %v), want an error and no items: the slot of each item is unknown", len(items), err)
 			}
 		})
 	}
 }
 
-func TestItemsFromResponseDropsUnusableItemsAndDoesNotBind(t *testing.T) {
+func TestItemsFromResponseDropsUnusableItemsAndKeepsTheOthersOnTheirSlots(t *testing.T) {
 	slots := testSlots(3, false)
 	raw := fmt.Sprintf(`{"multiple_choices":[%s,%s,%s]}`, multipleChoiceJSON("q1", 1), multipleChoiceJSON("two correct answers", 2), multipleChoiceJSON("q3", 1))
 
-	items, err := itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots, nil)
+	items, err := itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -165,9 +151,12 @@ func TestItemsFromResponseDropsUnusableItemsAndDoesNotBind(t *testing.T) {
 	if len(items) != 2 || items[0].Question != "q1" || items[1].Question != "q3" {
 		t.Fatalf("items = %+v, want q1 and q3", items)
 	}
+	if items[1].SourceChunks[0].Key != slots[2].Main.Key || items[1].Tag != slots[2].Tag {
+		t.Errorf("q3 is bound to %+v with tag %q, want the third slot", items[1].SourceChunks, items[1].Tag)
+	}
 	for _, item := range items {
-		if len(item.SourceChunks) != len(slots) {
-			t.Errorf("positions shifted, so %q must list every chunk of the call", item.Question)
+		if len(item.SourceChunks) != 1 {
+			t.Errorf("%q has %d sources, want only its own chunk", item.Question, len(item.SourceChunks))
 		}
 	}
 }
@@ -176,21 +165,21 @@ func TestItemsFromResponseFailsWhenNothingIsUsable(t *testing.T) {
 	slots := testSlots(2, false)
 	raw := fmt.Sprintf(`{"multiple_choices":[%s,%s]}`, multipleChoiceJSON("no correct answer", 0), multipleChoiceJSON("", 1))
 
-	if _, err := itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots, nil); err == nil {
+	if _, err := itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots); err == nil {
 		t.Error("expected an error when every item is unusable")
 	}
 }
 
-func TestItemsFromResponseFillsAMissingTagWithTheFirstTopic(t *testing.T) {
+func TestItemsFromResponseTakesTheTagFromTheSlotAndNotFromTheModel(t *testing.T) {
 	slots := testSlots(1, false)
-	raw := `{"discoveries":[{"title":"X","content":"X is Y."}]}`
+	raw := `{"discoveries":[{"title":"X","content":"X is Y.","tag":"chosen by the model"}]}`
 
-	items, err := itemsFromResponse[GeneratedDiscovery](raw, "discoveries", slots, []string{"topic one", "topic two"})
+	items, err := itemsFromResponse[GeneratedDiscovery](raw, "discoveries", slots)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if items[0].Tag != "topic one" {
-		t.Errorf("tag = %q, want the first topic", items[0].Tag)
+	if items[0].Tag != slots[0].Tag {
+		t.Errorf("tag = %q, want the slot tag %q", items[0].Tag, slots[0].Tag)
 	}
 }
 
@@ -198,7 +187,7 @@ func TestItemsFromResponseAcceptsABareArray(t *testing.T) {
 	slots := testSlots(2, false)
 	raw := `[{"statement":"A is true","answer":true,"explanation":"e","tag":"t"},{"statement":"B is false","answer":false,"explanation":"e","tag":"t"}]`
 
-	items, err := itemsFromResponse[GeneratedTrueFalse](raw, "items", slots, nil)
+	items, err := itemsFromResponse[GeneratedTrueFalse](raw, "items", slots)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -210,14 +199,14 @@ func TestItemsFromResponseAcceptsABareArray(t *testing.T) {
 func TestItemsFromResponseValidatesEachType(t *testing.T) {
 	slots := testSlots(1, false)
 
-	if _, err := itemsFromResponse[GeneratedDiscovery](`{"discoveries":[{"title":"hook","content":""}]}`, "discoveries", slots, nil); err == nil {
+	if _, err := itemsFromResponse[GeneratedDiscovery](`{"discoveries":[{"title":"hook","content":""}]}`, "discoveries", slots); err == nil {
 		t.Error("a discovery without content should be dropped")
 	}
-	if _, err := itemsFromResponse[GeneratedTrueFalse](`{"items":[{"statement":"","answer":true}]}`, "items", slots, nil); err == nil {
+	if _, err := itemsFromResponse[GeneratedTrueFalse](`{"items":[{"statement":"","answer":true}]}`, "items", slots); err == nil {
 		t.Error("a true/false item without a statement should be dropped")
 	}
 
-	discoveries, err := itemsFromResponse[GeneratedDiscovery](`{"discoveries":[{"content":"a fact without a hook"}]}`, "discoveries", slots, nil)
+	discoveries, err := itemsFromResponse[GeneratedDiscovery](`{"discoveries":[{"content":"a fact without a hook"}]}`, "discoveries", slots)
 	if err != nil || len(discoveries) != 1 {
 		t.Errorf("a discovery without a title is still usable, got (%v, %v)", discoveries, err)
 	}
@@ -238,17 +227,16 @@ func TestSlotsPromptText(t *testing.T) {
 
 func TestPromptsCarryTheSlotsAndNeverLeakIdsOrDifficulty(t *testing.T) {
 	slots := testSlots(2, true)
-	tags := []string{"cell biology"}
 
 	prompts := map[string]string{
-		"multiple choice": multipleChoicePrompt("pt", slots, tags),
-		"true/false":      trueFalsePrompt("pt", slots, tags),
-		"discovery":       discoveryPrompt("pt", slots, tags),
+		"multiple choice": multipleChoicePrompt("pt", slots),
+		"true/false":      trueFalsePrompt("pt", slots),
+		"discovery":       discoveryPrompt("pt", slots),
 	}
 
 	for name, prompt := range prompts {
 		t.Run(name, func(t *testing.T) {
-			for _, want := range []string{"EXACTLY 2", "SLOT 1", "SLOT 2", "main passage 1", "support passage 2", "- cell biology", "Portuguese (pt-BR)"} {
+			for _, want := range []string{"EXACTLY 2", "SLOT 1", "SLOT 2", "main passage 1", "support passage 2", "Portuguese (pt-BR)"} {
 				if !strings.Contains(prompt, want) {
 					t.Errorf("prompt is missing %q", want)
 				}
@@ -258,6 +246,9 @@ func TestPromptsCarryTheSlotsAndNeverLeakIdsOrDifficulty(t *testing.T) {
 			}
 			if strings.Contains(prompt, "vec_") {
 				t.Error("the prompt must not contain chunk ids")
+			}
+			if strings.Contains(prompt, `"tag"`) || strings.Contains(prompt, "TOPICS") {
+				t.Error("the tag of each item comes from the server, the prompt must not ask for it")
 			}
 			if strings.Contains(prompt, "%!") {
 				t.Errorf("the prompt has a formatting error:\n%s", prompt)

@@ -43,46 +43,15 @@ func TestIsUsableFocus(t *testing.T) {
 	}
 }
 
-func TestPromptTopics(t *testing.T) {
-	objects := []*model.Object{
-		{Tags: []string{"a", "b", "c", "d", "e", "f"}},
-		{Tags: []string{"g", "h", "i", "j", "k", "l", "a"}},
-	}
-
-	topics := promptTopics([]string{"b", "z"}, objects)
-
-	if len(topics) != maxPromptTopics {
-		t.Fatalf("got %d topics, want %d", len(topics), maxPromptTopics)
-	}
-	if topics[0] != "b" || topics[1] != "z" {
-		t.Errorf("the searched tags should come first, got %v", topics)
-	}
-	seen := map[string]bool{}
-	for _, topic := range topics {
-		if seen[topic] {
-			t.Errorf("topic %q is repeated in %v", topic, topics)
-		}
-		seen[topic] = true
-	}
-}
-
-func TestPromptTopicsWithFewTagsReturnsAllOfThem(t *testing.T) {
-	topics := promptTopics(nil, []*model.Object{{Tags: []string{"only", "two"}}})
-
-	if len(topics) != 2 {
-		t.Errorf("got %v, want the two available tags", topics)
-	}
-}
-
 func TestBuildGenerationSlots(t *testing.T) {
 	available := map[string]RetrievedChunk{}
 	for _, key := range []string{"vec_obj_a_1_0", "vec_obj_a_1_1", "vec_obj_a_1_2", "vec_obj_a_1_4", "vec_obj_a_1_5", "vec_obj_a_1_6"} {
 		available[key] = RetrievedChunk{Key: key, Content: "content of " + key}
 	}
 	selected := []SelectedSlot{
-		{ChallengerIndex: 0, Chunk: available["vec_obj_a_1_0"]},
-		{ChallengerIndex: 0, Chunk: available["vec_obj_a_1_1"]},
-		{ChallengerIndex: 1, Chunk: available["vec_obj_a_1_5"]},
+		{ChallengerIndex: 0, Chunk: available["vec_obj_a_1_0"], Tag: "t0"},
+		{ChallengerIndex: 0, Chunk: available["vec_obj_a_1_1"], Tag: "t1"},
+		{ChallengerIndex: 1, Chunk: available["vec_obj_a_1_5"], Tag: "t5"},
 	}
 
 	slots := buildGenerationSlots(selected, available)
@@ -104,6 +73,11 @@ func TestBuildGenerationSlots(t *testing.T) {
 	if slots[2].challengerIndex != 1 {
 		t.Errorf("the third slot belongs to challenger %d, want 1", slots[2].challengerIndex)
 	}
+	for i, want := range []string{"t0", "t1", "t5"} {
+		if slots[i].slot.Tag != want {
+			t.Errorf("slot %d tag = %q, want %q (the tag that found its chunk)", i, slots[i].slot.Tag, want)
+		}
+	}
 }
 
 func TestAssignSlotsFillsEveryItemInChallengerOrder(t *testing.T) {
@@ -111,15 +85,15 @@ func TestAssignSlotsFillsEveryItemInChallengerOrder(t *testing.T) {
 		{ChallengeType: model.ChallengeTypeMultipleChoice, MultipleChoice: &model.MultipleChoiceChallengeConfig{QuestionCount: 2}},
 		{ChallengeType: model.ChallengeTypeDiscovery, Discovery: &model.DiscoveryChallengeConfig{DiscoveryCount: 1}},
 	}
-	chunks := []RetrievedChunk{{Key: "c1"}, {Key: "c2"}, {Key: "c3"}, {Key: "c4"}}
+	chunks := foundChunks("c1", "c2", "c3", "c4")
 
 	selected := assignSlots(challengers, chunks)
 
 	var got []string
 	for _, slot := range selected {
-		got = append(got, fmt.Sprintf("%d:%s", slot.ChallengerIndex, slot.Chunk.Key))
+		got = append(got, fmt.Sprintf("%d:%s:%s", slot.ChallengerIndex, slot.Chunk.Key, slot.Tag))
 	}
-	if want := []string{"0:c1", "0:c2", "1:c3"}; !reflect.DeepEqual(got, want) {
+	if want := []string{"0:c1:tag-c1", "0:c2:tag-c2", "1:c3:tag-c3"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("slots = %v, want %v", got, want)
 	}
 }
@@ -129,7 +103,7 @@ func TestAssignSlotsRepeatsChunksWhenTheDocumentIsSmall(t *testing.T) {
 		{ChallengeType: model.ChallengeTypeMultipleChoice, MultipleChoice: &model.MultipleChoiceChallengeConfig{QuestionCount: 3}},
 		{ChallengeType: model.ChallengeTypeTrueFalse, TrueFalse: &model.TrueFalseChallengeConfig{QuestionCount: 2}},
 	}
-	chunks := []RetrievedChunk{{Key: "c1"}, {Key: "c2"}}
+	chunks := foundChunks("c1", "c2")
 
 	selected := assignSlots(challengers, chunks)
 
@@ -185,12 +159,21 @@ func chunkOfObject(objectKey string, page int, key string) RetrievedChunk {
 	}
 }
 
-func chunkKeysOf(chunks []RetrievedChunk) []string {
+func chunkKeysOf(chunks []foundChunk) []string {
 	keys := make([]string, len(chunks))
-	for i, chunk := range chunks {
-		keys[i] = chunk.Key
+	for i, found := range chunks {
+		keys[i] = found.chunk.Key
 	}
 	return keys
+}
+
+// foundChunks cria chunks foco com a tag "tag-<chave>", para conferir que a tag acompanha o chunk.
+func foundChunks(keys ...string) []foundChunk {
+	found := make([]foundChunk, len(keys))
+	for i, key := range keys {
+		found[i] = foundChunk{chunk: RetrievedChunk{Key: key}, tag: "tag-" + key}
+	}
+	return found
 }
 
 func sortedKeys(keys []string) []string {
@@ -199,15 +182,11 @@ func sortedKeys(keys []string) []string {
 	return sorted
 }
 
-// searchByTag responde cada tag do grupo com os chunks combinados para ela, e registra as buscas.
+// searchByTag responde cada tag com os chunks combinados para ela, e registra as buscas.
 func searchByTag(perTag map[string][]RetrievedChunk, searched *[]string) newChunkSearch {
-	return func(_ context.Context, _ *model.Object, tags []string) ([][]RetrievedChunk, error) {
-		var results [][]RetrievedChunk
-		for _, tag := range tags {
-			*searched = append(*searched, tag)
-			results = append(results, perTag[tag])
-		}
-		return results, nil
+	return func(_ context.Context, _ *model.Object, tag string) ([]RetrievedChunk, error) {
+		*searched = append(*searched, tag)
+		return perTag[tag], nil
 	}
 }
 
@@ -219,114 +198,72 @@ func countByPrefix(keys []string) map[string]int {
 	return counts
 }
 
-func TestFuseByConsensusPutsTheChunkMostTagsAgreeOnFirst(t *testing.T) {
-	// "ruido" é o primeiro da sua tag, mas só uma tag o encontrou; "acordo" é o segundo de duas.
-	perTag := [][]RetrievedChunk{
-		{chunkOn(1, "ruido"), chunkOn(2, "acordo")},
-		{chunkOn(3, "outro"), chunkOn(2, "acordo")},
-	}
-
-	fused := fuseByConsensus(perTag)
-
-	if len(fused) == 0 || fused[0].Key != "acordo" {
-		t.Errorf("fused = %v, want acordo first (two tags point at it)", chunkKeysOf(fused))
-	}
-}
-
-func TestFuseByConsensusKeepsTheRankWhenNoChunkIsShared(t *testing.T) {
-	perTag := [][]RetrievedChunk{
-		{chunkOn(1, "a1"), chunkOn(2, "a2")},
-		{chunkOn(11, "b1")},
-	}
-
-	fused := chunkKeysOf(fuseByConsensus(perTag))
-
-	// a1 e b1 são os primeiros das suas tags (mesma pontuação): fica a ordem de chegada. a2 é
-	// segundo, então vem depois dos dois.
-	if !reflect.DeepEqual(fused, []string{"a1", "b1", "a2"}) {
-		t.Errorf("fused = %v, want the first of each tag before the second of any", fused)
-	}
-}
-
-func TestFuseByConsensusHandlesEmptyInput(t *testing.T) {
-	if fused := fuseByConsensus(nil); len(fused) != 0 {
-		t.Errorf("fused = %v, want nothing", chunkKeysOf(fused))
-	}
-}
-
-func TestPlanTagGroupsSplitsTheTagsIntoGroups(t *testing.T) {
+func TestPlanTagSearchesPlansOneSearchPerTagWithoutRepeating(t *testing.T) {
 	object := activeObject("o1", "a", "b", "c", "d", "e", "f", "g")
 
-	groups := planTagGroups([]*model.Object{object}, 2)
+	searches := planTagSearches([]*model.Object{object}, 4)
 
-	if len(groups) != 2 {
-		t.Fatalf("planned %d groups, want 2", len(groups))
+	if len(searches) != 4 {
+		t.Fatalf("planned %d searches, want 4", len(searches))
 	}
 	seen := map[string]bool{}
-	for _, group := range groups {
-		if len(group.tags) != tagsPerGroup {
-			t.Errorf("group %v has %d tags, want %d", group.tags, len(group.tags), tagsPerGroup)
+	for _, search := range searches {
+		if seen[search.tag] {
+			t.Errorf("tag %q is searched twice", search.tag)
 		}
-		for _, tag := range group.tags {
-			if seen[tag] {
-				t.Errorf("tag %q is in more than one group", tag)
-			}
-			seen[tag] = true
-		}
-		if group.object != object {
-			t.Errorf("group %v points to another object", group.tags)
+		seen[search.tag] = true
+		if search.object != object {
+			t.Errorf("search for %q points to another object", search.tag)
 		}
 	}
 }
 
-func TestPlanTagGroupsGivesTheLastGroupWhatIsLeft(t *testing.T) {
-	groups := planTagGroups([]*model.Object{activeObject("o1", "a", "b", "c", "d")}, 4)
-
-	if len(groups) != 2 || len(groups[0].tags) != 3 || len(groups[1].tags) != 1 {
-		t.Errorf("groups = %v, want one full group and one with the leftover tag", groups)
+func TestPlanTagSearchesStopsWhenTheTagsRunOut(t *testing.T) {
+	if searches := planTagSearches([]*model.Object{activeObject("o1", "a", "b")}, 4); len(searches) != 2 {
+		t.Errorf("planned %d searches, want one per available tag", len(searches))
 	}
 }
 
-func TestPlanTagGroupsDoesNotReorderTheObjectTags(t *testing.T) {
+func TestPlanTagSearchesDoesNotReorderTheObjectTags(t *testing.T) {
 	object := activeObject("o1", "a", "b", "c", "d", "e", "f")
 
-	planTagGroups([]*model.Object{object}, 2)
+	planTagSearches([]*model.Object{object}, 4)
 
 	if object.Tags[0] != "a" || object.Tags[5] != "f" {
 		t.Errorf("object tags were reordered: %v", object.Tags)
 	}
 }
 
-func TestPlanTagGroupsAlternatesBetweenObjects(t *testing.T) {
+func TestPlanTagSearchesAlternatesBetweenObjects(t *testing.T) {
 	many := activeObject("many", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9")
 	few := activeObject("few", "b1", "b2")
 
-	groups := planTagGroups([]*model.Object{many, few}, 4)
+	searches := planTagSearches([]*model.Object{many, few}, 4)
 
 	fromFew := 0
-	for _, group := range groups {
-		if group.object == few {
+	for _, search := range searches {
+		if search.object == few {
 			fromFew++
 		}
 	}
-	if len(groups) != 4 || fromFew != 1 {
-		t.Errorf("planned %d groups with %d from the smaller object, want 4 with 1", len(groups), fromFew)
+	if len(searches) != 4 || fromFew != 2 {
+		t.Errorf("planned %d searches with %d from the smaller object, want 4 with 2", len(searches), fromFew)
 	}
 }
 
-func TestPlanTagGroupsSkipsObjectsThatCannotBeSearched(t *testing.T) {
+func TestPlanTagSearchesSkipsObjectsThatCannotBeSearched(t *testing.T) {
 	objects := []*model.Object{
 		{Id: "processing", Status: "processing", Tags: []string{"a", "b"}},
 		{Id: "no-tags", Status: "active"},
 	}
 
-	if groups := planTagGroups(objects, 4); len(groups) != 0 {
-		t.Errorf("planned %+v, want nothing", groups)
+	if searches := planTagSearches(objects, 4); len(searches) != 0 {
+		t.Errorf("planned %+v, want nothing", searches)
 	}
 }
 
-func TestGatherNewChunksTakesOneChunkPerGroupBeforeASecondFromTheSameGroup(t *testing.T) {
-	// O defeito que isso cobre: antes tudo era ordenado por distância no geral, então o grupo com
+func TestGatherNewChunksTakesOneChunkPerTagBeforeASecondFromTheSameTag(t *testing.T) {
+	// O defeito que isso cobre: antes tudo era ordenado por distância no geral, então a tag com
 	// os chunks mais próximos entregava todas as vagas e o firing virava um assunto só.
 	perTag := map[string][]RetrievedChunk{
 		"a1": {chunkOn(1, "A1"), chunkOn(2, "A2"), chunkOn(3, "A3")},
@@ -334,7 +271,6 @@ func TestGatherNewChunksTakesOneChunkPerGroupBeforeASecondFromTheSameGroup(t *te
 		"c1": {chunkOn(21, "C1"), chunkOn(22, "C2"), chunkOn(23, "C3")},
 	}
 	var searched []string
-	// Uma tag por grupo: três grupos, um por objeto, para o teste não depender do sorteio.
 	objects := []*model.Object{activeObject("one", "a1"), activeObject("two", "b1"), activeObject("three", "c1")}
 
 	chunks, tags, err := gatherNewChunks(context.Background(), objects, 3, searchByTag(perTag, &searched))
@@ -344,34 +280,71 @@ func TestGatherNewChunksTakesOneChunkPerGroupBeforeASecondFromTheSameGroup(t *te
 
 	counts := countByPrefix(chunkKeysOf(chunks))
 	if len(chunks) != 3 || counts["A"] != 1 || counts["B"] != 1 || counts["C"] != 1 {
-		t.Errorf("chunks = %v, want one from each group", chunkKeysOf(chunks))
+		t.Errorf("chunks = %v, want one from each tag", chunkKeysOf(chunks))
 	}
 	if len(tags) != 3 {
 		t.Errorf("tags = %v, want the three tags searched", tags)
 	}
 }
 
-func TestGatherNewChunksLetsTheGroupConsensusChooseInsteadOfOneTag(t *testing.T) {
-	// "ruido" é o primeiro da sua tag, mas só ela o aponta; "acordo" é apontado por duas tags do
-	// mesmo grupo. Com uma vaga só, o consenso decide.
+func TestGatherNewChunksKeepsTheTagThatFoundEachChunk(t *testing.T) {
 	perTag := map[string][]RetrievedChunk{
-		"ruim":  {chunkOn(1, "ruido"), chunkOn(2, "acordo")},
-		"boa":   {chunkOn(3, "outro"), chunkOn(2, "acordo")},
-		"outra": {chunkOn(2, "acordo")},
+		"a1": {chunkOn(1, "A1")},
+		"b1": {chunkOn(11, "B1")},
 	}
 	var searched []string
+	objects := []*model.Object{activeObject("one", "a1"), activeObject("two", "b1")}
 
-	chunks, _, err := gatherNewChunks(context.Background(), []*model.Object{activeObject("o1", "ruim", "boa", "outra")}, 1, searchByTag(perTag, &searched))
-
-	if err != nil || !reflect.DeepEqual(chunkKeysOf(chunks), []string{"acordo"}) {
-		t.Errorf("chunks = %v (err %v), want the chunk the group agrees on", chunkKeysOf(chunks), err)
+	chunks, _, err := gatherNewChunks(context.Background(), objects, 2, searchByTag(perTag, &searched))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(searched) != 3 {
-		t.Errorf("searched %v, want the three tags of the group", searched)
+
+	for _, found := range chunks {
+		want := map[string]string{"A1": "a1", "B1": "b1"}[found.chunk.Key]
+		if found.tag != want {
+			t.Errorf("chunk %s came with tag %q, want %q", found.chunk.Key, found.tag, want)
+		}
 	}
 }
 
-func TestGatherNewChunksGoesBackForASecondChunkOfEachGroupWhenItNeedsMore(t *testing.T) {
+func TestGatherNewChunksSearchesWithThePlainTag(t *testing.T) {
+	var queries []string
+	search := func(_ context.Context, _ *model.Object, tag string) ([]RetrievedChunk, error) {
+		queries = append(queries, tag)
+		return nil, nil
+	}
+
+	if _, _, err := gatherNewChunks(context.Background(), []*model.Object{activeObject("o1", "mitocôndria")}, 1, search); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(queries, []string{"mitocôndria"}) {
+		t.Errorf("queries = %v, want the tag itself, without any prefix", queries)
+	}
+}
+
+func TestGatherNewChunksDrawsTheMainChunkAmongTheTagResults(t *testing.T) {
+	// Com uma vaga só e uma tag só, o sorteio deve variar entre os chunks da lista, e não
+	// devolver sempre o primeiro.
+	perTag := map[string][]RetrievedChunk{
+		"a1": {chunkOn(1, "A1"), chunkOn(2, "A2"), chunkOn(3, "A3"), chunkOn(4, "A4"), chunkOn(5, "A5"), chunkOn(6, "A6")},
+	}
+	drawn := map[string]bool{}
+	for i := 0; i < 200; i++ {
+		var searched []string
+		chunks, _, err := gatherNewChunks(context.Background(), []*model.Object{activeObject("o1", "a1")}, 1, searchByTag(perTag, &searched))
+		if err != nil || len(chunks) != 1 {
+			t.Fatalf("got %d chunks (err %v), want one", len(chunks), err)
+		}
+		drawn[chunks[0].chunk.Key] = true
+	}
+
+	if len(drawn) < 2 {
+		t.Errorf("drew only %v in 200 firings, want the main chunk to vary", drawn)
+	}
+}
+
+func TestGatherNewChunksGoesBackForASecondChunkOfEachTagWhenItNeedsMore(t *testing.T) {
 	perTag := map[string][]RetrievedChunk{
 		"a1": {chunkOn(1, "A1"), chunkOn(2, "A2")},
 		"b1": {chunkOn(11, "B1"), chunkOn(12, "B2")},
@@ -383,22 +356,28 @@ func TestGatherNewChunksGoesBackForASecondChunkOfEachGroupWhenItNeedsMore(t *tes
 
 	counts := countByPrefix(chunkKeysOf(chunks))
 	if err != nil || len(chunks) != 4 || counts["A"] != 2 || counts["B"] != 2 {
-		t.Errorf("chunks = %v (err %v), want two from each group", chunkKeysOf(chunks), err)
+		t.Errorf("chunks = %v (err %v), want two from each tag", chunkKeysOf(chunks), err)
 	}
 }
 
 func TestGatherNewChunksAvoidsTwoChunksFromTheSamePage(t *testing.T) {
 	perTag := map[string][]RetrievedChunk{
 		"a1": {chunkOn(5, "A1"), chunkOn(5, "A2")},
-		"b1": {chunkOn(9, "B1")},
+		"b1": {chunkOn(5, "B1"), chunkOn(9, "B2")},
 	}
-	var searched []string
 	objects := []*model.Object{activeObject("one", "a1"), activeObject("two", "b1")}
 
-	chunks, _, err := gatherNewChunks(context.Background(), objects, 2, searchByTag(perTag, &searched))
+	for i := 0; i < 50; i++ {
+		var searched []string
+		chunks, _, err := gatherNewChunks(context.Background(), objects, 2, searchByTag(perTag, &searched))
 
-	if err != nil || !reflect.DeepEqual(sortedKeys(chunkKeysOf(chunks)), []string{"A1", "B1"}) {
-		t.Errorf("chunks = %v (err %v), want A1 and B1, never two chunks of page 5", chunkKeysOf(chunks), err)
+		pages := map[int]int{}
+		for _, found := range chunks {
+			pages[found.chunk.Page]++
+		}
+		if err != nil || len(chunks) != 2 || pages[5] != 1 || pages[9] != 1 {
+			t.Fatalf("chunks = %v (err %v), want one chunk of page 5 and B2 of page 9", chunkKeysOf(chunks), err)
+		}
 	}
 }
 
@@ -440,48 +419,44 @@ func TestGatherNewChunksDiscardsRepeatedAndUnusableChunks(t *testing.T) {
 
 	chunks, _, err := gatherNewChunks(context.Background(), objects, 10, searchByTag(perTag, &searched))
 
-	keys := chunkKeysOf(chunks)
-	sort.Strings(keys)
+	keys := sortedKeys(chunkKeysOf(chunks))
 	if err != nil || !reflect.DeepEqual(keys, []string{"first", "repeated"}) {
 		t.Errorf("chunks = %v (err %v), want each usable chunk once", keys, err)
 	}
 }
 
-func TestGatherNewChunksSearchesOneGroupPerNeededSlotUpToTheLimit(t *testing.T) {
+func TestGatherNewChunksSearchesOneTagPerNeededSlotUpToTheLimit(t *testing.T) {
 	tags := make([]string, 40)
 	for i := range tags {
 		tags[i] = fmt.Sprintf("t%d", i)
 	}
 
 	for _, tt := range []struct {
-		needed     int
-		wantGroups int
+		needed       int
+		wantSearches int
 	}{
-		{needed: 1, wantGroups: 1},
-		{needed: 3, wantGroups: 3},
-		{needed: 100, wantGroups: maxTagGroups},
+		{needed: 1, wantSearches: 1},
+		{needed: 3, wantSearches: 3},
+		{needed: 10, wantSearches: maxSearchTags},
 	} {
-		groups := 0
-		search := func(_ context.Context, _ *model.Object, searchTags []string) ([][]RetrievedChunk, error) {
-			groups++
-			if len(searchTags) != tagsPerGroup {
-				t.Errorf("group with %d tags, want %d", len(searchTags), tagsPerGroup)
-			}
+		searches := 0
+		search := func(_ context.Context, _ *model.Object, _ string) ([]RetrievedChunk, error) {
+			searches++
 			return nil, nil
 		}
 
 		if _, _, err := gatherNewChunks(context.Background(), []*model.Object{activeObject("o1", tags...)}, tt.needed, search); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if groups != tt.wantGroups {
-			t.Errorf("needed %d searched %d groups, want %d", tt.needed, groups, tt.wantGroups)
+		if searches != tt.wantSearches {
+			t.Errorf("needed %d searched %d tags, want %d", tt.needed, searches, tt.wantSearches)
 		}
 	}
 }
 
 func TestGatherNewChunksIgnoresObjectsThatCannotBeSearched(t *testing.T) {
 	calls := 0
-	search := func(_ context.Context, _ *model.Object, _ []string) ([][]RetrievedChunk, error) {
+	search := func(_ context.Context, _ *model.Object, _ string) ([]RetrievedChunk, error) {
 		calls++
 		return nil, nil
 	}
@@ -498,7 +473,7 @@ func TestGatherNewChunksIgnoresObjectsThatCannotBeSearched(t *testing.T) {
 }
 
 func TestGatherNewChunksOnlyFailsWhenNothingWasFoundAndEverySearchFailed(t *testing.T) {
-	failing := func(_ context.Context, _ *model.Object, _ []string) ([][]RetrievedChunk, error) {
+	failing := func(_ context.Context, _ *model.Object, _ string) ([]RetrievedChunk, error) {
 		return nil, errors.New("vector search is down")
 	}
 	if _, _, err := gatherNewChunks(context.Background(), []*model.Object{activeObject("o1", "a", "b", "c")}, 3, failing); err == nil {
@@ -506,10 +481,10 @@ func TestGatherNewChunksOnlyFailsWhenNothingWasFoundAndEverySearchFailed(t *test
 	}
 
 	calls := 0
-	partial := func(_ context.Context, _ *model.Object, _ []string) ([][]RetrievedChunk, error) {
+	partial := func(_ context.Context, _ *model.Object, _ string) ([]RetrievedChunk, error) {
 		calls++
 		if calls == 1 {
-			return [][]RetrievedChunk{{chunkOn(1, "k1")}}, nil
+			return []RetrievedChunk{chunkOn(1, "k1")}, nil
 		}
 		return nil, errors.New("vector search is down")
 	}
@@ -520,15 +495,15 @@ func TestGatherNewChunksOnlyFailsWhenNothingWasFoundAndEverySearchFailed(t *test
 }
 
 func TestPickSpreadStopsAtTheNeededAmount(t *testing.T) {
-	perGroup := [][]RetrievedChunk{
-		{chunkOn(1, "a1"), chunkOn(2, "a2")},
-		{chunkOn(11, "b1"), chunkOn(12, "b2")},
+	perTag := []tagResults{
+		{tag: "a", chunks: []RetrievedChunk{chunkOn(1, "a1"), chunkOn(2, "a2")}},
+		{tag: "b", chunks: []RetrievedChunk{chunkOn(11, "b1"), chunkOn(12, "b2")}},
 	}
 
-	if picked := pickSpread(perGroup, 1); len(picked) != 1 {
+	if picked := pickSpread(perTag, 1); len(picked) != 1 {
 		t.Errorf("picked %v, want a single chunk", chunkKeysOf(picked))
 	}
-	if picked := pickSpread(perGroup, 99); len(picked) != 4 {
+	if picked := pickSpread(perTag, 99); len(picked) != 4 {
 		t.Errorf("picked %v, want every chunk available", chunkKeysOf(picked))
 	}
 	if picked := pickSpread(nil, 3); len(picked) != 0 {
