@@ -1,17 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
 import { ChallengeType } from '@/types/domain/History';
+import { i18n } from '@/i18n';
 
 // Mesma paleta usada nas badges de histórico/estatísticas, pra manter a associação
 // visual tipo-de-desafio -> cor consistente em todo o app. Tons
 // "joia" (mais escuros/profundos) de propósito -- se diferenciam da paleta vibrante dos
 // cards (hashColor.ts) pela saturação/luminosidade, não só pelo matiz, já que só existem
 // 3 tipos de desafio contra 8 cores de card (evitar sobreposição de matiz seria
-// praticamente impossível).
+// praticamente impossível). O rótulo é lido do dicionário na hora do acesso (getter), para
+// acompanhar o idioma do app.
 export const CHALLENGE_TYPE_META: Record<
   ChallengeType,
   { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; label: string }
 > = {
-  MULTIPLE_CHOICE: { icon: 'school-outline', color: '#208fe9', label: 'Múltipla escolha' },
-  TRUE_FALSE: { icon: 'checkmark-done-outline', color: '#c23232', label: 'Verdadeiro ou Falso' },
-  DISCOVERY: { icon: 'sparkles-outline', color: '#7c5cc4', label: 'Descoberta' },
+  MULTIPLE_CHOICE: {
+    icon: 'school-outline',
+    color: '#208fe9',
+    get label() {
+      return i18n.t('challengeTypes.MULTIPLE_CHOICE');
+    },
+  },
+  TRUE_FALSE: {
+    icon: 'checkmark-done-outline',
+    color: '#c23232',
+    get label() {
+      return i18n.t('challengeTypes.TRUE_FALSE');
+    },
+  },
+  DISCOVERY: {
+    icon: 'sparkles-outline',
+    color: '#7c5cc4',
+    get label() {
+      return i18n.t('challengeTypes.DISCOVERY');
+    },
+  },
 };

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { SourceChunk } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
@@ -26,6 +27,7 @@ interface SourceChunksSheetProps {
  */
 export function SourceChunksSheet({ visible, chunks, onClose }: SourceChunksSheetProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
   function toggle(index: number) {
@@ -37,7 +39,7 @@ export function SourceChunksSheet({ visible, chunks, onClose }: SourceChunksShee
       <View className="flex-1 justify-end bg-black/40">
         <Card className="max-h-[75%] rounded-t-3xl p-5 gap-4">
           <View className="flex-row items-center justify-between">
-            <Text className="text-lg font-semibold text-foreground">Baseado em</Text>
+            <Text className="text-lg font-semibold text-foreground">{t('challenges.sources.title')}</Text>
             <Pressable hitSlop={8} onPress={onClose}>
               <Ionicons name="close" size={24} color={colors.brand} />
             </Pressable>
@@ -65,8 +67,9 @@ export function SourceChunksSheet({ visible, chunks, onClose }: SourceChunksShee
                     </View>
 
                     <Text className="text-xs text-muted-foreground">
-                      {index === 0 ? 'Trecho principal' : 'Trecho de apoio'} • Página {chunk.page} • Trecho #
-                      {chunk.chunkIndex + 1}
+                      {t(index === 0 ? 'challenges.sources.main' : 'challenges.sources.support')} •{' '}
+                      {t('challenges.sources.page', { page: chunk.page })} •{' '}
+                      {t('challenges.sources.chunk', { number: chunk.chunkIndex + 1 })}
                     </Text>
 
                     <Text
@@ -80,7 +83,7 @@ export function SourceChunksSheet({ visible, chunks, onClose }: SourceChunksShee
                       <View className="flex-row items-center gap-1">
                         <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.brandSoft} />
                         <Text className="text-xs font-medium text-muted-foreground">
-                          {isExpanded ? 'Toque para recolher' : 'Toque para ver o trecho completo'}
+                          {isExpanded ? t('challenges.sources.collapse') : t('challenges.sources.expand')}
                         </Text>
                       </View>
                     )}

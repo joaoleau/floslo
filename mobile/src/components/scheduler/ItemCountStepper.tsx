@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 
 interface ItemCountStepperProps {
   testID: string;
@@ -46,6 +47,7 @@ function StepButton({ testID, icon, color, label, disabled, onPress }: StepButto
 // um de mais do outro. O mais para no `cap`, porque o limite de itens é compartilhado entre todos
 // os tipos do agendador; o menos para no zero, que tira o tipo do agendador.
 export function ItemCountStepper({ testID, label, description, icon, color, value, cap, onChange }: ItemCountStepperProps) {
+  const { t } = useTranslation();
   return (
     <View testID={testID} className="flex-row items-center justify-between gap-2">
       <View className="flex-1 flex-row items-center gap-2">
@@ -63,7 +65,7 @@ export function ItemCountStepper({ testID, label, description, icon, color, valu
           testID={`${testID}-decrement`}
           icon="remove"
           color={color}
-          label={`Diminuir ${label}`}
+          label={t('schedulers.form.decrease', { label })}
           disabled={value <= 0}
           onPress={() => onChange(Math.max(value - 1, 0))}
         />
@@ -78,7 +80,7 @@ export function ItemCountStepper({ testID, label, description, icon, color, valu
           testID={`${testID}-increment`}
           icon="add"
           color={color}
-          label={`Aumentar ${label}`}
+          label={t('schedulers.form.increase', { label })}
           disabled={value >= cap}
           onPress={() => onChange(Math.min(value + 1, cap))}
         />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FlatList, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { useAudioPlayer } from 'expo-audio';
 import * as Application from 'expo-application';
 
@@ -25,6 +26,7 @@ function safePlayerCall(fn: () => void) {
 
 export default function SoundScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { currentSound } = useLocalSearchParams();
   const sounds = soundService.getAvailableSounds();
 
@@ -78,7 +80,7 @@ export default function SoundScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <Header title="Selecionar Som" rightAction={<HeaderAction icon="checkmark" onPress={handleSave} />} />
+      <Header title={t('schedulers.sounds.title')} rightAction={<HeaderAction icon="checkmark" onPress={handleSave} />} />
 
       <FlatList
         data={sounds}

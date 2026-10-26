@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { Screen } from '@/components/common/Screen';
@@ -15,9 +16,11 @@ import { useObjectsQuery, useDeleteObjectMutation } from '@/hooks/useObjects';
 import { queryKeys } from '@/lib/queryKeys';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
+import { errorMessage } from '@/i18n/errors';
 
 export default function ObjectsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const scrollY = useSharedValue(0);
   const queryClient = useQueryClient();
@@ -73,12 +76,12 @@ export default function ObjectsScreen() {
   function handleDeleteSelected() {
     const count = selectedIds.size;
     showAlert(
-      'Excluir objetos',
-      `Tem certeza que deseja excluir ${count === 1 ? 'o objeto selecionado' : `os ${count} objetos selecionados`}?`,
+      t('objects.deleteSelected.title'),
+      t('objects.deleteSelected.confirm', { count }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const ids = Array.from(selectedIds);
@@ -93,7 +96,7 @@ export default function ObjectsScreen() {
   return (
     <Screen edges={['top', 'left', 'right']}>
       <AnimatedHeader
-        title={selectionMode ? `${selectedIds.size} selecionado${selectedIds.size > 1 ? 's' : ''}` : 'Objetos'}
+        title={selectionMode ? t('common.selected', { count: selectedIds.size }) : t('objects.title')}
         showBackButton={selectionMode}
         onBack={clearSelection}
         scrollY={scrollY}
@@ -113,14 +116,14 @@ export default function ObjectsScreen() {
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError ? (
-        <ErrorState message={error?.message} onRetry={() => refetch()} />
+        <ErrorState message={errorMessage(error, 'objects.loadFailed')} onRetry={() => refetch()} />
       ) : objects.length === 0 ? (
         <View className="flex-1 pt-[72px] px-4">
           <EmptyState
             icon="document-text-outline"
-            title="Nenhum objeto ainda"
-            description="Envie seu primeiro material de estudo para gerar desafios nos seus agendadores."
-            actionLabel="Enviar meu primeiro material"
+            title={t('objects.empty.title')}
+            description={t('objects.empty.description')}
+            actionLabel={t('objects.empty.action')}
             onAction={handleCreateObject}
             color="#3B82F6"
           />

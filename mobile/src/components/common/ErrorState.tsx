@@ -1,18 +1,20 @@
 import { View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 
 interface ErrorStateProps {
   message?: string;
   onRetry: () => void;
 }
 
-export function ErrorState({ message = 'Não foi possível carregar os dados.', onRetry }: ErrorStateProps) {
+export function ErrorState({ message, onRetry }: ErrorStateProps) {
+  const { t } = useTranslation();
   return (
     <View className="flex-1 justify-center items-center gap-4 px-8">
-      <Text className="text-center text-muted-foreground">{message}</Text>
+      <Text className="text-center text-muted-foreground">{message ?? t('common.loadFailed')}</Text>
       <Button onPress={onRetry} className="rounded-3xl">
-        <Text>Tentar novamente</Text>
+        <Text>{t('common.retry')}</Text>
       </Button>
     </View>
   );

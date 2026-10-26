@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { fieldHelpService, FieldHelpOptions } from '@/services/fieldHelpService';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -16,6 +17,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 // layout). O botão de fechar é o componente <Button> de verdade, o mesmo do resto do app.
 export function FieldHelpModal() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [options, setOptions] = useState<FieldHelpOptions | null>(null);
 
   useEffect(() => fieldHelpService.subscribe(setOptions), []);
@@ -39,7 +41,7 @@ export function FieldHelpModal() {
           <Text className="text-center text-sm leading-5 text-muted-foreground">{options.description}</Text>
 
           <Button onPress={() => setOptions(null)} className="rounded-3xl bg-brand-100">
-            <Text className="font-semibold text-white">Entendi</Text>
+            <Text className="font-semibold text-white">{t('common.understood')}</Text>
           </Button>
         </Card>
       </View>

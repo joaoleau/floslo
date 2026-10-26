@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { Pressable, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/button';
@@ -58,21 +59,8 @@ const DEFAULT_SCHEDULER: Scheduler = {
   challengers: [],
 };
 
-// Uma linha da tela por tipo de desafio, na ordem fixa em que aparecem e são disparados.
-const CHALLENGE_TYPE_DESCRIPTIONS: Record<ChallengeTypeName, string> = {
-  MULTIPLE_CHOICE: 'Perguntas de múltipla escolha',
-  TRUE_FALSE: 'Julgue afirmações',
-  DISCOVERY: 'Fatos novos, sem responder',
-};
-
 // Linha de ajuste com switch (Vibração, Som): mesma altura mínima e mesmo recuo dos dois lados.
 const SETTING_ROW = 'min-h-14 flex-row items-center gap-3 rounded-md border border-border px-4 py-2.5';
-
-const OBJECTS_HELP_TEXT =
-  'São os materiais de estudo (documentos) já enviados na aba Objetos. Vincule aqui os que você quer usar: os desafios deste agendador são gerados a partir do conteúdo deles.';
-
-const CHALLENGES_HELP_TEXT =
-  `O idioma define a língua em que os desafios são escritos, um só para todo o agendador. O conteúdo dos seus materiais pode estar em qualquer idioma: o app traduz para o escolhido. Cada tipo de desafio (Múltipla escolha, Verdadeiro ou Falso e Descoberta) tem o seu contador. Use os botões de menos e de mais para escolher quantos itens ele traz por disparo: zero tira o tipo do agendador. Os ${MAX_ITEMS_PER_SCHEDULER} itens são divididos entre os tipos.`;
 
 // Barra empilhada do total: um segmento por item, colorido pelo tipo a que pertence, e os que
 // ainda sobram em cinza.
@@ -97,6 +85,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
   function SchedulerForm({ initialValues, availableObjects, onSubmit, onDelete }, ref) {
     const router = useRouter();
     const colors = useThemeColors();
+    const { t } = useTranslation();
 
     const [scheduler, setScheduler] = useState<Scheduler>(initialValues ?? DEFAULT_SCHEDULER);
 
@@ -184,7 +173,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 className="w-full"
                 value={scheduler.name}
                 onChangeText={(text) => update('name', text)}
-                placeholder="Nome do alerta"
+                placeholder={t('schedulers.form.namePlaceholder')}
               />
 
               {/* Vibração e Som seguem o mesmo formato de linha (SETTING_ROW): ícone, rótulo com o
@@ -194,8 +183,8 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 <View className="flex-1 flex-row items-center gap-3">
                   <MaterialCommunityIcons name="vibrate" size={20} color={colors.brand} />
                   <View className="flex-1">
-                    <Text className="font-medium text-foreground">Vibração</Text>
-                    <Text className="text-xs text-muted-foreground">{scheduler.vibration ? 'Ativada' : 'Desativada'}</Text>
+                    <Text className="font-medium text-foreground">{t('schedulers.form.vibration')}</Text>
+                    <Text className="text-xs text-muted-foreground">{scheduler.vibration ? t('schedulers.form.vibrationOn') : t('schedulers.form.vibrationOff')}</Text>
                   </View>
                 </View>
                 <Switch
@@ -215,7 +204,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 >
                   <Ionicons name="musical-notes-outline" size={20} color={colors.brand} />
                   <View className="flex-1">
-                    <Text className="font-medium text-foreground">Som</Text>
+                    <Text className="font-medium text-foreground">{t('schedulers.form.sound')}</Text>
                     <Text
                       className="text-xs text-muted-foreground"
                       numberOfLines={1}
@@ -223,8 +212,8 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                       {scheduler.soundEnabled
                         ? scheduler.alarmSound
                           ? formatSoundLabel(scheduler.alarmSound)
-                          : 'Selecionar som'
-                        : 'Desativado'}
+                          : t('schedulers.form.pickSound')
+                        : t('schedulers.form.soundOff')}
                     </Text>
                   </View>
                 </Pressable>
@@ -238,8 +227,8 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
           <Card className="rounded-3xl p-5 gap-4">
             <View className="flex-row items-center gap-1.5">
-              <Text className="text-lg font-semibold text-foreground">Objetos</Text>
-              <Pressable onPress={() => showFieldHelp('Objetos', OBJECTS_HELP_TEXT)} hitSlop={8}>
+              <Text className="text-lg font-semibold text-foreground">{t('schedulers.form.objects')}</Text>
+              <Pressable onPress={() => showFieldHelp(t('schedulers.form.objects'), t('schedulers.form.objectsHelp'))} hitSlop={8}>
                 <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
               </Pressable>
             </View>
@@ -253,8 +242,8 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
           <Card className="rounded-3xl p-5 gap-4">
             <View className="flex-row items-center gap-1.5">
-              <Text className="text-lg font-semibold text-foreground">Desafios</Text>
-              <Pressable onPress={() => showFieldHelp('Desafios', CHALLENGES_HELP_TEXT)} hitSlop={8}>
+              <Text className="text-lg font-semibold text-foreground">{t('schedulers.form.challenges')}</Text>
+              <Pressable onPress={() => showFieldHelp(t('schedulers.form.challenges'), t('schedulers.form.challengesHelp', { max: MAX_ITEMS_PER_SCHEDULER }))} hitSlop={8}>
                 <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
               </Pressable>
             </View>
@@ -263,7 +252,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
             <View className="gap-2">
               <Text testID="scheduler-form-item-count" className="text-sm font-medium text-foreground">
-                {usedItems} de {MAX_ITEMS_PER_SCHEDULER} itens
+                {t('schedulers.form.itemCount', { used: usedItems, max: MAX_ITEMS_PER_SCHEDULER })}
               </Text>
               <TotalBar counts={counts} />
             </View>
@@ -274,7 +263,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                   key={type}
                   testID={`scheduler-form-challenge-${type}`}
                   label={CHALLENGE_TYPE_META[type].label}
-                  description={CHALLENGE_TYPE_DESCRIPTIONS[type]}
+                  description={t(`schedulers.form.typeDescriptions.${type}`)}
                   icon={CHALLENGE_TYPE_META[type].icon}
                   color={CHALLENGE_TYPE_META[type].color}
                   value={counts[type]}
@@ -286,7 +275,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
             {usedItems === 0 && (
               <Text className="text-center text-sm text-muted-foreground">
-                Nenhum desafio escolhido. Toque em + para começar.
+                {t('schedulers.form.noChallenges')}
               </Text>
             )}
           </Card>
@@ -297,7 +286,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
               className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
             >
               <Ionicons name="trash-outline" size={20} color="white" />
-              <Text className="ml-2 font-semibold text-white">Excluir agendador</Text>
+              <Text className="ml-2 font-semibold text-white">{t('schedulers.form.delete')}</Text>
             </Button>
           )}
 

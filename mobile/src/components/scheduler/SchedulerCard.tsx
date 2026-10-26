@@ -3,6 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '@/i18n';
 import { WeekDays } from '@/components/scheduler/WeekDays';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
 import { Challenger, LANGUAGE_FLAGS, Scheduler } from '@/types/domain/Scheduler';
@@ -23,11 +25,11 @@ interface SchedulerCardProps {
 function challengeConfigLabel(item: Challenger): string {
   switch (item.challengeType) {
     case 'MULTIPLE_CHOICE':
-      return `${item.challenge.questionCount} questões`;
+      return i18n.t('schedulers.card.questions', { count: item.challenge.questionCount });
     case 'TRUE_FALSE':
-      return `${item.challenge.questionCount} afirmações`;
+      return i18n.t('schedulers.card.statements', { count: item.challenge.questionCount });
     case 'DISCOVERY':
-      return `${item.challenge.discoveryCount} descobertas`;
+      return i18n.t('schedulers.card.discoveries', { count: item.challenge.discoveryCount });
   }
 }
 
@@ -48,6 +50,9 @@ export function SchedulerCard({
   selected = false,
 }: SchedulerCardProps) {
   const colors = useThemeColors();
+  // Os textos do card vêm do i18n fora do render (rótulos dos tipos e quantidades); assinar o
+  // idioma aqui redesenha o card quando ele muda, já que a FlatList não redesenha os itens sozinha.
+  useTranslation();
   // Desligado, o card fica só com o contorno, sem fundo colorido, como os filtros não
   // selecionados; o documento que ainda não gera desafios segue a mesma regra.
   const outlined = !scheduler.enabled;

@@ -6,15 +6,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '@/i18n';
 import { ObjectType } from '@/types/domain/Object';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 // Por que um documento ainda não pode ser vinculado a um agendador, ou null se pode. Os desafios
 // saem da busca pelas tags do documento: sem nenhuma, ele não forneceria conteúdo ao disparo.
 export function unavailableReason(object: ObjectType): string | null {
-  if (object.status === 'processing') return 'Em processamento';
-  if (object.status === 'failed') return 'O processamento falhou';
-  if (object.tags.length === 0) return 'Sem tags: adicione uma na aba Objetos';
+  if (object.status === 'processing') return i18n.t('schedulers.objectPicker.processing');
+  if (object.status === 'failed') return i18n.t('schedulers.objectPicker.failed');
+  if (object.tags.length === 0) return i18n.t('schedulers.objectPicker.noTags');
   return null;
 }
 
@@ -26,6 +28,7 @@ interface ObjectPickerProps {
 
 export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   const selectedObjects = useMemo(
@@ -54,7 +57,7 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
           pra dar profundidade atrás dos cards), então usá-lo aqui destoava do card ao redor. */}
       <Button variant="outline" className="h-10 rounded-3xl justify-start bg-card" onPress={() => setOpen(true)}>
         <Ionicons name="add-circle-outline" size={18} color={colors.brand} />
-        <Text className="ml-2 text-brand-100">Adicionar objeto</Text>
+        <Text className="ml-2 text-brand-100">{t('schedulers.objectPicker.add')}</Text>
       </Button>
 
       <View className="flex-row flex-wrap gap-2">
@@ -79,7 +82,7 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
         <View className="flex-1 justify-end bg-black/40">
           <Card className="max-h-[70%] rounded-t-3xl p-5 gap-4">
             <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold">Adicionar objeto</Text>
+              <Text className="text-lg font-semibold">{t('schedulers.objectPicker.add')}</Text>
 
               <Ionicons name="close" size={24} color={colors.brand} onPress={() => setOpen(false)} />
             </View>
@@ -108,8 +111,8 @@ export function ObjectPicker({ objects, selectedIds, onChange }: ObjectPickerPro
               {availableObjects.length === 0 && (
                 <Text className="py-8 text-center text-muted-foreground">
                   {objects.length === 0
-                    ? 'Você ainda não tem nenhum objeto. Adicione um na aba Objetos primeiro.'
-                    : 'Todos os objetos já foram adicionados.'}
+                    ? t('schedulers.objectPicker.none')
+                    : t('schedulers.objectPicker.allAdded')}
                 </Text>
               )}
             </ScrollView>

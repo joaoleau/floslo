@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface StudyWeekStripProps {
@@ -14,10 +15,8 @@ interface StudyWeekStripProps {
   weeksBack?: number;
 }
 
-const WEEKDAY_LABELS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-const MONTH_LABELS_SHORT = [
-  'jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez',
-];
+// Iniciais dos dias (domingo a sábado) e nomes curtos dos meses vêm do dicionário, em
+// history.week.
 
 const LEVEL_THRESHOLDS = [1, 3, 6, 10];
 // Verde, no espírito do gráfico de contribuições do GitHub -- as 4 tonalidades clássicas.
@@ -52,6 +51,9 @@ function startOfWeek(date: Date): Date {
 // que só faria sentido se o histórico local não fosse podado depois de 30 dias.
 export function StudyWeekStrip({ activity, weeksBack = 4 }: StudyWeekStripProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
+  const weekdayLabels = t('history.week.weekdays').split(',');
+  const monthLabels = t('history.week.months').split(',');
   const countByDate = useMemo(() => new Map(activity.map((entry) => [entry.date, entry.count])), [activity]);
 
   const today = new Date();
@@ -76,8 +78,13 @@ export function StudyWeekStrip({ activity, weeksBack = 4 }: StudyWeekStripProps)
   const lastDay = days[6];
   const rangeLabel =
     firstDay.getMonth() === lastDay.getMonth()
-      ? `${firstDay.getDate()} – ${lastDay.getDate()} de ${MONTH_LABELS_SHORT[lastDay.getMonth()]}`
-      : `${firstDay.getDate()} de ${MONTH_LABELS_SHORT[firstDay.getMonth()]} – ${lastDay.getDate()} de ${MONTH_LABELS_SHORT[lastDay.getMonth()]}`;
+      ? t('history.week.sameMonth', { from: firstDay.getDate(), to: lastDay.getDate(), month: monthLabels[lastDay.getMonth()] })
+      : t('history.week.twoMonths', {
+          from: firstDay.getDate(),
+          fromMonth: monthLabels[firstDay.getMonth()],
+          to: lastDay.getDate(),
+          toMonth: monthLabels[lastDay.getMonth()],
+        });
 
   return (
     <View className="gap-3">
@@ -102,7 +109,7 @@ export function StudyWeekStrip({ activity, weeksBack = 4 }: StudyWeekStripProps)
 
           return (
             <View key={index} className="items-center gap-1">
-              <Text className="text-xs font-medium text-muted-foreground">{WEEKDAY_LABELS[date.getDay()]}</Text>
+              <Text className="text-xs font-medium text-muted-foreground">{weekdayLabels[date.getDay()]}</Text>
               <View
                 className="items-center justify-center rounded-full"
                 style={{
@@ -127,11 +134,11 @@ export function StudyWeekStrip({ activity, weeksBack = 4 }: StudyWeekStripProps)
       </View>
 
       <View className="flex-row items-center justify-end gap-1.5 pt-1">
-        <Text className="text-xs text-muted-foreground">Menos</Text>
+        <Text className="text-xs text-muted-foreground">{t('history.week.less')}</Text>
         {LEVEL_COLORS.map((color) => (
           <View key={color} className="rounded-sm" style={{ width: 12, height: 12, backgroundColor: color }} />
         ))}
-        <Text className="text-xs text-muted-foreground">Mais</Text>
+        <Text className="text-xs text-muted-foreground">{t('history.week.more')}</Text>
       </View>
     </View>
   );

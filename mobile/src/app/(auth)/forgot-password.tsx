@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -11,37 +12,39 @@ import { Input } from '@/components/ui/input';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { useResetPasswordMutation } from '@/hooks/useAuth';
 import { showAlert } from '@/services/alertService';
+import { errorMessage } from '@/i18n/errors';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const resetPasswordMutation = useResetPasswordMutation();
 
   async function handleSendCode() {
     if (!email) {
-      showAlert('Atenção', 'Preencha o e-mail cadastrado.');
+      showAlert(t('common.attention'), t('auth.forgot.emailRequired'));
       return;
     }
 
     try {
       await resetPasswordMutation.mutateAsync(email);
       router.push({ pathname: '/(auth)/verify-code', params: { email } });
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ForgotPassword] Falha ao enviar e-mail de recuperação', error);
-      showAlert('Erro', error.message || 'Falha ao enviar e-mail');
+      showAlert(t('common.error'), errorMessage(error, 'auth.forgot.failed'));
     }
   }
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <Header title="Recuperar senha" />
+      <Header title={t('auth.forgot.title')} />
       <AuthBackground>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <View className="p-5">
             <Card className="rounded-3xl p-5 gap-3">
-              <Text className="text-muted-foreground">Digite seu e-mail para receber um código de recuperação.</Text>
+              <Text className="text-muted-foreground">{t('auth.forgot.instructions')}</Text>
 
-              <Input placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <Input placeholder={t('auth.email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
               <Button
                 onPress={handleSendCode}
@@ -51,7 +54,7 @@ export default function ForgotPasswordScreen() {
                 {resetPasswordMutation.isPending ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text className="font-semibold text-white">Enviar código</Text>
+                  <Text className="font-semibold text-white">{t('auth.forgot.sendCode')}</Text>
                 )}
               </Button>
             </Card>

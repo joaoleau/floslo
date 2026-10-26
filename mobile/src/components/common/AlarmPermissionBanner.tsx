@@ -6,33 +6,27 @@ import notifee, { AndroidNotificationSetting } from '@notifee/react-native';
 
 import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { alarmScreen } from '../../../modules/alarm-screen';
 
+// O título e a descrição de cada aviso ficam no dicionário, em permissions.<key>.
 interface MissingPermission {
   key: 'exactAlarm' | 'fullScreen';
   icon: React.ComponentProps<typeof Ionicons>['name'];
-  title: string;
-  description: string;
   open: () => Promise<void> | void;
 }
 
 const EXACT_ALARM: MissingPermission = {
   key: 'exactAlarm',
   icon: 'alarm-outline',
-  title: 'Permissão necessária',
-  description:
-    'Sem "Alarmes e lembretes" ativado, seus agendadores podem não disparar na hora certa. Ative essa permissão para o Floslo nas configurações do Android.',
   open: () => notifee.openAlarmPermissionSettings(),
 };
 
 const FULL_SCREEN: MissingPermission = {
   key: 'fullScreen',
   icon: 'phone-portrait-outline',
-  title: 'Alarme em tela cheia',
-  description:
-    'Sem "Notificações em tela cheia" ativado, o alarme só aparece como notificação e a tela dos desafios não abre sozinha com o celular bloqueado. Ative essa permissão para o Floslo nas configurações do Android.',
   open: () => alarmScreen.openFullScreenIntentSettings(),
 };
 
@@ -46,6 +40,7 @@ const FULL_SCREEN: MissingPermission = {
 // quando a permissão é concedida.
 export function AlarmPermissionBanner() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [missing, setMissing] = useState<MissingPermission[]>([]);
 
   const check = useCallback(() => {
@@ -92,13 +87,13 @@ export function AlarmPermissionBanner() {
               <Ionicons name={permission.icon} size={18} color={colors.primary} />
             </View>
             <View className="flex-1 gap-1">
-              <Text className="font-semibold text-accent-foreground">{permission.title}</Text>
-              <Text className="text-sm text-accent-foreground">{permission.description}</Text>
+              <Text className="font-semibold text-accent-foreground">{t(`permissions.${permission.key}.title`)}</Text>
+              <Text className="text-sm text-accent-foreground">{t(`permissions.${permission.key}.description`)}</Text>
             </View>
           </View>
 
           <Button onPress={() => handleOpenSettings(permission)} className="rounded-3xl bg-primary">
-            <Text className="font-semibold text-primary-foreground">Ativar agora</Text>
+            <Text className="font-semibold text-primary-foreground">{t('permissions.enableNow')}</Text>
           </Button>
         </Card>
       ))}

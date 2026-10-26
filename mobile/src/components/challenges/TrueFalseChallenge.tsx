@@ -3,6 +3,7 @@ import { View, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { TrueFalseItem } from '@/types/domain/RAG';
@@ -17,13 +18,15 @@ interface TrueFalseChallengeProps {
   onSuccess: (result: ChallengeResult) => void;
 }
 
+// O texto de cada opção fica no dicionário, em challenges.trueFalse.true e .false.
 const OPTIONS = [
-  { id: 'TRUE', label: 'Verdadeiro', value: true },
-  { id: 'FALSE', label: 'Falso', value: false },
+  { id: 'TRUE', key: 'true', value: true },
+  { id: 'FALSE', key: 'false', value: false },
 ] as const;
 
 export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }: TrueFalseChallengeProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [wrongOptionId, setWrongOptionId] = useState<string | null>(null);
   const [answered, setAnswered] = useState(false);
   const [showSources, setShowSources] = useState(false);
@@ -97,7 +100,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                   <Text
                     className={`flex-1 font-medium ${isWrong ? 'text-red-600' : isCorrect ? 'text-green-600' : 'text-foreground'}`}
                   >
-                    {option.label}
+                    {t(`challenges.trueFalse.${option.key}`)}
                   </Text>
                   {isWrong && <Ionicons name="close-circle" size={20} color={colors.destructive} />}
                   {isCorrect && <Ionicons name="checkmark-circle" size={20} color={colors.success} />}
@@ -112,7 +115,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center gap-2">
                     <Ionicons name="bulb" size={18} color={colors.brand} />
-                    <Text className="font-bold text-foreground">Explicação</Text>
+                    <Text className="font-bold text-foreground">{t('challenges.explanation')}</Text>
                   </View>
 
                   {item.sourceChunks.length > 0 && (
@@ -125,7 +128,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
               </View>
 
               <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">
-                <Text className="text-white font-bold text-lg">Continuar</Text>
+                <Text className="text-white font-bold text-lg">{t('challenges.continue')}</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>
             </Animated.View>

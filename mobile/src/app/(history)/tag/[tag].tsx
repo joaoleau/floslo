@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/common/Screen';
@@ -14,6 +15,7 @@ import { useThemeColors } from '@/hooks/useThemeColors';
 
 export default function TagDetailScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const router = useRouter();
   const { tag } = useLocalSearchParams<{ tag: string }>();
   const { data: detail, isPending, isError, refetch } = useTagDetailQuery(tag);
@@ -32,7 +34,7 @@ export default function TagDetailScreen() {
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError || !detail ? (
-        <ErrorState message="Não foi possível carregar esse assunto." onRetry={() => refetch()} />
+        <ErrorState message={t('history.tag.loadFailed')} onRetry={() => refetch()} />
       ) : (
         <ScrollView
           className="flex-1"
@@ -43,22 +45,22 @@ export default function TagDetailScreen() {
             <View className="flex-row justify-between pt-1">
               <View className="items-center gap-1">
                 <Text className="text-xl font-bold text-foreground">{detail.stat.total}</Text>
-                <Text className="text-xs text-muted-foreground">Respondidos</Text>
+                <Text className="text-xs text-muted-foreground">{t('history.tag.answered')}</Text>
               </View>
               <View className="items-center gap-1">
                 <Text className="text-xl font-bold text-foreground">{accuracyLabel}</Text>
-                <Text className="text-xs text-muted-foreground">Acerto de primeira</Text>
+                <Text className="text-xs text-muted-foreground">{t('history.tag.firstTryAccuracy')}</Text>
               </View>
             </View>
             {!detail.stat.hasEnoughData && (
               <Text className="text-xs text-center text-muted-foreground">
-                Ainda pouco dado nesse assunto pra um insight confiável
+                {t('history.tag.notEnoughData')}
               </Text>
             )}
           </Card>
 
           <Card className="rounded-3xl p-5 gap-4">
-            <Text className="text-lg font-semibold text-foreground">Respostas recentes</Text>
+            <Text className="text-lg font-semibold text-foreground">{t('history.tag.recentAnswers')}</Text>
             <View className="gap-3">
               {detail.recentAttempts.map((attempt) => {
                 const meta = CHALLENGE_TYPE_META[attempt.challengeType];

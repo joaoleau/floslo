@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Pressable, ActivityIndicator, BackHandler, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +30,8 @@ import { RingingAlarm, useRingingAlarm } from '@/hooks/useRingingAlarm';
 import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
 import { alarmScreen } from '../../../modules/alarm-screen';
+import { i18n } from '@/i18n';
+import { errorMessage } from '@/i18n/errors';
 
 // Botões de silenciar o som e de parar a vibração, um embaixo do outro, os mesmos no
 // carregamento, na tela de erro e nos desafios. O de vibração só aparece quando o agendador vibra.
@@ -83,8 +86,8 @@ function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
         promptText: answered.data.statement,
         explanationText: answered.data.explanation as string | null,
         options: [
-          { id: 'TRUE', text: 'Verdadeiro', correct: answered.data.answer === true },
-          { id: 'FALSE', text: 'Falso', correct: answered.data.answer === false },
+          { id: 'TRUE', text: i18n.t('challenges.trueFalse.true'), correct: answered.data.answer === true },
+          { id: 'FALSE', text: i18n.t('challenges.trueFalse.false'), correct: answered.data.answer === false },
         ] as ReviewOption[],
         isCorrect: result.wrongAttempts === 0,
         sourceChunks: answered.data.sourceChunks,
@@ -117,6 +120,7 @@ function FiringScreenContent({
 }) {
   const router = useRouter();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
   // Até onde o usuário já avançou de verdade -- só cresce. currentChallengeIndex pode
   // ficar menor que isso quando o usuário usa o pager pra revisar um desafio já
@@ -156,10 +160,10 @@ function FiringScreenContent({
     historySessionIdRef.current = historyService.startSession({
       userId: user.id,
       schedulerId: ragData.scheduler.id,
-      schedulerName: ragData.scheduler.name || 'Agendador sem nome',
+      schedulerName: ragData.scheduler.name || t('firing.unnamedScheduler'),
       totalChallenges: ragData.challenges.length,
     });
-  }, [user, ragData, hasNoChallenges]);
+  }, [user, ragData, hasNoChallenges, t]);
 
   const stopAlarm = useCallback(() => {
     console.log('[Firing] Desligando alarme', { schedulerId, notificationId });
@@ -253,7 +257,7 @@ function FiringScreenContent({
         <Text className="text-5xl font-bold text-white tracking-widest">{currentTime}</Text>
         <View className="flex-row items-center gap-1.5 mt-1">
           <Text className="text-sm text-white/75 font-medium text-center" numberOfLines={1}>
-            {ragData.scheduler.name || 'Seu agendador está tocando'}
+            {ragData.scheduler.name || t('firing.ringing')}
           </Text>
           <View className="flex-row items-center bg-white/15 rounded-full px-2 py-0.5">
             <Text style={{ fontSize: 12 }}>{LANGUAGE_FLAGS[ragData.scheduler.language]}</Text>
@@ -263,9 +267,9 @@ function FiringScreenContent({
         {total > 1 && (
           <View className="w-full max-w-sm mt-3">
             <View className="flex-row justify-between mb-1">
-              <Text className="text-white/75 font-medium text-xs">Progresso do Desafio</Text>
+              <Text className="text-white/75 font-medium text-xs">{t('firing.progress')}</Text>
               <Text className="text-white/75 font-bold text-xs">
-                {currentChallengeIndex} de {total}
+                {t('firing.progressCount', { current: currentChallengeIndex, total })}
               </Text>
             </View>
             <View className="w-full h-1.5 bg-white/25 rounded-full overflow-hidden">
@@ -286,10 +290,10 @@ function FiringScreenContent({
               style={{ opacity: canGoBack ? 1 : 0 }}
             >
               <Ionicons name="chevron-back" size={16} color="white" />
-              <Text className="text-white text-xs font-semibold">Anterior</Text>
+              <Text className="text-white text-xs font-semibold">{t('firing.previous')}</Text>
             </Pressable>
 
-            {isReviewing && <Text className="text-white/75 text-xs font-medium">Revisão</Text>}
+            {isReviewing && <Text className="text-white/75 text-xs font-medium">{t('firing.review')}</Text>}
 
             <Pressable
               onPress={handleGoForward}
@@ -297,7 +301,7 @@ function FiringScreenContent({
               className="flex-row items-center gap-1 bg-white/15 rounded-full px-3 py-1.5"
               style={{ opacity: canGoForward ? 1 : 0 }}
             >
-              <Text className="text-white text-xs font-semibold">Próximo</Text>
+              <Text className="text-white text-xs font-semibold">{t('firing.next')}</Text>
               <Ionicons name="chevron-forward" size={16} color="white" />
             </Pressable>
           </View>
@@ -311,13 +315,10 @@ function FiringScreenContent({
             <View className="h-20 w-20 items-center justify-center rounded-full bg-white/15">
               <Ionicons name="document-outline" size={36} color="white" />
             </View>
-            <Text className="text-white text-center text-lg font-bold">Nenhum objeto configurado</Text>
-            <Text className="text-white/75 text-center">
-              Os materiais deste agendador foram excluídos, então não há conteúdo para gerar desafios.
-              Vincule um objeto a ele para voltar a tocar normalmente.
-            </Text>
+            <Text className="text-white text-center text-lg font-bold">{t('firing.noObjects.title')}</Text>
+            <Text className="text-white/75 text-center">{t('firing.noObjects.description')}</Text>
             <Button onPress={stopAlarm} className="mt-2 h-12 rounded-3xl bg-white/15 px-6">
-              <Text className="font-semibold text-white">Dispensar alarme</Text>
+              <Text className="font-semibold text-white">{t('firing.dismiss')}</Text>
             </Button>
           </View>
         ) : isReviewing && currentChallenge ? (
@@ -403,6 +404,7 @@ function ChallengeReviewPane({
 export default function FiringScreen() {
   const { schedulerId, notificationId } = useLocalSearchParams<{ schedulerId: string; notificationId?: string }>();
   const ringingNotificationId = notificationId || schedulerId;
+  const { t } = useTranslation();
   const { data: ragData, isPending, isError, error, refetch } = useRagQuery(schedulerId);
 
   // Som e vibração do alarme antes de os desafios chegarem: os ajustes guardados no aparelho
@@ -462,14 +464,10 @@ export default function FiringScreen() {
       <View className="flex-1 justify-center items-center gap-4 bg-brand-100 px-8">
         <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
         <MuteButton alarm={alarm} />
-        <Text className="text-white text-center font-medium">
-          Não foi possível carregar o desafio deste alarme.
-        </Text>
-        <Text className="text-white/75 text-center text-sm">
-          {error instanceof Error ? error.message : 'Erro desconhecido.'}
-        </Text>
+        <Text className="text-white text-center font-medium">{t('firing.loadFailed')}</Text>
+        <Text className="text-white/75 text-center text-sm">{errorMessage(error, 'firing.unknownError')}</Text>
         <Button onPress={() => refetch()} className="h-12 bg-white/15 rounded-3xl px-6">
-          <Text className="font-semibold text-white">Tentar novamente</Text>
+          <Text className="font-semibold text-white">{t('common.retry')}</Text>
         </Button>
       </View>
     );
@@ -481,7 +479,7 @@ export default function FiringScreen() {
         <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
         <MuteButton alarm={alarm} />
         <ActivityIndicator size="large" color="#ffffff" />
-        <Text className="text-white mt-4 font-medium">Preparando desafio...</Text>
+        <Text className="text-white mt-4 font-medium">{t('firing.preparing')}</Text>
       </View>
     );
   }

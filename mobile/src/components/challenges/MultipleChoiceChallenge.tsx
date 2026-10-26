@@ -3,6 +3,7 @@ import { View, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { MultipleChoice } from '@/types/domain/RAG';
@@ -19,6 +20,7 @@ interface MultipleChoiceChallengeProps {
 
 export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSuccess }: MultipleChoiceChallengeProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [wrongAnswerId, setWrongAnswerId] = useState<string | null>(null);
   const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
@@ -117,7 +119,7 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center gap-2">
                     <Ionicons name="bulb" size={18} color={colors.brand} />
-                    <Text className="font-bold text-foreground">Explicação</Text>
+                    <Text className="font-bold text-foreground">{t('challenges.explanation')}</Text>
                   </View>
 
                   {item.sourceChunks.length > 0 && (
@@ -130,7 +132,7 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
               </View>
 
               <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">
-                <Text className="text-white font-bold text-lg">Continuar</Text>
+                <Text className="text-white font-bold text-lg">{t('challenges.continue')}</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>
             </Animated.View>

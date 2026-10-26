@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -13,9 +14,11 @@ import { AuthBackground } from '@/components/auth/AuthBackground';
 import { useConfirmPasswordResetMutation } from '@/hooks/useAuth';
 import { isPasswordValid } from '@/lib/passwordPolicy';
 import { showAlert } from '@/services/alertService';
+import { errorMessage } from '@/i18n/errors';
 
 export default function NewPasswordScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { email, code } = useLocalSearchParams<{ email: string; code: string }>();
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -23,42 +26,42 @@ export default function NewPasswordScreen() {
 
   async function handleConfirmReset() {
     if (!newPassword || !confirmNewPassword) {
-      showAlert('Atenção', 'Preencha a nova senha e a confirmação.');
+      showAlert(t('common.attention'), t('auth.newPassword.fieldsRequired'));
       return;
     }
     if (!isPasswordValid(newPassword)) {
-      showAlert('Senha fraca', 'Sua nova senha precisa atender aos requisitos listados abaixo do campo.');
+      showAlert(t('auth.weakPassword.title'), t('auth.weakPassword.newMessage'));
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      showAlert('Atenção', 'A confirmação não é igual à nova senha.');
+      showAlert(t('common.attention'), t('auth.newPassword.mismatch'));
       return;
     }
 
     try {
       await confirmResetMutation.mutateAsync({ email, code, newPassword });
-      showAlert('Sucesso', 'Sua senha foi alterada.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') },
+      showAlert(t('common.success'), t('auth.newPassword.changed'), [
+        { text: t('common.ok'), onPress: () => router.replace('/(auth)/login') },
       ]);
-    } catch (error: any) {
+    } catch (error) {
       console.error('[NewPassword] Falha ao confirmar troca de senha', error);
-      showAlert('Erro', error.message || 'Código inválido ou expirado.');
+      showAlert(t('common.error'), errorMessage(error, 'errors.api.invalidCode'));
     }
   }
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <Header title="Nova senha" />
+      <Header title={t('auth.newPassword.title')} />
       <AuthBackground>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <View className="p-5">
             <Card className="rounded-3xl p-5 gap-3">
-              <Text className="text-muted-foreground">Escolha uma nova senha para sua conta.</Text>
+              <Text className="text-muted-foreground">{t('auth.newPassword.instructions')}</Text>
 
-              <Input placeholder="Nova senha" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+              <Input placeholder={t('auth.newPassword.newPassword')} value={newPassword} onChangeText={setNewPassword} secureTextEntry />
 
               <Input
-                placeholder="Confirmar nova senha"
+                placeholder={t('auth.newPassword.confirm')}
                 value={confirmNewPassword}
                 onChangeText={setConfirmNewPassword}
                 secureTextEntry
@@ -78,7 +81,7 @@ export default function NewPasswordScreen() {
                 {confirmResetMutation.isPending ? (
                   <ActivityIndicator color="white" />
                 ) : (
-                  <Text className="font-semibold text-white">Trocar senha</Text>
+                  <Text className="font-semibold text-white">{t('auth.newPassword.submit')}</Text>
                 )}
               </Button>
             </Card>

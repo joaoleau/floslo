@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/common/Screen';
@@ -15,9 +16,11 @@ import { useLoginMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
 import { sessionService } from '@/services/sessionService';
+import { errorMessage } from '@/i18n/errors';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -26,16 +29,16 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!username || !password) {
-      showAlert('Atenção', 'Preencha usuário/e-mail e senha.');
+      showAlert(t('common.attention'), t('auth.login.fieldsRequired'));
       return;
     }
 
     try {
       await loginMutation.mutateAsync({ username, password });
       router.replace(await sessionService.start());
-    } catch (error: any) {
+    } catch (error) {
       console.error('[Login] Falha ao fazer login', error);
-      showAlert('Erro', error.message || 'Falha ao fazer login');
+      showAlert(t('common.error'), errorMessage(error, 'auth.login.failed'));
     }
   }
 
@@ -56,11 +59,11 @@ export default function LoginScreen() {
             keyboardShouldPersistTaps="handled"
           >
             <Card className="rounded-3xl p-5 gap-3">
-              <Input placeholder="Usuário ou e-mail" value={username} onChangeText={setUsername} autoCapitalize="none" />
+              <Input placeholder={t('auth.login.usernameOrEmail')} value={username} onChangeText={setUsername} autoCapitalize="none" />
 
               <View className="flex-row items-center">
                 <Input
-                  placeholder="Senha"
+                  placeholder={t('auth.password')}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -72,18 +75,18 @@ export default function LoginScreen() {
               </View>
 
               <Pressable onPress={() => router.push('/(auth)/forgot-password')} className="self-end">
-                <Text className="text-sm font-medium text-[#3B82F6]">Esqueceu a senha?</Text>
+                <Text className="text-sm font-medium text-[#3B82F6]">{t('auth.login.forgotPassword')}</Text>
               </Pressable>
 
               <Button onPress={handleLogin} className="mt-1 rounded-3xl bg-brand-100">
-                <Text className="font-semibold text-white">Entrar</Text>
+                <Text className="font-semibold text-white">{t('auth.login.submit')}</Text>
               </Button>
             </Card>
 
             <View className="mt-6 flex-row justify-center">
-              <Text className="text-muted-foreground">Não tem uma conta? </Text>
+              <Text className="text-muted-foreground">{t('auth.login.noAccount')} </Text>
               <Pressable onPress={() => router.push('/(auth)/register')}>
-                <Text className="font-semibold text-[#3B82F6]">Cadastre-se</Text>
+                <Text className="font-semibold text-[#3B82F6]">{t('auth.login.signUp')}</Text>
               </Pressable>
             </View>
           </ScrollView>

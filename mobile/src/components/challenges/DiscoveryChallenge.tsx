@@ -3,6 +3,7 @@ import { View, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Discovery } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -23,6 +24,7 @@ interface DiscoveryChallengeProps {
 // responsabilidade do pager no firing.tsx, não deste componente.
 export function DiscoveryChallenge({ discovery, currentIndex, totalDiscoveries, onSuccess }: DiscoveryChallengeProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [showSources, setShowSources] = useState(false);
 
   function handleContinue() {
@@ -80,7 +82,7 @@ export function DiscoveryChallenge({ discovery, currentIndex, totalDiscoveries, 
 
         <View className="p-4 pt-0">
           <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">
-            <Text className="text-white font-bold text-lg">Continuar</Text>
+            <Text className="text-white font-bold text-lg">{t('challenges.continue')}</Text>
             <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
           </Button>
         </View>

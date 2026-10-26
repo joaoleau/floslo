@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
@@ -9,11 +10,12 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { onboardingStorage } from '@/storage/onboardingStorage';
 
+// Só a aparência de cada passo fica aqui; o título e a descrição ficam no dicionário, em
+// onboarding.<key>.
 interface OnboardingStep {
+  key: 'materials' | 'scheduler' | 'challenges' | 'alarm' | 'streak';
   icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
-  title: string;
-  description: string;
 }
 
 // Cor de cada passo casa com o acento que aquela peça do app já usa em outro lugar
@@ -22,45 +24,16 @@ interface OnboardingStep {
 // chegar nas telas de verdade. A ordem segue o uso: o agendador só pode ser criado depois que
 // existe um documento processado para vincular a ele.
 const STEPS: OnboardingStep[] = [
-  {
-    icon: 'document-text-outline',
-    color: '#3B82F6',
-    title: 'Envie seus materiais',
-    description:
-      'Na aba Objetos, envie seus documentos em PDF. O app lê o conteúdo e identifica os principais assuntos de cada um, as tags, que você pode revisar e ajustar.',
-  },
-  {
-    icon: 'alarm-outline',
-    color: '#F59E0B',
-    title: 'Crie um agendador',
-    description:
-      'Escolha o horário, os dias da semana e os documentos de estudo. Quando o alarme tocar, ele só desliga depois que você responder todos os desafios.',
-  },
-  {
-    icon: 'school-outline',
-    color: '#6366F1',
-    title: 'Escolha os desafios',
-    description:
-      'Em cada agendador, defina quantos itens de Descoberta, Múltipla escolha e Verdadeiro ou Falso cada alarme traz, até 10 no total, e o idioma em que eles são escritos.',
-  },
-  {
-    icon: 'notifications-outline',
-    color: '#EC4899',
-    title: 'Deixe o alarme tocar',
-    description:
-      'Ative as permissões de alarmes e de notificações em tela cheia, para o alarme tocar na hora certa e abrir sozinho com o celular bloqueado. A tela inicial avisa quando falta alguma.',
-  },
-  {
-    icon: 'flame',
-    color: '#30A14E',
-    title: 'Acompanhe sua sequência',
-    description:
-      'Cada dia de estudo conta na sua sequência. No Histórico você vê o desempenho por assunto, os erros recentes e as sessões que já respondeu.',
-  },
+  { key: 'materials', icon: 'document-text-outline', color: '#3B82F6' },
+  { key: 'scheduler', icon: 'alarm-outline', color: '#F59E0B' },
+  { key: 'challenges', icon: 'school-outline', color: '#6366F1' },
+  { key: 'alarm', icon: 'notifications-outline', color: '#EC4899' },
+  { key: 'streak', icon: 'flame', color: '#30A14E' },
 ];
 
 export default function Onboarding() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [step, setStep] = useState(0);
 
   const current = STEPS[step];
@@ -83,7 +56,7 @@ export default function Onboarding() {
     <Screen edges={['top', 'left', 'right', 'bottom']} className="px-6">
       <View className="flex-row justify-end pt-2">
         <Pressable onPress={finish} hitSlop={8}>
-          <Text className="font-medium text-muted-foreground">Pular</Text>
+          <Text className="font-medium text-muted-foreground">{t('onboarding.skip')}</Text>
         </Pressable>
       </View>
 
@@ -102,8 +75,8 @@ export default function Onboarding() {
           </View>
 
           <View className="items-center gap-2 px-4">
-            <Text className="text-center text-2xl font-bold text-foreground">{current.title}</Text>
-            <Text className="text-center text-muted-foreground">{current.description}</Text>
+            <Text className="text-center text-2xl font-bold text-foreground">{t(`onboarding.${current.key}.title`)}</Text>
+            <Text className="text-center text-muted-foreground">{t(`onboarding.${current.key}.description`)}</Text>
           </View>
         </Animated.View>
       </View>
@@ -119,7 +92,7 @@ export default function Onboarding() {
       </View>
 
       <Button onPress={next} className="mb-6 h-12 rounded-3xl bg-brand-100">
-        <Text className="text-center font-semibold text-white">{isLast ? 'Começar' : 'Próximo'}</Text>
+        <Text className="text-center font-semibold text-white">{isLast ? t('onboarding.start') : t('onboarding.next')}</Text>
       </Button>
     </Screen>
   );

@@ -1,4 +1,5 @@
 import { SupportedLanguage } from '@/types/api/SchedulerDTO';
+import { i18n } from '@/i18n';
 
 export interface Sound {
   name: string;
@@ -6,13 +7,25 @@ export interface Sound {
 
 export type { SupportedLanguage };
 
+// Idiomas dos desafios. O nome de cada um é lido do dicionário na hora do acesso (getter), no
+// idioma do app.
+function language(value: SupportedLanguage, flag: string) {
+  return {
+    value,
+    flag,
+    get label() {
+      return i18n.t(`languages.${value}`);
+    },
+  };
+}
+
 export const SUPPORTED_LANGUAGES: { value: SupportedLanguage; label: string; flag: string }[] = [
-  { value: 'pt', label: 'Português', flag: '🇧🇷' },
-  { value: 'en', label: 'Inglês', flag: '🇺🇸' },
-  { value: 'es', label: 'Espanhol', flag: '🇪🇸' },
-  { value: 'fr', label: 'Francês', flag: '🇫🇷' },
-  { value: 'de', label: 'Alemão', flag: '🇩🇪' },
-  { value: 'it', label: 'Italiano', flag: '🇮🇹' },
+  language('pt', '🇧🇷'),
+  language('en', '🇺🇸'),
+  language('es', '🇪🇸'),
+  language('fr', '🇫🇷'),
+  language('de', '🇩🇪'),
+  language('it', '🇮🇹'),
 ];
 
 export const LANGUAGE_FLAGS: Record<SupportedLanguage, string> = Object.fromEntries(

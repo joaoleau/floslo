@@ -8,6 +8,7 @@ import notifee, {
 } from '@notifee/react-native';
 
 import { schedulerApi } from '@/api/scheduler';
+import { i18n } from '@/i18n';
 import { schedulerMapper } from '@/mappers/schedulerMapper';
 import { Scheduler } from '@/types/domain/Scheduler';
 import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
@@ -122,15 +123,15 @@ async function prepareAlarmNotification(settings: AlarmSettings) {
 
   await notifee.createChannel({
     id: channelId,
-    name: `Canal: ${settings.name}`,
+    name: i18n.t('notification.channel', { name: settings.name }),
     importance: AndroidImportance.HIGH,
     sound: soundName,
     vibration: settings.vibration,
   });
 
   return {
-    title: '⏰ ' + (settings.name || 'Agendador'),
-    body: 'Seu agendador está tocando. Toque para abrir.',
+    title: '⏰ ' + (settings.name || i18n.t('notification.defaultTitle')),
+    body: i18n.t('notification.body'),
     android: {
       channelId,
       category: AndroidCategory.ALARM,

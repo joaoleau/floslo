@@ -30,6 +30,8 @@ import { FieldHelpModal } from '@/components/common/FieldHelpModal';
 // IMPORTANTE: Importe o seu userService (ajuste o caminho de acordo com o seu projeto)
 import { userService } from '@/services/userService';
 
+import { i18n, loadLanguagePreference } from '@/i18n';
+
 import '@/styles/global.css';
 
 SplashScreen.preventAutoHideAsync();
@@ -130,6 +132,9 @@ export default function RootLayout() {
 
     async function checkAuthAndRedirect() {
       try {
+        // O idioma escolhido no Perfil vale antes da primeira tela, para ela não abrir no
+        // idioma do celular e trocar logo em seguida.
+        await loadLanguagePreference();
         const token = await authService.getAccessToken();
         
         if (token) {
@@ -329,9 +334,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     if (this.state.hasError) {
       return (
         <View className="flex-1 items-center justify-center bg-background px-6">
-          <Text className="text-center text-foreground">
-            Algo deu errado. Feche e abra o app novamente.
-          </Text>
+          <Text className="text-center text-foreground">{i18n.t('common.crashed')}</Text>
         </View>
       );
     }

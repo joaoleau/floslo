@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { checkPasswordRequirements } from '@/lib/passwordPolicy';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
@@ -16,6 +17,7 @@ interface PasswordRequirementsProps {
 // ele tentar enviar o formulário, em vez de só devolver um erro genérico depois.
 export function PasswordRequirements({ password, variant = 'default' }: PasswordRequirementsProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const requirements = checkPasswordRequirements(password);
   const onColor = variant === 'onColor';
 
@@ -32,7 +34,7 @@ export function PasswordRequirements({ password, variant = 'default' }: Password
             className={onColor ? `text-xs ${req.met ? 'text-white' : 'text-white/60'}` : 'text-xs'}
             style={onColor ? undefined : { color: req.met ? colors.foreground : colors.mutedForeground }}
           >
-            {req.label}
+            {t(`auth.passwordRules.${req.key}`)}
           </Text>
         </View>
       ))}

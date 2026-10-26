@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 
 import { ObjectTags } from '@/components/object/ObjectTags';
 import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
@@ -25,6 +26,8 @@ interface ObjectCardProps {
 // continuar reconhecível item a item.
 export function ObjectCard({ object, onPress, onLongPress, selectionMode = false, selected = false }: ObjectCardProps) {
   const colors = useThemeColors();
+  // Assina o idioma para o card se redesenhar quando ele muda (a FlatList não redesenha os itens).
+  useTranslation();
   // Em processamento ou com falha, o documento ainda não gera desafios: o card fica só com o
   // contorno, sem fundo colorido, como o agendador desligado, e o selo continua dizendo qual dos
   // dois é, para o estado não depender só da cor.

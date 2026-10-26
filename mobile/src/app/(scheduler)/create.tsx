@@ -1,6 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -14,9 +15,11 @@ import { useCreateSchedulerMutation } from '@/hooks/useSchedulers';
 import { Scheduler } from '@/types/domain/Scheduler';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
+import { errorMessage } from '@/i18n/errors';
 
 export default function CreateScheduler() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const formRef = useRef<SchedulerFormRef>(null);
 
@@ -31,7 +34,7 @@ export default function CreateScheduler() {
 
     return {
       id: '',
-      name: 'Sem Nome',
+      name: t('schedulers.form.defaultName'),
       language: 'pt',
       weekDays: [],
       startTime: `${hours}:${minutes}`,
@@ -44,6 +47,8 @@ export default function CreateScheduler() {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+    // Só o valor inicial: o nome padrão não muda se o idioma for trocado com a tela aberta.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSubmit(scheduler: Scheduler) {
@@ -52,14 +57,14 @@ export default function CreateScheduler() {
       router.back();
     } catch (err) {
       console.error('[CreateScheduler] Falha ao criar o agendador:', err);
-      showAlert('Erro', err instanceof Error ? err.message : 'Falha ao criar o agendador.');
+      showAlert(t('common.error'), errorMessage(err, 'schedulers.form.createFailed'));
     }
   }
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Header
-        title="Novo Agendador"
+        title={t('schedulers.form.createTitle')}
         rightAction={
           createMutation.isPending ? (
             <ActivityIndicator color={colors.brand} />
@@ -74,7 +79,7 @@ export default function CreateScheduler() {
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError ? (
-        <ErrorState message={error?.message} onRetry={() => refetch()} />
+        <ErrorState message={errorMessage(error, 'objects.loadFailed')} onRetry={() => refetch()} />
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>

@@ -1,16 +1,13 @@
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Scheduler } from '@/types/domain/Scheduler';
 
 export type SchedulerFilter = 'all' | 'today' | 'tomorrow' | 'disabled';
 
-const FILTER_OPTIONS: { value: SchedulerFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'today', label: 'Hoje' },
-  { value: 'tomorrow', label: 'Amanhã' },
-  { value: 'disabled', label: 'Desativados' },
-];
+// O rótulo de cada filtro fica no dicionário, em schedulers.filters.<value>.
+const FILTER_OPTIONS: SchedulerFilter[] = ['all', 'today', 'tomorrow', 'disabled'];
 
 const WEEKDAY_BY_INDEX = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -47,24 +44,25 @@ interface SchedulerListFiltersProps {
 // neutro: com uma cor por filtro, ele parecia indicar os agendadores daquela cor, já que os
 // cards da lista são coloridos.
 export function SchedulerListFilters({ value, onChange, schedulers }: SchedulerListFiltersProps) {
+  const { t } = useTranslation();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
       {FILTER_OPTIONS.map((option) => {
-        const selected = value === option.value;
-        const count = schedulers.filter((scheduler) => matchesSchedulerFilter(scheduler, option.value)).length;
+        const selected = value === option;
+        const count = schedulers.filter((scheduler) => matchesSchedulerFilter(scheduler, option)).length;
         return (
           <Pressable
-            key={option.value}
-            onPress={() => onChange(option.value)}
+            key={option}
+            onPress={() => onChange(option)}
             className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2 ${
               selected ? 'border-brand-100 bg-brand-100' : 'border-border bg-card'
             }`}
           >
             <Text className={selected ? 'text-sm font-medium text-white' : 'text-sm font-medium text-foreground'}>
-              {option.label}
+              {t(`schedulers.filters.${option}`)}
             </Text>
             <View
-              testID={`scheduler-filter-count-${option.value}`}
+              testID={`scheduler-filter-count-${option}`}
               className={`items-center justify-center rounded-full px-1.5 ${selected ? 'bg-white/20' : 'bg-muted'}`}
               style={{ minWidth: 20, height: 20 }}
             >
