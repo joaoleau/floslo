@@ -27,9 +27,9 @@ type GenerateResponseContent struct {
 	Text string `json:"text"`
 }
 
-// Os itens gerados trazem SourceChunks (os trechos usados), que não vêm do modelo: quem monta
-// os slots é o backend, e o item i da resposta é ligado ao slot i por posição. Se o modelo
-// devolver uma quantidade diferente da pedida, cada item recebe todos os trechos da chamada.
+// Os itens gerados trazem Tag e SourceChunks, que não vêm do modelo: quem monta os slots é o
+// backend, e o item i da resposta é ligado ao slot i por posição. A tag é a da busca que
+// encontrou o chunk principal do slot, e a fonte são os chunks do slot.
 
 type GeneratedMultipleChoice struct {
 	Question     string                      `json:"question"`
@@ -73,10 +73,11 @@ func NewGenerationService(modelClient *bedrockruntime.Client, modelId string) *G
 	}
 }
 
-// GenerationSlot é uma vaga do prompt: a passagem principal (o chunk foco) e, se houver, uma
-// de apoio só para dar contexto.
+// GenerationSlot é uma vaga do prompt: a passagem principal (o chunk foco), a tag cuja busca a
+// encontrou e, se houver, uma passagem de apoio só para dar contexto.
 type GenerationSlot struct {
 	Main    RetrievedChunk
+	Tag     string
 	Support *RetrievedChunk
 }
 
@@ -116,16 +117,6 @@ func languageReminderInstruction(language string) string {
 		return ""
 	}
 	return fmt.Sprintf("\nReminder: write the entire output (every piece of text) in %s, regardless of what language the material below is in. Do not default to the material's language.\n", name)
-}
-
-func topicsListText(tags []string) string {
-	var topicsList strings.Builder
-	for _, t := range tags {
-		topicsList.WriteString("- ")
-		topicsList.WriteString(t)
-		topicsList.WriteString("\n")
-	}
-	return topicsList.String()
 }
 
 // slotsPromptText monta o bloco SLOTS do prompt. Os rótulos são só posições ("SLOT 1"): o
@@ -232,8 +223,7 @@ func truncateForLog(text string) string {
 // slotItem é o que um item gerado precisa oferecer para ser validado e ligado ao slot.
 type slotItem interface {
 	isUsable() bool
-	tagPointer() *string
-	bindSource(sources []RetrievedChunk)
+	bindSlot(slot GenerationSlot)
 }
 
 func (q *GeneratedMultipleChoice) isUsable() bool {
@@ -253,83 +243,62 @@ func (q *GeneratedMultipleChoice) isUsable() bool {
 	return correct == 1
 }
 
-func (q *GeneratedMultipleChoice) tagPointer() *string                 { return &q.Tag }
-func (q *GeneratedMultipleChoice) bindSource(sources []RetrievedChunk) { q.SourceChunks = sources }
+func (q *GeneratedMultipleChoice) bindSlot(slot GenerationSlot) {
+	q.Tag, q.SourceChunks = slot.Tag, slot.chunks()
+}
 
 func (d *GeneratedDiscovery) isUsable() bool {
 	return strings.TrimSpace(d.Content) != ""
 }
 
-func (d *GeneratedDiscovery) tagPointer() *string                 { return &d.Tag }
-func (d *GeneratedDiscovery) bindSource(sources []RetrievedChunk) { d.SourceChunks = sources }
+func (d *GeneratedDiscovery) bindSlot(slot GenerationSlot) {
+	d.Tag, d.SourceChunks = slot.Tag, slot.chunks()
+}
 
 func (t *GeneratedTrueFalse) isUsable() bool {
 	return strings.TrimSpace(t.Statement) != ""
 }
 
-func (t *GeneratedTrueFalse) tagPointer() *string                 { return &t.Tag }
-func (t *GeneratedTrueFalse) bindSource(sources []RetrievedChunk) { t.SourceChunks = sources }
+func (t *GeneratedTrueFalse) bindSlot(slot GenerationSlot) {
+	t.Tag, t.SourceChunks = slot.Tag, slot.chunks()
+}
 
 // itemsFromResponse converte a resposta do modelo em itens ligados aos slots. O item i
-// corresponde ao slot i, decisão do backend: o modelo não devolve ids. A ligação só vale se
-// a quantidade devolvida for exatamente a pedida e todos os itens forem utilizáveis; caso
-// contrário o conteúdo ainda é entregue, com todos os trechos da chamada como fonte.
+// corresponde ao slot i, decisão do backend: o modelo não devolve ids. Se a quantidade
+// devolvida for diferente da pedida, não há como saber de qual slot saiu cada item, então
+// nenhum item do tipo é aproveitado. Com a quantidade certa, cada item utilizável recebe a
+// tag e os chunks do seu slot, e os inutilizáveis são descartados.
 func itemsFromResponse[T any, P interface {
 	*T
 	slotItem
-}](raw string, wrapperKey string, slots []GenerationSlot, tags []string) ([]*T, error) {
+}](raw string, wrapperKey string, slots []GenerationSlot) ([]*T, error) {
 	parsed, err := parseWrappedArray[T](raw, wrapperKey)
 	if err != nil {
 		return nil, err
 	}
 
-	bound := len(parsed) == len(slots)
+	if len(parsed) != len(slots) {
+		return nil, fmt.Errorf("%s generation returned %d items for %d slots", wrapperKey, len(parsed), len(slots))
+	}
+
 	items := make([]*T, 0, len(parsed))
 	for i := range parsed {
 		item := P(&parsed[i])
 		if !item.isUsable() {
 			logger.Log.Error("model returned an unusable item, dropping it", logger.String("key", wrapperKey), logger.Any("position", i))
-			bound = false
 			continue
 		}
-		if tag := item.tagPointer(); strings.TrimSpace(*tag) == "" && len(tags) > 0 {
-			*tag = tags[0]
-		}
+		item.bindSlot(slots[i])
 		items = append(items, &parsed[i])
-	}
-
-	if len(items) > len(slots) {
-		logger.Log.Info(
-			"model returned more items than requested, truncating",
-			logger.String("key", wrapperKey),
-			logger.Any("requested", len(slots)),
-			logger.Any("returned", len(items)),
-		)
-		items = items[:len(slots)]
-		bound = false
 	}
 
 	if len(items) == 0 {
 		return nil, fmt.Errorf("%s generation returned no usable items", wrapperKey)
 	}
-
-	var allSources []RetrievedChunk
-	for _, slot := range slots {
-		allSources = append(allSources, slot.chunks()...)
-	}
-
-	for i, item := range items {
-		if !bound {
-			P(item).bindSource(allSources)
-			continue
-		}
-		P(item).bindSource(slots[i].chunks())
-	}
-
 	return items, nil
 }
 
-func multipleChoicePrompt(language string, slots []GenerationSlot, tags []string) string {
+func multipleChoicePrompt(language string, slots []GenerationSlot) string {
 	return fmt.Sprintf(`
 You are an expert author of multiple-choice study questions.
 %s
@@ -373,21 +342,17 @@ You MUST respond ONLY with valid JSON, in EXACTLY this shape:
         { "id": "C", "text": "string", "correct": false },
         { "id": "D", "text": "string", "correct": false }
       ],
-      "explanation": "string",
-      "tag": "string"
+      "explanation": "string"
     }
   ]
 }
 
 SLOTS:
 %s
-
-TOPICS (set "tag" to the topic this question is really about):
-%s
-`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots), topicsListText(tags))
+`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots))
 }
 
-func trueFalsePrompt(language string, slots []GenerationSlot, tags []string) string {
+func trueFalsePrompt(language string, slots []GenerationSlot) string {
 	return fmt.Sprintf(`
 You are an expert author of true-or-false study statements.
 %s
@@ -420,19 +385,16 @@ You MUST respond ONLY with valid JSON, in EXACTLY this shape:
 
 {
   "items": [
-    { "statement": "string", "answer": true, "explanation": "string", "tag": "string" }
+    { "statement": "string", "answer": true, "explanation": "string" }
   ]
 }
 
 SLOTS:
 %s
-
-TOPICS (set "tag" to the topic this statement is really about):
-%s
-`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots), topicsListText(tags))
+`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots))
 }
 
-func discoveryPrompt(language string, slots []GenerationSlot, tags []string) string {
+func discoveryPrompt(language string, slots []GenerationSlot) string {
 	return fmt.Sprintf(`
 You are an intelligent generator of bite-sized study facts ("did you know" style) for a
 mobile app screen. Each item needs enough substance to not look empty, so shallow one-liners
@@ -458,48 +420,44 @@ reading "content" alone, with nothing left to respond to. All discoveries must b
 from one another.
 %s
 You MUST respond ONLY with valid JSON, in EXACTLY this shape: a top-level object with a
-"discoveries" key, and each item having ONLY the keys "title", "content" and "tag".
+"discoveries" key, and each item having ONLY the keys "title" and "content".
 
 {
   "discoveries": [
     {
       "title": "Mitochondria carry their own DNA",
-      "content": "Unlike the cell's other organelles, mitochondria have a small genome of their own, separate from the nucleus. Under the endosymbiotic theory, they were once free-living bacteria absorbed by another cell billions of years ago. Over time that relationship became permanent: the host cell provides protection and nutrients, and the mitochondria provide energy. Mitochondrial DNA is also inherited almost entirely from the mother, which makes it a useful tool for tracing maternal ancestry.",
-      "tag": "cell biology"
+      "content": "Unlike the cell's other organelles, mitochondria have a small genome of their own, separate from the nucleus. Under the endosymbiotic theory, they were once free-living bacteria absorbed by another cell billions of years ago. Over time that relationship became permanent: the host cell provides protection and nutrients, and the mitochondria provide energy. Mitochondrial DNA is also inherited almost entirely from the mother, which makes it a useful tool for tracing maternal ancestry."
     }
   ]
 }
 
 SLOTS:
 %s
-
-TOPICS (set "tag" to the topic this discovery is really about):
-%s
-`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots), topicsListText(tags))
+`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots))
 }
 
-func (s *GenerationService) GenerateMultipleChoices(ctx context.Context, slots []GenerationSlot, tags []string, language string) ([]*GeneratedMultipleChoice, error) {
-	raw, err := s.invoke(ctx, multipleChoicePrompt(language, slots, tags), tokenBudget(500, 300, len(slots)))
+func (s *GenerationService) GenerateMultipleChoices(ctx context.Context, slots []GenerationSlot, language string) ([]*GeneratedMultipleChoice, error) {
+	raw, err := s.invoke(ctx, multipleChoicePrompt(language, slots), tokenBudget(500, 300, len(slots)))
 	if err != nil {
 		return nil, err
 	}
-	return itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots, tags)
+	return itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots)
 }
 
-func (s *GenerationService) GenerateTrueFalse(ctx context.Context, slots []GenerationSlot, tags []string, language string) ([]*GeneratedTrueFalse, error) {
-	raw, err := s.invoke(ctx, trueFalsePrompt(language, slots, tags), tokenBudget(400, 250, len(slots)))
+func (s *GenerationService) GenerateTrueFalse(ctx context.Context, slots []GenerationSlot, language string) ([]*GeneratedTrueFalse, error) {
+	raw, err := s.invoke(ctx, trueFalsePrompt(language, slots), tokenBudget(400, 250, len(slots)))
 	if err != nil {
 		return nil, err
 	}
-	return itemsFromResponse[GeneratedTrueFalse](raw, "items", slots, tags)
+	return itemsFromResponse[GeneratedTrueFalse](raw, "items", slots)
 }
 
-func (s *GenerationService) GenerateDiscoveries(ctx context.Context, slots []GenerationSlot, tags []string, language string) ([]*GeneratedDiscovery, error) {
-	raw, err := s.invoke(ctx, discoveryPrompt(language, slots, tags), tokenBudget(500, 350, len(slots)))
+func (s *GenerationService) GenerateDiscoveries(ctx context.Context, slots []GenerationSlot, language string) ([]*GeneratedDiscovery, error) {
+	raw, err := s.invoke(ctx, discoveryPrompt(language, slots), tokenBudget(500, 350, len(slots)))
 	if err != nil {
 		return nil, err
 	}
-	return itemsFromResponse[GeneratedDiscovery](raw, "discoveries", slots, tags)
+	return itemsFromResponse[GeneratedDiscovery](raw, "discoveries", slots)
 }
 
 func cleanJSONResponse(text string) string {

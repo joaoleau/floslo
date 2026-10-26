@@ -19,10 +19,6 @@ class Config:
         self.embedding_max_chunk_length = int(os.getenv("EMBEDDING_MAX_CHUNK_LENGTH", "8000"))
         self.tag_refiner_enabled = os.getenv("TAG_REFINER_ENABLED", "true").lower() in ("1", "true", "yes")
         self.tag_refiner_max_tags = int(os.getenv("TAG_REFINER_MAX_TAGS", "200"))
-        self.tag_refiner_max_candidates = int(os.getenv("TAG_REFINER_MAX_CANDIDATES", "1000"))
         self.tag_max_length = int(os.getenv("TAG_MAX_LENGTH", "32"))
-        # 0 extrai tags por página; um valor positivo junta páginas seguidas até esse tamanho
-        # antes de extrair, dando ao YAKE um texto maior (ver TagWindowBuffer).
-        self.tag_window_chars = int(os.getenv("TAG_WINDOW_CHARS", "8000"))
         self.tag_refiner_model_id = os.getenv("TAG_REFINER_MODEL_ID", "amazon.nova-lite-v1:0")
-        self.yake_max_keywords = int(os.getenv("YAKE_MAX_KEYWORDS", "15"))
+        self.yake_max_keywords = int(os.getenv("YAKE_MAX_KEYWORDS", "300"))

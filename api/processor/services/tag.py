@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 import re
 from typing import Iterator
-from .utils import normalize_text
+from .utils import normalize_text, remove_redundant_keywords
 
 import yake
 from langdetect import detect
@@ -30,12 +30,13 @@ class TagExtractionResult:
 
 @dataclass(slots=True)
 class TagServiceData:
-    # Máximo de tags que o YAKE devolve por extração (uma página, ou uma janela de várias
-    # páginas -- ver TagWindowBuffer). Variável YAKE_MAX_KEYWORDS.
-    max_keywords: int = 15
+    # Máximo de candidatas que o YAKE devolve para o documento inteiro, as de melhor nota.
+    # Variável YAKE_MAX_KEYWORDS. Não há corte por nota: ela muda com o tamanho e o estilo do
+    # texto, então um valor fixo cortava quase tudo em um documento e nada em outro. Quem
+    # separa candidata boa de ruim é o refinador.
+    max_keywords: int = 300
     keyword_ngram_size: int = 3
     min_text_length: int = 50
-    max_keyword_score: float = 0.08
     min_keyword_length: int = 4
     max_keyword_words: int = 4
 
@@ -44,7 +45,6 @@ class TagService:
         self.max_keywords = config.max_keywords
         self.keyword_ngram_size = config.keyword_ngram_size
         self.min_text_length = config.min_text_length
-        self.max_keyword_score = config.max_keyword_score
         self.min_keyword_length = config.min_keyword_length
         self.max_keyword_words = config.max_keyword_words
 
@@ -93,19 +93,12 @@ class TagService:
         )
 
         keywords = kw_extractor.extract_keywords(text)
-        keywords = self._remove_redundant_keywords(keywords)
+        keywords = remove_redundant_keywords(keywords)
         logger.debug(f"Yake returned {len(keywords)} raw keywords/phrases.")
 
         seen = set()
 
         for keyword, score in keywords:
-            
-            if score > self.max_keyword_score:
-                logger.debug(
-                    f"Skipping keyword '{keyword}' due to low score ({score:.4f} > {self.max_keyword_score})."
-                )
-                continue
-            
             original_keyword = keyword
             keyword = keyword.strip().lower()
 
@@ -152,23 +145,6 @@ class TagService:
         except Exception as e:
             logger.exception(f"Failed to detect language due to exception: {e}. Falling back to default 'en'.")
             return "en"
-
-    def _remove_redundant_keywords(self,tags: list[tuple[str, float]]) -> list[tuple[str, float]]:
-        final_tags: list[tuple[str, float]] = []
-        sorted_tags = sorted(
-            tags,
-            key=lambda tag: len(tag[0]),
-            reverse=True
-        )
-
-        for keyword, score in sorted_tags:
-            if any(keyword in existing_keyword for existing_keyword, _ in final_tags):
-                logger.debug(f"Skipping redundant keyword: '{keyword}'")
-                continue
-
-            final_tags.append((keyword, score))
-
-        return final_tags
 
     def _is_valid_keyword(self, keyword: str) -> bool:
         if len(keyword) < self.min_keyword_length:

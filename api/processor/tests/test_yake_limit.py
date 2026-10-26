@@ -7,9 +7,8 @@ import unittest
 _PROCESSOR = pathlib.Path(__file__).resolve().parents[1]
 _TEMPLATE = _PROCESSOR.parent / "template.yml"
 
-# Máximo de tags que o YAKE devolve por extração: uma página, ou uma janela de várias páginas
-# quando TAG_WINDOW_CHARS é positivo (ver TagWindowBuffer).
-MAX_KEYWORDS_PER_EXTRACTION = 15
+# Máximo de candidatas que o YAKE devolve para o documento inteiro (uma extração só).
+MAX_KEYWORDS_PER_EXTRACTION = 300
 
 
 class YakeLimitTests(unittest.TestCase):

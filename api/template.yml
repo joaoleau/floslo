@@ -365,11 +365,9 @@ Resources:
           EMBEDDING_MAX_CHUNK_LENGTH: "8000"
           TAG_REFINER_ENABLED: "true"
           TAG_REFINER_MAX_TAGS: "200"
-          TAG_REFINER_MAX_CANDIDATES: "1000"
           TAG_MAX_LENGTH: "32"
-          TAG_WINDOW_CHARS: "8000"
           TAG_REFINER_MODEL_ID: amazon.nova-lite-v1:0
-          YAKE_MAX_KEYWORDS: "15"
+          YAKE_MAX_KEYWORDS: "300"
 
       Events:
         ObjectQueue:

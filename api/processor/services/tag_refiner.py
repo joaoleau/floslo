@@ -6,10 +6,9 @@ from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
-# Teto de tokens da resposta de uma faixa. Uma faixa devolve poucas dezenas de tags, então isso é
-# folga grande: serve para limitar o custo quando o modelo entra em laço repetindo variações da
-# mesma tag (foi o que aconteceu com o documento inteiro numa chamada só). Resposta cortada não é
-# perda total, as tags completas que chegaram são aproveitadas.
+# Teto de tokens da resposta. O refinador recebe as candidatas do documento inteiro numa chamada
+# só; o teto limita o custo quando o modelo entra em laço repetindo variações da mesma tag.
+# Resposta cortada não é perda total, as tags completas que chegaram são aproveitadas.
 MAX_NEW_TOKENS = 1500
 
 # Padrão de TAG_REFINER_MAX_TAGS: o máximo de tags que o refinador devolve.
@@ -68,10 +67,9 @@ class BedrockTagRefinerClient:
     which hints at the topic without narrowing it.
 
     Returns None when the call fails (throttling, malformed JSON, timeout,
-    empty answer). Deciding what to do with that is up to TagRefinerService:
-    one bad band is skipped, and only when every band fails does the document
-    fall back to the raw YAKE candidates. A refiner hiccup must never fail
-    document ingestion or leave a document with zero tags.
+    empty answer). Deciding what to do with that is up to TagRefinerService,
+    which falls back to the raw YAKE candidates. A refiner hiccup must never
+    fail document ingestion or leave a document with zero tags.
 
     A response cut off by max_tokens is not a failure: the complete tags that
     arrived before the cut are kept.
@@ -122,7 +120,7 @@ class BedrockTagRefinerClient:
             refined = self._dedupe([tag for tag in tags if isinstance(tag, str) and tag.strip()])
 
             if not refined:
-                logger.warning("Tag refiner returned no usable tags for this band.")
+                logger.warning("Tag refiner returned no usable tags.")
                 return None
 
             logger.info(f"Tag refiner selected {len(refined)} tag(s): {refined}")
@@ -136,7 +134,7 @@ class BedrockTagRefinerClient:
             # Falha aberta de propósito, mas nunca em silêncio: o motivo e o começo/fim da
             # resposta (uma resposta cortada em max_tokens vira JSON inválido) ficam no log.
             logger.exception(
-                f"Tag refiner call failed for this band. "
+                f"Tag refiner call failed. "
                 f"stopReason={stop_reason} response_head={raw_text[:200]!r} response_tail={raw_text[-200:]!r}"
             )
             return None
@@ -190,7 +188,7 @@ class BedrockTagRefinerClient:
 
         context_section = self._build_context_section(context)
 
-        return f"""You curate the tags of a document. The candidates below come from ONE PART of it (the document is longer and covers more subjects than this part), and were extracted automatically from its text, so they are noisy: many are sentence fragments, contain verbs, have broken or truncated words, or are names of people, publishers and copyright notices.
+        return f"""You curate the tags of a document. The candidates below come from the whole document and were extracted automatically from its text, so they are noisy: many are sentence fragments, contain verbs, have broken or truncated words, or are names of people, publishers and copyright notices.
 {context_section}
 A tag is a key concept of the material: a noun or a short noun phrase that names a topic, an idea, a theme or a subject. The document can be about anything, so do not assume a field. Tags guide the generation of study challenges and the search for related content.
 
@@ -205,7 +203,7 @@ Discard candidates that are not a concept: sentence fragments with no topic, nam
 
 You may add a concept when the candidates clearly point to it, but never invent one that the candidates do not support.
 
-Return as many tags as this part really has, and only what it is about: a part with one subject may give a single tag, a dense one may give many. Do not pad the list and do not repeat a tag.
+Return as many tags as the document really has, and only what it is about: a document with one subject may give a single tag, a dense one may give many. Do not pad the list and do not repeat a tag.
 
 CANDIDATES:
 {candidates_list}
@@ -238,47 +236,25 @@ class TagRefinerService:
         self.max_tags = config.max_tags
         self.client = client or NoopTagRefinerClient()
 
-    def refine(self, candidate_bands: list[list[str]], context: DocumentContext | None = None) -> list[str]:
-        """Refina uma faixa do documento por vez. Numa chamada só, com o documento inteiro, o
-        modelo percorria a lista até entrar em laço e os capítulos do fim nunca chegavam a ser
-        vistos; por faixa, a cobertura não depende de ele chegar ao fim de uma lista gigante.
-
-        Uma faixa que falha é ignorada (as outras seguem valendo); só se todas falharem o
+    def refine(self, candidates: list[str], context: DocumentContext | None = None) -> list[str]:
+        """Refina as candidatas do documento inteiro numa chamada só. Se a chamada falhar, o
         documento cai de volta nas candidatas cruas do YAKE."""
-        candidates = [candidate for band in candidate_bands for candidate in band]
         if not self.enabled or not candidates:
             return candidates
 
-        refined: list[str] = []
-        seen: set[str] = set()
-        failed = 0
-
-        for number, band in enumerate(candidate_bands, start=1):
-            if not band:
-                continue
-
-            band_tags = self.client.refine(band, context)
-            if band_tags is None:
-                failed += 1
-                logger.warning(f"Tag refiner: band {number}/{len(candidate_bands)} failed, skipping it.")
-                continue
-
-            for tag in band_tags:
-                key = tag.strip().lower()
-                if not key or key in seen:
-                    continue
-                seen.add(key)
-                refined.append(tag.strip())
-
-        if not refined:
-            logger.warning(
-                f"Tag refiner: no band returned tags ({failed} of {len(candidate_bands)} failed), "
-                f"falling back to the {len(candidates)} YAKE candidate(s)."
-            )
+        answer = self.client.refine(candidates, context)
+        if answer is None:
+            logger.warning(f"Tag refiner failed, falling back to the {len(candidates)} YAKE candidate(s).")
             return candidates[: self.max_tags]
 
-        logger.info(
-            f"Tag refiner: {len(candidates)} candidate(s) in {len(candidate_bands)} band(s) -> "
-            f"{len(refined)} tag(s), {failed} band(s) failed."
-        )
+        refined: list[str] = []
+        seen: set[str] = set()
+        for tag in answer:
+            key = tag.strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            refined.append(tag.strip())
+
+        logger.info(f"Tag refiner: {len(candidates)} candidate(s) -> {len(refined)} tag(s).")
         return refined[: self.max_tags]
