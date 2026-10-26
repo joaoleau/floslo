@@ -69,11 +69,24 @@ function challengeResultToItems(raw: ChallengeResultDTO): ChallengeItem[] {
   }
 }
 
+// Ordem dos tipos no disparo: a descoberta primeiro, para apresentar o conteúdo antes de
+// cobrá-lo, depois múltipla escolha e verdadeiro ou falso. Vale para qualquer agendador, inclusive
+// os salvos antes, porque a ordem gravada no agendador é a do formulário.
+export const FIRING_TYPE_ORDER: ChallengeItem['type'][] = ['DISCOVERY', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
+
+function firingRank(type: string): number {
+  const rank = FIRING_TYPE_ORDER.indexOf(type as ChallengeItem['type']);
+  return rank === -1 ? FIRING_TYPE_ORDER.length : rank;
+}
+
 export const ragMapper = {
   toDomain(raw: RAGDTO): RAG {
+    const results = [...(raw.challenges ?? [])].sort(
+      (a, b) => firingRank(a.challenge_type) - firingRank(b.challenge_type)
+    );
     return {
       scheduler: schedulerMapper.toDomain(raw.scheduler),
-      challenges: (raw.challenges ?? []).flatMap(challengeResultToItems),
+      challenges: results.flatMap(challengeResultToItems),
       currentStreak: raw.current_streak,
     };
   },

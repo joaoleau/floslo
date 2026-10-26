@@ -7,8 +7,12 @@ import * as Application from 'expo-application';
 import { schedulerService } from '@/services/schedulerService';
 import { AlarmSettings } from '@/storage/alarmSettingsStorage';
 
-// Quanto tempo o botão de silenciar deixa o alarme mudo antes de voltar a tocar.
+// Quanto tempo o botão de silenciar deixa o alarme mudo antes de voltar a tocar, e o botão de
+// vibração deixa o aparelho parado antes de voltar a vibrar.
 export const MUTE_SECONDS = 60;
+export const VIBRATION_PAUSE_SECONDS = 60;
+
+const VIBRATION_PATTERN = [500, 1000, 500];
 
 // O expo-audio só aceita o modo em loop como propriedade do player, não como opção do hook.
 function playInLoop(player: AudioPlayer) {
@@ -19,6 +23,10 @@ function playInLoop(player: AudioPlayer) {
 export interface RingingAlarm {
   muteCountdown: number;
   mute: () => void;
+  // Contagem da pausa da vibração; `canPauseVibration` é falso quando o agendador não vibra.
+  vibrationPauseCountdown: number;
+  canPauseVibration: boolean;
+  pauseVibration: () => void;
   stop: () => void;
 }
 
@@ -36,6 +44,7 @@ export interface RingingAlarm {
  */
 export function useRingingAlarm(settings: AlarmSettings, notificationId: string): RingingAlarm {
   const [muteCountdown, setMuteCountdown] = useState(0);
+  const [vibrationPauseCountdown, setVibrationPauseCountdown] = useState(0);
   const stoppedRef = useRef(false);
 
   const soundName = settings.alarmSound || 'chic_pop';
@@ -69,11 +78,18 @@ export function useRingingAlarm(settings: AlarmSettings, notificationId: string)
   }, [muteCountdown]);
 
   useEffect(() => {
-    if (vibrationEnabled) {
-      Vibration.vibrate([500, 1000, 500], true);
-    }
+    if (vibrationPauseCountdown <= 0) return;
+    const timer = setInterval(() => setVibrationPauseCountdown((prev) => prev - 1), 1000);
+    return () => clearInterval(timer);
+  }, [vibrationPauseCountdown]);
+
+  // Vibra enquanto o alarme toca, menos durante a pausa da vibração.
+  const shouldVibrate = vibrationEnabled && vibrationPauseCountdown <= 0;
+  useEffect(() => {
+    if (!shouldVibrate || stoppedRef.current) return;
+    Vibration.vibrate(VIBRATION_PATTERN, true);
     return () => Vibration.cancel();
-  }, [vibrationEnabled]);
+  }, [shouldVibrate]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -91,11 +107,11 @@ export function useRingingAlarm(settings: AlarmSettings, notificationId: string)
           console.error('[Firing] Falha ao tirar a notificação do alarme da barra', err);
         });
         if (canPlay && muteCountdown <= 0) playInLoop(player);
-        if (vibrationEnabled) Vibration.vibrate([500, 1000, 500], true);
+        if (shouldVibrate) Vibration.vibrate(VIBRATION_PATTERN, true);
       }
     });
     return () => subscription.remove();
-  }, [player, settings, notificationId, canPlay, vibrationEnabled, muteCountdown]);
+  }, [player, settings, notificationId, canPlay, shouldVibrate, muteCountdown]);
 
   const mute = useCallback(() => {
     if (muteCountdown > 0) return;
@@ -104,6 +120,12 @@ export function useRingingAlarm(settings: AlarmSettings, notificationId: string)
     player.pause();
   }, [muteCountdown, player]);
 
+  const pauseVibration = useCallback(() => {
+    if (!vibrationEnabled || vibrationPauseCountdown > 0) return;
+    console.log(`[Firing] Parando a vibração por ${VIBRATION_PAUSE_SECONDS}s`);
+    setVibrationPauseCountdown(VIBRATION_PAUSE_SECONDS);
+  }, [vibrationEnabled, vibrationPauseCountdown]);
+
   const stop = useCallback(() => {
     stoppedRef.current = true;
     player.pause();
@@ -111,5 +133,15 @@ export function useRingingAlarm(settings: AlarmSettings, notificationId: string)
     notifee.cancelDisplayedNotification(notificationId).catch(() => undefined);
   }, [player, notificationId]);
 
-  return useMemo(() => ({ muteCountdown, mute, stop }), [muteCountdown, mute, stop]);
+  return useMemo(
+    () => ({
+      muteCountdown,
+      mute,
+      vibrationPauseCountdown,
+      canPauseVibration: vibrationEnabled,
+      pauseVibration,
+      stop,
+    }),
+    [muteCountdown, mute, vibrationPauseCountdown, vibrationEnabled, pauseVibration, stop]
+  );
 }

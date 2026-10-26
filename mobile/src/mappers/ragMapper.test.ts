@@ -80,8 +80,39 @@ describe('ragMapper.toDomain', () => {
 
     const rag = ragMapper.toDomain(dto);
     expect(rag.challenges).toHaveLength(3);
-    expect(rag.challenges.map((c) => c.type)).toEqual(['MULTIPLE_CHOICE', 'TRUE_FALSE', 'DISCOVERY']);
-    expect(rag.challenges.map((c) => c.language)).toEqual(['en', 'es', 'fr']);
+    expect(rag.challenges.map((c) => c.type)).toEqual(['DISCOVERY', 'MULTIPLE_CHOICE', 'TRUE_FALSE']);
+    expect(rag.challenges.map((c) => c.language)).toEqual(['fr', 'en', 'es']);
+  });
+
+  it('presents the discoveries first, then multiple choice, then true or false, whatever the saved order', () => {
+    const rag = ragMapper.toDomain({
+      scheduler: schedulerDTO,
+      challenges: [
+        {
+          challenge_type: 'TRUE_FALSE',
+          language: 'pt',
+          true_falses: [
+            { statement: 'A', answer: true, explanation: '', tag: 't', source_chunks: [] },
+            { statement: 'B', answer: false, explanation: '', tag: 't', source_chunks: [] },
+          ],
+        },
+        {
+          challenge_type: 'DISCOVERY',
+          language: 'pt',
+          discoveries: [{ title: 'D', content: 'd', tag: 't', source_chunks: [] }],
+        },
+        {
+          challenge_type: 'MULTIPLE_CHOICE',
+          language: 'pt',
+          multiple_choices: [{ question: 'Q', alternatives: [], explanation: '', tag: 't', source_chunks: [] }],
+        },
+      ],
+    });
+
+    expect(rag.challenges.map((c) => c.type)).toEqual(['DISCOVERY', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'TRUE_FALSE']);
+    // Dentro de um tipo, a ordem das vagas continua a mesma.
+    const statements = rag.challenges.flatMap((c) => (c.type === 'TRUE_FALSE' ? [c.data.statement] : []));
+    expect(statements).toEqual(['A', 'B']);
   });
 
   it('maps the discovery title and content', () => {

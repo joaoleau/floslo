@@ -3,7 +3,7 @@ import { View, Pressable, ActivityIndicator, BackHandler, ScrollView } from 'rea
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Text } from '@/components/ui/text';
@@ -29,16 +29,37 @@ import { RingingAlarm, useRingingAlarm } from '@/hooks/useRingingAlarm';
 import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
 
-// Botão de silenciar, o mesmo no carregamento, na tela de erro e nos desafios.
+// Botões de silenciar o som e de parar a vibração, um embaixo do outro, os mesmos no
+// carregamento, na tela de erro e nos desafios. O de vibração só aparece quando o agendador vibra.
 function MuteButton({ alarm }: { alarm: RingingAlarm }) {
   return (
-    <Pressable
-      onPress={alarm.mute}
-      className="absolute top-14 left-6 z-10 flex-row items-center bg-black/20 px-3 py-2 rounded-full"
-    >
-      <Ionicons name={alarm.muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
-      {alarm.muteCountdown > 0 && <Text className="text-white font-bold ml-2">{alarm.muteCountdown}s</Text>}
-    </Pressable>
+    <View className="absolute top-14 left-6 z-10 items-start gap-2">
+      <Pressable
+        testID="mute-sound-button"
+        onPress={alarm.mute}
+        className="flex-row items-center bg-black/20 px-3 py-2 rounded-full"
+      >
+        <Ionicons name={alarm.muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
+        {alarm.muteCountdown > 0 && <Text className="text-white font-bold ml-2">{alarm.muteCountdown}s</Text>}
+      </Pressable>
+
+      {alarm.canPauseVibration && (
+        <Pressable
+          testID="pause-vibration-button"
+          onPress={alarm.pauseVibration}
+          className="flex-row items-center bg-black/20 px-3 py-2 rounded-full"
+        >
+          <MaterialCommunityIcons
+            name={alarm.vibrationPauseCountdown > 0 ? 'vibrate-off' : 'vibrate'}
+            size={24}
+            color="white"
+          />
+          {alarm.vibrationPauseCountdown > 0 && (
+            <Text className="text-white font-bold ml-2">{alarm.vibrationPauseCountdown}s</Text>
+          )}
+        </Pressable>
+      )}
+    </View>
   );
 }
 
