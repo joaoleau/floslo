@@ -3,7 +3,7 @@ import sys
 import types
 import unittest
 
-# Carrega só services/utils: o __init__.py do pacote importa pypdf, docx2txt etc.
+# Carrega só services/utils: o __init__.py do pacote importa pypdf, yake etc.
 _SERVICES_DIR = pathlib.Path(__file__).resolve().parents[1] / "services"
 if "services" not in sys.modules:
     _package = types.ModuleType("services")

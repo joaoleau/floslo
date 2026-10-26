@@ -13,7 +13,7 @@ class Config:
         self.index_arn = os.getenv("VECTOR_INDEX_ARN")
         self.dynamo_table_name = os.getenv("DYNAMO_TABLE")
         self.dynamo_client = boto3.client(service_name="dynamodb", region_name=self.region)
-        self.max_file_size_mb = int(os.getenv("MAX_FILE_SIZE_MB", "500"))
+        self.max_file_size_mb = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
         self.chunk_size = int(os.getenv("CHUNK_SIZE", "2000"))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "300"))
         self.embedding_max_chunk_length = int(os.getenv("EMBEDDING_MAX_CHUNK_LENGTH", "8000"))

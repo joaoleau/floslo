@@ -5,8 +5,8 @@ Description: Floslo API
 
 Globals:
   Function:
-    Runtime: provided.al2
-    Timeout: 60
+    Runtime: provided.al2023
+    Timeout: 30
     MemorySize: 128
     Architectures:
       - x86_64
@@ -82,30 +82,6 @@ Resources:
                 Rules:
                   - Name: suffix
                     Value: .pdf
-
-          - Event: s3:ObjectCreated:*
-            Queue: !GetAtt FlosloObjectQueue.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .txt
-
-          - Event: s3:ObjectCreated:*
-            Queue: !GetAtt FlosloObjectQueue.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .md
-
-          - Event: s3:ObjectCreated:*
-            Queue: !GetAtt FlosloObjectQueue.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .pptx
 
   #########################################################
   # S3 VECTOR BUCKET
@@ -190,10 +166,10 @@ Resources:
     Type: AWS::Serverless::Function
 
     Metadata:
-      SkipBuild: True
+      BuildMethod: go1.x
 
     Properties:
-      CodeUri: cmd/api/build
+      CodeUri: cmd/api/
       Handler: bootstrap
       FunctionName: floslo-api
 
@@ -213,16 +189,8 @@ Resources:
 
             - Effect: Allow
               Action:
-                - bedrock:InvokeModel
-              Resource:
-                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
-                - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
-
-            - Effect: Allow
-              Action:
-                - s3vectors:QueryVectors
                 - s3vectors:DeleteVectors
-              Resource: "*"
+              Resource: !GetAtt FlosloVectorIndex.IndexArn
 
             - Effect: Allow
               Action:
@@ -240,7 +208,7 @@ Resources:
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
           TAG_MAX_LENGTH: "32"
           MAX_TAGS_PER_OBJECT: "300"
-          MAX_UPLOAD_SIZE_MB: "500"
+          MAX_UPLOAD_SIZE_MB: "50"
           SES_SENDER_EMAIL: "no-reply@floslo.com.br"
 
       Events:
@@ -259,21 +227,23 @@ Resources:
     Type: AWS::Serverless::Function
 
     Metadata:
-      SkipBuild: True
+      BuildMethod: go1.x
 
     Properties:
-      CodeUri: cmd/rag/build
+      CodeUri: cmd/rag/
       Handler: bootstrap
       FunctionName: floslo-rag
 
       Policies:
-        - DynamoDBCrudPolicy:
+        - DynamoDBReadPolicy:
             TableName: floslo
 
-        - S3CrudPolicy:
-            BucketName: floslo-us-east-1-tenants
-
         - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+              Resource: !GetAtt FlosloTable.Arn
+
             - Effect: Allow
               Action:
                 - ssm:GetParameter
@@ -291,7 +261,7 @@ Resources:
               Action:
                 - s3vectors:QueryVectors
                 - s3vectors:GetVectors
-              Resource: "*"
+              Resource: !GetAtt FlosloVectorIndex.IndexArn
 
       Environment:
         Variables:
@@ -327,16 +297,23 @@ Resources:
       MemorySize: 1024
 
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: floslo
-
-        - S3CrudPolicy:
+        - S3ReadPolicy:
             BucketName: floslo-us-east-1-tenants
 
         - SQSPollerPolicy:
             QueueName: !GetAtt FlosloObjectQueue.QueueName
 
         - Statement:
+            - Effect: Allow
+              Action:
+                - s3:DeleteObject
+              Resource: arn:aws:s3:::floslo-us-east-1-tenants/*
+
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt FlosloTable.Arn
+
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
@@ -347,10 +324,8 @@ Resources:
             - Effect: Allow
               Action:
                 - s3vectors:PutVectors
-                - s3vectors:GetVectors
-                - s3vectors:QueryVectors
                 - s3vectors:DeleteVectors
-              Resource: "*"
+              Resource: !GetAtt FlosloVectorIndex.IndexArn
 
       Environment:
         Variables:
@@ -359,7 +334,7 @@ Resources:
           VECTOR_BUCKET_NAME: floslo-us-east-1-vectors
           VECTOR_INDEX_ARN: !GetAtt FlosloVectorIndex.IndexArn
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
-          MAX_FILE_SIZE_MB: "500"
+          MAX_FILE_SIZE_MB: "50"
           CHUNK_SIZE: "2000"
           CHUNK_OVERLAP: "300"
           EMBEDDING_MAX_CHUNK_LENGTH: "8000"

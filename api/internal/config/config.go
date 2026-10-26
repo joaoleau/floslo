@@ -32,7 +32,7 @@ const (
 	SESSenderEmail = "SES_SENDER_EMAIL"
 )
 
-const defaultMaxUploadSizeMB = 500
+const defaultMaxUploadSizeMB = 50
 
 // Limites de tags. TAG_MAX_LENGTH tem o mesmo nome e o mesmo padrão no processor (api/processor):
 // tag maior que isso é cortada aqui numa edição de tags. MAX_TAGS_PER_OBJECT deve ser maior ou igual

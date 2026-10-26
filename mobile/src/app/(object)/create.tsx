@@ -14,13 +14,9 @@ import { useUploadObjectMutation } from '@/hooks/useObjects';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
 
-const ALLOWED_EXTENSIONS = ['pdf', 'txt', 'md', 'pptx'];
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'text/plain',
-  'text/markdown',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-];
+// Só PDF: o processamento lê o documento página por página.
+const ALLOWED_EXTENSIONS = ['pdf'];
+const ALLOWED_MIME_TYPES = ['application/pdf'];
 
 interface PickedFile {
   uri: string;
@@ -50,7 +46,7 @@ export default function CreateObject() {
 
     const asset = result.assets[0];
     if (!ALLOWED_EXTENSIONS.includes(getExtension(asset.name))) {
-      showAlert('Arquivo inválido', 'Selecione um arquivo PDF, TXT, MD ou PPTX.');
+      showAlert('Arquivo inválido', 'Selecione um arquivo PDF.');
       return;
     }
 
@@ -64,7 +60,7 @@ export default function CreateObject() {
       await uploadMutation.mutateAsync(pickedFile);
       showAlert(
         'Documento enviado',
-        'Pode levar alguns minutos até ele ficar disponível para gerar multiple_choices.',
+        'Pode levar alguns minutos até ele ficar disponível para gerar desafios.',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (err) {
@@ -89,7 +85,7 @@ export default function CreateObject() {
             ) : (
               <View className="items-center gap-1">
                 <Text className="font-semibold text-foreground">Selecionar arquivo</Text>
-                <Text className="text-sm text-muted-foreground">PDF, TXT, MD ou PPTX</Text>
+                <Text className="text-sm text-muted-foreground">PDF</Text>
               </View>
             )}
           </Card>
