@@ -173,6 +173,21 @@ export const app = {
         'Os materiais deste agendador foram excluídos, então não há conteúdo para gerar desafios. Vincule um objeto a ele para voltar a tocar normalmente.',
     },
   },
+  completion: {
+    streak_one: 'Sequência de {{count}} dia',
+    streak_other: 'Sequência de {{count}} dias',
+    finish: 'Concluir',
+    title: {
+      perfect: 'Tudo certo de primeira',
+      streakUp: 'Mais um dia na sequência',
+      done: 'Desafios concluídos',
+    },
+    message: {
+      perfect: 'Você acertou todas as perguntas sem errar nenhuma vez.',
+      streakUp: 'Você estudou hoje e sua sequência cresceu. Volte amanhã para mantê-la.',
+      done: 'Bom trabalho. Amanhã tem mais.',
+    },
+  },
   notification: {
     defaultTitle: 'Agendador',
     body: 'Seu agendador está tocando. Toque para abrir.',

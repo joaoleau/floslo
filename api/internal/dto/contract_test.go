@@ -150,3 +150,14 @@ func TestUserResponseCarriesTheLastActiveDate(t *testing.T) {
 		t.Errorf("last_active_date = %v, want 2026-10-24", decoded["last_active_date"])
 	}
 }
+
+func TestRegisterRequestCarriesTheAcceptedTermsVersion(t *testing.T) {
+	var request RegisterRequestDTO
+	body := `{"username":"ana","email":"ana@example.com","password":"abcd1234","accepted_terms_version":"2026-10-26"}`
+	if err := json.Unmarshal([]byte(body), &request); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got := request.ToModel().TermsVersion; got != "2026-10-26" {
+		t.Errorf("TermsVersion = %q, want the version sent by the app", got)
+	}
+}

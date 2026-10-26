@@ -353,6 +353,7 @@ function RootStack() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="terms" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(object)" />
         <Stack.Screen name="(scheduler)" />

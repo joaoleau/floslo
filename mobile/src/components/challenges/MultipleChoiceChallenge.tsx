@@ -129,6 +129,7 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
                   )}
                 </View>
                 <Text className="text-foreground leading-relaxed text-sm">{item.explanation}</Text>
+                <Text className="mt-3 text-xs text-muted-foreground">{t('terms.aiNotice')}</Text>
               </View>
 
               <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">

@@ -2,6 +2,17 @@ package service
 
 import "testing"
 
+func TestValidateTermsAcceptance(t *testing.T) {
+	if err := ValidateTermsAcceptance(TermsVersion); err != nil {
+		t.Errorf("current version should be accepted, got %v", err)
+	}
+	for _, version := range []string{"", "2000-01-01"} {
+		if err := ValidateTermsAcceptance(version); err == nil {
+			t.Errorf("version %q should be rejected", version)
+		}
+	}
+}
+
 func TestValidatePasswordStrength(t *testing.T) {
 	tests := []struct {
 		name     string

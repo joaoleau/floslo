@@ -77,6 +77,7 @@ export function DiscoveryChallenge({ discovery, currentIndex, totalDiscoveries, 
               <Text className="text-center text-2xl font-bold text-foreground leading-snug mb-3">{discovery.title}</Text>
             )}
             <Text className="text-center text-base text-foreground leading-relaxed">{discovery.content}</Text>
+            <Text className="mt-4 text-center text-xs text-muted-foreground">{t('terms.aiNotice')}</Text>
           </ScrollView>
         </View>
 

@@ -13,6 +13,7 @@ import { MultipleChoiceChallenge } from '@/components/challenges/MultipleChoiceC
 import { DiscoveryChallenge } from '@/components/challenges/DiscoveryChallenge';
 import { TrueFalseChallenge } from '@/components/challenges/TrueFalseChallenge';
 import { ChoiceReview, DiscoveryReview } from '@/components/challenges/ChallengeReview';
+import { AlarmCompletion } from '@/components/challenges/AlarmCompletion';
 import { ChallengeItem, RAG } from '@/types/domain/RAG';
 import { User } from '@/types/domain/User';
 import { LANGUAGE_FLAGS } from '@/types/domain/Scheduler';
@@ -21,6 +22,7 @@ import { useRagQuery } from '@/hooks/useFiring';
 import { useMeQuery } from '@/hooks/useUser';
 import { queryKeys } from '@/lib/queryKeys';
 import { todayLocalDate } from '@/lib/localDate';
+import { displayedStreak } from '@/lib/streak';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { historyService } from '@/services/historyService';
 import { useInvalidateHistory } from '@/hooks/useHistory';
@@ -133,6 +135,16 @@ function FiringScreenContent({
   const invalidateHistory = useInvalidateHistory();
   const queryClient = useQueryClient();
   const historySessionIdRef = useRef<string | null>(null);
+  // Respondido o último desafio, o alarme silencia e a tela mostra a recompensa (AlarmCompletion)
+  // até o usuário concluir.
+  const [finished, setFinished] = useState(false);
+
+  // A sequência que o app mostrava antes deste disparo, lida uma vez, antes de o efeito abaixo
+  // gravar a nova no cache: é dela que a tela de conclusão parte para mostrar a sequência subindo.
+  const [previousStreak] = useState(() => {
+    const cached = queryClient.getQueryData<User>(queryKeys.user.me);
+    return cached ? displayedStreak(cached.currentStreak, cached.lastActiveDate) : undefined;
+  });
 
   // A floslo-rag já registrou o dia de estudo ao gerar este disparo (a data local vai no
   // próprio pedido, ver firingService) e devolveu a sequência atualizada, que entra direto no
@@ -221,7 +233,8 @@ function FiringScreenContent({
     } else {
       if (sessionId) historyService.completeSession(sessionId);
       invalidateHistory();
-      stopAlarm();
+      alarm.stop();
+      setFinished(true);
     }
   }
 
@@ -241,6 +254,39 @@ function FiringScreenContent({
   const isReviewing = currentChallengeIndex < maxReachedIndex;
   const canGoBack = currentChallengeIndex > 0;
   const canGoForward = currentChallengeIndex < maxReachedIndex;
+
+  // Pontuação da sessão para a tela de conclusão, com a mesma regra do Histórico: só Múltipla
+  // escolha e Verdadeiro ou Falso têm acerto; Descoberta conta à parte.
+  const completionScore = ragData.challenges.reduce(
+    (score, challenge, index) => {
+      const result = answeredResults[index];
+      if (!result) return score;
+      const graded = challenge.type !== 'DISCOVERY';
+      return {
+        answeredCount: score.answeredCount + 1,
+        gradedCount: score.gradedCount + (graded ? 1 : 0),
+        correctCount: score.correctCount + (graded && result.wrongAttempts === 0 ? 1 : 0),
+      };
+    },
+    { answeredCount: 0, gradedCount: 0, correctCount: 0 },
+  );
+
+  // Alarme concluído: em silêncio, a tela mostra a recompensa até o usuário tocar em Concluir.
+  if (finished) {
+    return (
+      <LinearGradient colors={[getColorForId(ragData.scheduler.id), colors.brand]} style={{ flex: 1 }}>
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
+        <AlarmCompletion
+          streak={currentStreak}
+          previousStreak={previousStreak}
+          answeredCount={completionScore.answeredCount}
+          gradedCount={completionScore.gradedCount}
+          correctCount={completionScore.correctCount}
+          onFinish={stopAlarm}
+        />
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient

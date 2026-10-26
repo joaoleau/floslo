@@ -284,6 +284,18 @@ export default function Profile() {
             <Text className="text-xs text-muted-foreground">{t('profile.language.hint')}</Text>
           </Card>
 
+          <Pressable
+            testID="open-terms"
+            onPress={() => router.push('/terms')}
+            className="flex-row items-center justify-between rounded-3xl border border-border bg-card px-5 py-4"
+          >
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="document-text-outline" size={18} color={colors.brand} />
+              <Text className="font-semibold text-foreground">{t('terms.title')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.brandSoft} />
+          </Pressable>
+
           <Button
             onPress={handleDeleteAccount}
             disabled={deleteMeMutation.isPending}

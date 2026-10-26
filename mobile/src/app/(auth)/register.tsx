@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/common/Screen';
@@ -19,6 +19,7 @@ import { isPasswordValid } from '@/lib/passwordPolicy';
 import { showAlert } from '@/services/alertService';
 import { sessionService } from '@/services/sessionService';
 import { errorMessage } from '@/i18n/errors';
+import { TERMS_VERSION } from '@/constants/terms';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const registerMutation = useRegisterMutation();
 
   async function handleRegister() {
@@ -39,9 +41,13 @@ export default function RegisterScreen() {
       showAlert(t('auth.weakPassword.title'), t('auth.weakPassword.message'));
       return;
     }
+    if (!acceptedTerms) {
+      showAlert(t('common.attention'), t('terms.acceptRequired'));
+      return;
+    }
 
     try {
-      await registerMutation.mutateAsync({ email, username, password });
+      await registerMutation.mutateAsync({ email, username, password, accepted_terms_version: TERMS_VERSION });
       router.replace(await sessionService.start());
     } catch (error) {
       console.error('[Register] Falha ao criar conta', error);
@@ -86,6 +92,30 @@ export default function RegisterScreen() {
                   <PasswordRequirements password={password} />
                 </View>
               )}
+
+              {/* O aceite é o consentimento da LGPD, inclusive para a transferência dos dados aos
+                  Estados Unidos: fica desmarcado até o usuário marcar, e o cadastro exige. */}
+              <Pressable
+                testID="accept-terms"
+                onPress={() => setAcceptedTerms((prev) => !prev)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: acceptedTerms }}
+                className="flex-row items-start gap-2 py-1"
+              >
+                <Ionicons
+                  name={acceptedTerms ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={acceptedTerms ? colors.brand : colors.mutedForeground}
+                />
+                <Text className="flex-1 text-sm text-muted-foreground">
+                  <Trans
+                    i18nKey="terms.accept"
+                    components={{
+                      link: <Text testID="terms-link" className="font-semibold text-[#3B82F6]" onPress={() => router.push('/terms')} />,
+                    }}
+                  />
+                </Text>
+              </Pressable>
 
               <Button onPress={handleRegister} className="mt-1 rounded-3xl bg-brand-100">
                 <Text className="font-semibold text-white">{t('auth.register.submit')}</Text>

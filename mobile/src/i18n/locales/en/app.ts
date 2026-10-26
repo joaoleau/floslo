@@ -175,6 +175,21 @@ export const app: Translation<typeof ptApp> = {
         "This scheduler's materials were deleted, so there is no content to create challenges. Link an object to it to ring normally again.",
     },
   },
+  completion: {
+    streak_one: '{{count}} day streak',
+    streak_other: '{{count}} day streak',
+    finish: 'Done',
+    title: {
+      perfect: 'All right on the first try',
+      streakUp: 'One more day in your streak',
+      done: 'Challenges completed',
+    },
+    message: {
+      perfect: 'You got every question right without a single mistake.',
+      streakUp: 'You studied today and your streak grew. Come back tomorrow to keep it.',
+      done: 'Nice work. More tomorrow.',
+    },
+  },
   notification: {
     defaultTitle: 'Scheduler',
     body: 'Your scheduler is ringing. Tap to open.',

@@ -24,9 +24,14 @@ type User struct {
 	// "YYYY-MM-DD" no fuso local de quem reportou por último -- mesmo raciocínio do
 	// antigo PasswordResetCode/UserStats: o servidor não tem como saber o fuso do
 	// usuário sozinho.
-	LastActiveDate string    `dynamodbav:"last_active_date"`
-	CreatedAt      time.Time `dynamodbav:"created_at"`
-	UpdatedAt      time.Time `dynamodbav:"updated_at"`
+	LastActiveDate string `dynamodbav:"last_active_date"`
+	// Versão dos Termos de uso e da Política de privacidade aceita no cadastro, e quando. É o
+	// registro do consentimento, inclusive para a transferência internacional dos dados (LGPD,
+	// art. 33): tudo fica na AWS, em us-east-1.
+	TermsVersion    string    `dynamodbav:"terms_version"`
+	TermsAcceptedAt time.Time `dynamodbav:"terms_accepted_at"`
+	CreatedAt       time.Time `dynamodbav:"created_at"`
+	UpdatedAt       time.Time `dynamodbav:"updated_at"`
 }
 
 func (u *User) GetKey() map[string]types.AttributeValue {

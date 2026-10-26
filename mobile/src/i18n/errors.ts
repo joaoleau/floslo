@@ -6,6 +6,7 @@ import { i18n } from './index';
 // mensagem genérica da ação que falhou.
 const KNOWN_API_ERRORS: Record<string, string> = {
   'invalid credentials': 'errors.api.invalidCredentials',
+  'terms of use must be accepted': 'terms.acceptRequired',
   'invalid or expired code': 'errors.api.invalidCode',
   'username already exists': 'errors.api.usernameTaken',
   'username cannot be empty': 'errors.api.usernameRequired',
