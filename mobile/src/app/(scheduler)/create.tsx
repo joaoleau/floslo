@@ -32,6 +32,7 @@ export default function CreateScheduler() {
     return {
       id: '',
       name: 'Sem Nome',
+      language: 'pt',
       weekDays: [],
       startTime: `${hours}:${minutes}`,
       alarmSound: 'chic_pop',

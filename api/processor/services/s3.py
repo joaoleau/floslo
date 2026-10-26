@@ -13,7 +13,6 @@ from pypdf import PdfReader
 from .utils import normalize_text
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 SUPPORTED_EXTENSIONS = {"txt", "md", "pdf", "docx", "csv", "json", "pptx"}
 

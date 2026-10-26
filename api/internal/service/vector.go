@@ -15,13 +15,20 @@ import (
 
 const deleteVectorsBatchSize = 500
 
+// getVectorsBatchSize é o limite de chaves por requisição do GetVectors.
+const getVectorsBatchSize = 100
+
 type RetrievedChunk struct {
+	// Key é o id determinístico do vetor (vec_<objectId>_<page>_<chunkIndex>), que também
+	// serve para achar os vizinhos de apoio.
+	Key        string
 	Content    string
 	Score      float64
 	ObjectKey  string
 	Page       int
 	ChunkIndex int
-	Language   string
+	// Language só identifica o idioma detectado do chunk; nenhuma busca filtra por ele.
+	Language string
 }
 
 type VectorService struct {
@@ -49,14 +56,14 @@ func NewVectorService(client *s3vectors.Client, embeddingService *EmbeddingServi
 	}
 }
 
-func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId string, objectKey string, query string, topK int32, language string) ([]RetrievedChunk, error) {
+func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId string, objectKey string, query string, topK int32) ([]RetrievedChunk, error) {
 	embedding, err := s.EmbeddingService.GenerateEmbedding(ctx, query)
 
 	if err != nil {
 		return nil, err
 	}
 
-	vectors, err := s.QueryVectors(ctx, userId, objectKey, embedding, topK, language)
+	vectors, err := s.QueryVectors(ctx, userId, objectKey, embedding, topK)
 	if err != nil {
 		return nil, err
 	}
@@ -64,70 +71,51 @@ func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId strin
 	return s.sortAndBuildChunks(vectors)
 }
 
-func (s *VectorService) RetrieveRelevantChunksMulti(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32, language string) ([]RetrievedChunk, error) {
-	type chunkKey struct {
-		page       int
-		chunkIndex int
-	}
+// GetChunksByKeys busca chunks diretamente pelo id do vetor, sem consulta de similaridade.
+// Chaves que não existem no índice simplesmente não aparecem no resultado.
+func (s *VectorService) GetChunksByKeys(ctx context.Context, keys []string) (map[string]RetrievedChunk, error) {
+	chunks := make(map[string]RetrievedChunk, len(keys))
 
-	seen := make(map[chunkKey]bool)
-	var merged []RetrievedChunk
-	var lastErr error
+	for start := 0; start < len(keys); start += getVectorsBatchSize {
+		end := min(start+getVectorsBatchSize, len(keys))
 
-	for _, query := range queries {
-		chunks, err := s.RetrieveRelevantChunks(ctx, userId, objectKey, query, perQueryTopK, language)
+		output, err := s.Client.GetVectors(ctx, &s3vectors.GetVectorsInput{
+			VectorBucketName: aws.String(s.VectorBucket),
+			IndexName:        aws.String(s.VectorIndex),
+			Keys:             keys[start:end],
+			ReturnMetadata:   true,
+		})
 		if err != nil {
-			lastErr = err
-			logger.Log.Error("failed retrieving chunks for one of the multi-tag queries, skipping it", logger.String("query", query), logger.Any("error", err))
-			continue
+			logger.Log.Error("failed getting vectors by key", logger.Any("error", err), logger.Any("keys", end-start))
+			return nil, fmt.Errorf("failed getting vectors by key: %w", err)
 		}
 
-		for _, chunk := range chunks {
-			key := chunkKey{page: chunk.Page, chunkIndex: chunk.ChunkIndex}
-			if seen[key] {
-				continue
+		for _, vector := range output.Vectors {
+			metadata, err := s.getVectorMetadata(vector.Metadata)
+			if err != nil {
+				return nil, err
 			}
-			seen[key] = true
-			merged = append(merged, chunk)
+
+			key := aws.ToString(vector.Key)
+			chunks[key] = RetrievedChunk{
+				Key:        key,
+				Content:    metadata.Chunk,
+				ObjectKey:  metadata.ObjectKey,
+				Page:       metadata.Page,
+				ChunkIndex: metadata.ChunkIndex,
+				Language:   metadata.Language,
+			}
 		}
 	}
 
-	if len(merged) == 0 {
-		if lastErr != nil {
-			return nil, fmt.Errorf("all multi-tag queries failed: %w", lastErr)
-		}
-		return merged, nil
-	}
-
-	sort.Slice(merged, func(i, j int) bool {
-		return merged[i].Score < merged[j].Score
-	})
-
-	return merged, nil
-}
-
-func (s *VectorService) RetrieveRelevantChunksMultiForLanguage(ctx context.Context, userId string, objectKey string, queries []string, perQueryTopK int32, language string) ([]RetrievedChunk, error) {
-	if language == "" {
-		return s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, "")
-	}
-
-	chunks, err := s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, language)
-	if err == nil && len(chunks) > 0 {
-		return chunks, nil
-	}
-
-	logger.Log.Info(
-		"no chunks matched the requested language, falling back to unfiltered retrieval",
-		logger.String("language", language),
-	)
-	return s.RetrieveRelevantChunksMulti(ctx, userId, objectKey, queries, perQueryTopK, "")
+	return chunks, nil
 }
 
 func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([]RetrievedChunk, error) {
 	var chunks []RetrievedChunk
 
 	for _, vector := range vectors {
-		metadata, err := s.getVectorMetadata(&vector)
+		metadata, err := s.getVectorMetadata(vector.Metadata)
 		if err != nil {
 			return nil, err
 		}
@@ -142,6 +130,7 @@ func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([
 		)
 
 		chunks = append(chunks, RetrievedChunk{
+			Key:        aws.ToString(vector.Key),
 			Content:    metadata.Chunk,
 			Score:      float64(*vector.Distance),
 			ObjectKey:  metadata.ObjectKey,
@@ -158,27 +147,26 @@ func (s *VectorService) sortAndBuildChunks(vectors []types.QueryOutputVector) ([
 	return chunks, nil
 }
 
-func (s *VectorService) getVectorMetadata(vector *types.QueryOutputVector) (*VectorMetadata, error) {
-	if vector.Metadata == nil {
+func (s *VectorService) getVectorMetadata(document document.Interface) (*VectorMetadata, error) {
+	if document == nil {
 		return nil, fmt.Errorf("vector metadata is nil")
 	}
 
 	var metadata VectorMetadata
-	err := vector.Metadata.UnmarshalSmithyDocument(&metadata)
+	err := document.UnmarshalSmithyDocument(&metadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal vector metadata: %w", err)
 	}
 	return &metadata, nil
 }
 
-func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectKey string, embedding []float32, topK int32, language string) ([]types.QueryOutputVector, error) {
+func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectKey string, embedding []float32, topK int32) ([]types.QueryOutputVector, error) {
 	logger.Log.Info(
 		"starting query vectors",
 		logger.String("user_id", userId),
 		logger.Any("object_key", len(objectKey)),
 		logger.Any("embedding_dimensions", len(embedding)),
 		logger.Any("top_k", int(topK)),
-		logger.String("language", language),
 	)
 
 	filterClauses := []map[string]interface{}{
@@ -192,13 +180,6 @@ func (s *VectorService) QueryVectors(ctx context.Context, userId string, objectK
 				"$eq": objectKey,
 			},
 		},
-	}
-	if language != "" {
-		filterClauses = append(filterClauses, map[string]interface{}{
-			"language": map[string]interface{}{
-				"$eq": language,
-			},
-		})
 	}
 	filter := map[string]interface{}{
 		"$and": filterClauses,

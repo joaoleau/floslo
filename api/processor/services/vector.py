@@ -6,7 +6,6 @@ from .chunk import Chunk
 from .utils import build_vector_id
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 # Limite do S3 Vectors por requisição de PutVectors e de DeleteVectors.
 VECTORS_BATCH_SIZE = 500

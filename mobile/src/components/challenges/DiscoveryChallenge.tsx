@@ -5,23 +5,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Flashcard } from '@/types/domain/RAG';
+import { Discovery } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { ChallengeResult } from '@/types/domain/History';
 
-interface FlashcardChallengeProps {
-  flashcard: Flashcard;
+interface DiscoveryChallengeProps {
+  discovery: Discovery;
   currentIndex: number;
-  totalFlashcards: number;
+  totalDiscoveries: number;
   onSuccess: (result: ChallengeResult) => void;
 }
 
-// O flashcard aqui não é pergunta/resposta -- é um conteúdo já "mastigado" (um fato, uma
-// curiosidade, um conceito já explicado) pra o usuário só ler. Não tem certo/errado, então a
-// única interação é confirmar leitura, no mesmo botão "Continuar" usado por Quiz/V-F --
-// navegar entre desafios (inclusive voltar pra revisar um já lido) é responsabilidade do
-// pager no firing.tsx, não deste componente.
-export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, onSuccess }: FlashcardChallengeProps) {
+// A descoberta não é pergunta e resposta: é um conteúdo já "mastigado" (um fato, uma
+// curiosidade, um conceito já explicado) para o usuário só ler. Não tem certo ou errado e não
+// gera nota, então a única interação é confirmar a leitura, no mesmo botão "Continuar" usado
+// por Múltipla escolha e V/F. Navegar entre desafios (inclusive voltar para revisar um já lido) é
+// responsabilidade do pager no firing.tsx, não deste componente.
+export function DiscoveryChallenge({ discovery, currentIndex, totalDiscoveries, onSuccess }: DiscoveryChallengeProps) {
   const colors = useThemeColors();
   const [showSources, setShowSources] = useState(false);
 
@@ -47,16 +47,16 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              {flashcard.tag}
+              {discovery.tag}
             </Text>
-            {flashcard.sourceChunks.length > 0 && (
+            {discovery.sourceChunks.length > 0 && (
               <Pressable hitSlop={8} onPress={() => setShowSources(true)}>
                 <Ionicons name="help-circle-outline" size={20} color={colors.brandSoft} />
               </Pressable>
             )}
           </View>
           <Text className="text-sm font-bold text-foreground" style={{ flexShrink: 0 }}>
-            {currentIndex + 1} / {totalFlashcards}
+            {currentIndex + 1} / {totalDiscoveries}
           </Text>
         </View>
 
@@ -71,10 +71,10 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
           >
-            {!!flashcard.title && (
-              <Text className="text-center text-2xl font-bold text-foreground leading-snug mb-3">{flashcard.title}</Text>
+            {!!discovery.title && (
+              <Text className="text-center text-2xl font-bold text-foreground leading-snug mb-3">{discovery.title}</Text>
             )}
-            <Text className="text-center text-base text-foreground leading-relaxed">{flashcard.content}</Text>
+            <Text className="text-center text-base text-foreground leading-relaxed">{discovery.content}</Text>
           </ScrollView>
         </View>
 
@@ -98,7 +98,7 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="gap-3 pb-4">
-                {[...flashcard.sourceChunks].sort((a, b) => b.score - a.score).map((chunk, index) => (
+                {discovery.sourceChunks.map((chunk, index) => (
                   <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
@@ -107,9 +107,6 @@ export function FlashcardChallenge({ flashcard, currentIndex, totalFlashcards, o
                           {chunk.objectKey}
                         </Text>
                       </View>
-                      <Text className="text-xs font-semibold text-muted-foreground">
-                        {Math.round(chunk.score * 100)}% relevante
-                      </Text>
                     </View>
 
                     <Text className="text-xs text-muted-foreground">

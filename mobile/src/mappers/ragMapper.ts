@@ -1,7 +1,13 @@
 // src/mappers/ragMapper.ts
 
-import { ChallengeResultDTO, FlashcardDTO, GeneratedQuizDTO, RAGDTO, TrueFalseDTO } from '@/types/api/RAGDTO';
-import { ChallengeItem, Flashcard, Quiz, RAG, SourceChunk, TrueFalseItem } from '@/types/domain/RAG';
+import {
+  ChallengeResultDTO,
+  DiscoveryDTO,
+  MultipleChoiceDTO,
+  RAGDTO,
+  TrueFalseDTO,
+} from '@/types/api/RAGDTO';
+import { ChallengeItem, Discovery, MultipleChoice, RAG, SourceChunk, TrueFalseItem } from '@/types/domain/RAG';
 import { SupportedLanguage } from '@/types/domain/Scheduler';
 import { schedulerMapper } from './schedulerMapper';
 
@@ -16,11 +22,10 @@ function sourceChunksToDomain(chunks: { content: string; score: number; object_k
   }));
 }
 
-function quizToDomain(raw: GeneratedQuizDTO): Quiz {
+function multipleChoiceToDomain(raw: MultipleChoiceDTO): MultipleChoice {
   return {
     question: raw.question,
     explanation: raw.explanation,
-    difficulty: raw.difficulty,
     tag: raw.tag,
     alternatives: raw.alternatives.map((alt) => ({
       id: alt.id,
@@ -31,7 +36,7 @@ function quizToDomain(raw: GeneratedQuizDTO): Quiz {
   };
 }
 
-function flashcardToDomain(raw: FlashcardDTO): Flashcard {
+function discoveryToDomain(raw: DiscoveryDTO): Discovery {
   return {
     title: raw.title,
     content: raw.content,
@@ -45,7 +50,6 @@ function trueFalseToDomain(raw: TrueFalseDTO): TrueFalseItem {
     statement: raw.statement,
     answer: raw.answer,
     explanation: raw.explanation,
-    difficulty: raw.difficulty,
     tag: raw.tag,
     sourceChunks: sourceChunksToDomain(raw.source_chunks),
   };
@@ -54,12 +58,12 @@ function trueFalseToDomain(raw: TrueFalseDTO): TrueFalseItem {
 function challengeResultToItems(raw: ChallengeResultDTO): ChallengeItem[] {
   const language = raw.language as SupportedLanguage;
   switch (raw.challenge_type) {
-    case 'QUIZ':
-      return raw.quizzes.map((q) => ({ type: 'QUIZ' as const, language, data: quizToDomain(q) }));
-    case 'FLASHCARD':
-      return raw.flashcards.map((f) => ({ type: 'FLASHCARD' as const, language, data: flashcardToDomain(f) }));
+    case 'MULTIPLE_CHOICE':
+      return raw.multiple_choices.map((q) => ({ type: 'MULTIPLE_CHOICE' as const, language, data: multipleChoiceToDomain(q) }));
     case 'TRUE_FALSE':
       return raw.true_falses.map((t) => ({ type: 'TRUE_FALSE' as const, language, data: trueFalseToDomain(t) }));
+    case 'DISCOVERY':
+      return raw.discoveries.map((d) => ({ type: 'DISCOVERY' as const, language, data: discoveryToDomain(d) }));
     default:
       return [];
   }
@@ -70,6 +74,7 @@ export const ragMapper = {
     return {
       scheduler: schedulerMapper.toDomain(raw.scheduler),
       challenges: (raw.challenges ?? []).flatMap(challengeResultToItems),
+      currentStreak: raw.current_streak,
     };
   },
 };

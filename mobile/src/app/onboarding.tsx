@@ -37,7 +37,7 @@ const STEPS: OnboardingStep[] = [
     icon: 'school-outline',
     color: '#6366F1',
     title: 'Vincule desafios',
-    description: 'Quiz, Flashcard ou Verdadeiro/Falso -- escolha como quer ser testado sobre cada material.',
+    description: 'Múltipla escolha, Verdadeiro ou Falso e Descoberta: escolha como quer estudar cada material.',
   },
   {
     icon: 'flame',

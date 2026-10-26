@@ -27,10 +27,20 @@ const (
 	GenerateModelId = "GENERATE_MODEL_ID"
 	EmbeddingModelId = "EMBEDDING_MODEL_ID"
 	MaxUploadSizeMB = "MAX_UPLOAD_SIZE_MB"
+	TagMaxLength = "TAG_MAX_LENGTH"
+	MaxTagsPerObject = "MAX_TAGS_PER_OBJECT"
 	SESSenderEmail = "SES_SENDER_EMAIL"
 )
 
 const defaultMaxUploadSizeMB = 500
+
+// Limites de tags. TAG_MAX_LENGTH tem o mesmo nome e o mesmo padrão no processor (api/processor):
+// tag maior que isso é cortada aqui numa edição de tags. MAX_TAGS_PER_OBJECT deve ser maior ou igual
+// a TAG_REFINER_MAX_TAGS do processor, senão a primeira edição corta as tags que ele salvou.
+const (
+	defaultTagMaxLength     = 32
+	defaultMaxTagsPerObject = 300
+)
 
 type Config struct {
 	DynamoTable  string
@@ -46,6 +56,8 @@ type Config struct {
 	GenerateModelId string
 	EmbeddingModelId string
 	MaxUploadSizeBytes int64
+	TagMaxLength int
+	MaxTagsPerObject int
 	SESClient    *sesv2.Client
 	SESSenderEmail string
 }
@@ -121,6 +133,15 @@ func NewConfig(ctx context.Context) (*Config, error) {
 	}
 	maxUploadSizeBytes := int64(maxUploadSizeMB) * 1024 * 1024
 
+	tagMaxLength, err := positiveIntFromEnv(TagMaxLength, defaultTagMaxLength)
+	if err != nil {
+		return nil, err
+	}
+	maxTagsPerObject, err := positiveIntFromEnv(MaxTagsPerObject, defaultMaxTagsPerObject)
+	if err != nil {
+		return nil, err
+	}
+
 	logger.Log.Info("config initialized successfully", logger.String("dynamo_table", dynamoTable), logger.String("bucket_name", bucketName))
 	return &Config{
 		DynamoTable:  dynamoTable,
@@ -136,10 +157,25 @@ func NewConfig(ctx context.Context) (*Config, error) {
 		GenerateModelId: generateModelId,
 		EmbeddingModelId: embeddingModelId,
 		MaxUploadSizeBytes: maxUploadSizeBytes,
+		TagMaxLength: tagMaxLength,
+		MaxTagsPerObject: maxTagsPerObject,
 		SESClient: sesClient,
 		SESSenderEmail: sesSenderEmail,
 
 	}, nil
+}
+
+func positiveIntFromEnv(name string, fallback int) (int, error) {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback, nil
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf("invalid %s value %q: must be a positive integer", name, raw)
+	}
+	return value, nil
 }
 
 func loadSSMParameter(ctx context.Context, ssmClient *ssm.Client, parameter string) ([]byte, error) {

@@ -1,8 +1,8 @@
 import logging
 import uuid
+from urllib.parse import unquote_plus
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 def normalize_text(text: str) -> str:   
     text = text.replace("\x00", "")
@@ -24,3 +24,8 @@ def build_vector_id(object_id: str, page: int, chunk_index: int) -> str:
         raise ValueError(f"Invalid chunk position page={page} chunk_index={chunk_index}.")
 
     return f"vec_{object_id}_{page}_{chunk_index}"
+
+def decode_s3_key(key: str) -> str:
+    # O evento do S3 entrega a chave codificada como URL: espaço vira "+" e acentos e
+    # símbolos viram %XX. Sem decodificar, get_object procura uma chave que não existe.
+    return unquote_plus(key)

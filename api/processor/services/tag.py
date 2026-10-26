@@ -8,7 +8,6 @@ import yake
 from langdetect import detect
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 SUPPORTED_LANGUAGES = {
     "pt": "pt",
@@ -31,6 +30,8 @@ class TagExtractionResult:
 
 @dataclass(slots=True)
 class TagServiceData:
+    # Máximo de tags que o YAKE devolve por extração (uma página, ou uma janela de várias
+    # páginas -- ver TagWindowBuffer). Variável YAKE_MAX_KEYWORDS.
     max_keywords: int = 15
     keyword_ngram_size: int = 3
     min_text_length: int = 50
@@ -72,7 +73,7 @@ class TagService:
             )
         )
 
-        logger.info(
+        logger.debug(
             f"Successfully generated {len(keywords)} tags for text (language={language})."
         )
         logger.debug(f"Final extracted tags: {keywords}")
@@ -84,7 +85,7 @@ class TagService:
             f"Initializing Yake KeywordExtractor (language='{language}', "
             f"ngrams={self.keyword_ngram_size}, top={self.max_keywords})"
         )
-        
+
         kw_extractor = yake.KeywordExtractor(
             lan=language,
             n=self.keyword_ngram_size,
@@ -145,7 +146,7 @@ class TagService:
                     f"Falling back to default '{normalized_language}'."
                 )
 
-            logger.info(f"Language settled to: '{normalized_language}'")
+            logger.debug(f"Language settled to: '{normalized_language}'")
             return normalized_language
 
         except Exception as e:

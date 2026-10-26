@@ -25,56 +25,61 @@ func NewSchedulerService(schedulerRepo *repository.SchedulerRepository, schedule
 	}
 }
 
-const maxChallengeItemCount = 5
+// MaxItemsPerScheduler is the total number of items (questions, cards, discoveries) a
+// scheduler can ask for in one firing, summed across all its challengers. Keep in sync with
+// the limit in mobile's SchedulerForm.
+const MaxItemsPerScheduler = 10
 
 func validateChallenger(c model.Challenger) error {
 	if !c.ChallengeType.Validate() {
 		return fmt.Errorf("invalid challenge type: %s", c.ChallengeType)
 	}
-	if !c.Language.Validate() {
-		return fmt.Errorf("invalid language: %s", c.Language)
-	}
 
 	switch c.ChallengeType {
-	case model.ChallengeTypeQuiz:
-		if c.Quiz == nil {
-			return fmt.Errorf("quiz config is required for QUIZ challenge")
-		}
-		if c.Quiz.QuestionCount < 1 || c.Quiz.QuestionCount > maxChallengeItemCount {
-			return fmt.Errorf("question count must be between 1 and %d", maxChallengeItemCount)
-		}
-		if !validDifficulty(c.Quiz.Difficulty) {
-			return fmt.Errorf("invalid difficulty: %s", c.Quiz.Difficulty)
-		}
-	case model.ChallengeTypeFlashcard:
-		if c.Flashcard == nil {
-			return fmt.Errorf("flashcard config is required for FLASHCARD challenge")
-		}
-		if c.Flashcard.CardCount < 1 || c.Flashcard.CardCount > maxChallengeItemCount {
-			return fmt.Errorf("card count must be between 1 and %d", maxChallengeItemCount)
+	case model.ChallengeTypeMultipleChoice:
+		if c.MultipleChoice == nil {
+			return fmt.Errorf("multiple choice config is required for MULTIPLE_CHOICE challenge")
 		}
 	case model.ChallengeTypeTrueFalse:
 		if c.TrueFalse == nil {
 			return fmt.Errorf("true/false config is required for TRUE_FALSE challenge")
 		}
-		if c.TrueFalse.QuestionCount < 1 || c.TrueFalse.QuestionCount > maxChallengeItemCount {
-			return fmt.Errorf("question count must be between 1 and %d", maxChallengeItemCount)
+	case model.ChallengeTypeDiscovery:
+		if c.Discovery == nil {
+			return fmt.Errorf("discovery config is required for DISCOVERY challenge")
 		}
-		if !validDifficulty(c.TrueFalse.Difficulty) {
-			return fmt.Errorf("invalid difficulty: %s", c.TrueFalse.Difficulty)
-		}
+	}
+
+	if count := c.ItemCount(); count < 1 || count > MaxItemsPerScheduler {
+		return fmt.Errorf("item count must be between 1 and %d", MaxItemsPerScheduler)
 	}
 
 	return nil
 }
 
-func validDifficulty(d string) bool {
-	switch d {
-	case "easy", "medium", "hard":
-		return true
-	default:
-		return false
+// validateChallengers checks every challenger and the total number of items across all of
+// them. The backend enforces the total because it accepts any number of challengers.
+func validateChallengers(challengers []model.Challenger) error {
+	total := 0
+	for _, challenger := range challengers {
+		if err := validateChallenger(challenger); err != nil {
+			return err
+		}
+		total += challenger.ItemCount()
 	}
+
+	if total > MaxItemsPerScheduler {
+		return fmt.Errorf("total item count must be at most %d, got %d", MaxItemsPerScheduler, total)
+	}
+
+	return nil
+}
+
+func validateLanguage(language model.Language) error {
+	if !language.Validate() {
+		return fmt.Errorf("invalid language: %s", language)
+	}
+	return nil
 }
 
 func (s *SchedulerService) CreateScheduler(ctx context.Context, userId string, scheduler *model.Scheduler) error {
@@ -99,10 +104,11 @@ func (s *SchedulerService) CreateScheduler(ctx context.Context, userId string, s
 		return fmt.Errorf("at least one document key is required")
 
 	}
-	for _, challenger := range scheduler.Challengers {
-		if err := validateChallenger(challenger); err != nil {
-			return err
-		}
+	if err := validateLanguage(scheduler.Language); err != nil {
+		return err
+	}
+	if err := validateChallengers(scheduler.Challengers); err != nil {
+		return err
 	}
 
 	scheduler.Id = utils.GenerateID("sch")
@@ -162,6 +168,9 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, u
 	if update.Name != nil {
 		scheduler.Name = *update.Name
 	}
+	if update.Language != nil {
+		scheduler.Language = *update.Language
+	}
 	if update.WeekDays != nil {
 		scheduler.WeekDays = *update.WeekDays
 	}
@@ -204,10 +213,11 @@ func (s *SchedulerService) UpdateScheduler(ctx context.Context, userId string, u
 	if update.Challengers != nil {
 		scheduler.Challengers = *update.Challengers
 	}
-	for _, challenger := range scheduler.Challengers {
-		if err := validateChallenger(challenger); err != nil {
-			return nil, err
-		}
+	if err := validateLanguage(scheduler.Language); err != nil {
+		return nil, err
+	}
+	if err := validateChallengers(scheduler.Challengers); err != nil {
+		return nil, err
 	}
 	if update.Enabled != nil {
 		scheduler.Enabled = *update.Enabled

@@ -45,6 +45,7 @@ function makeDTO(overrides: Partial<SchedulerDTO> = {}): SchedulerDTO {
   return {
     scheduler_id: 'sched-1',
     name: 'Revisão',
+    language: 'pt',
     weekdays: [],
     start_time: '07:30',
     alarm_sound: 'chic_pop',
@@ -192,6 +193,7 @@ describe('schedulerService.create', () => {
     const result = await schedulerService.create({
       id: '',
       name: 'Nova Revisão',
+      language: 'pt',
       weekDays: [],
       startTime: '08:00',
       alarmSound: 'chic_pop',
@@ -216,6 +218,7 @@ describe('schedulerService.update', () => {
     const result = await schedulerService.update('sched-1', {
       id: 'sched-1',
       name: 'Renomeado',
+      language: 'pt',
       weekDays: [],
       startTime: '08:00',
       alarmSound: 'chic_pop',

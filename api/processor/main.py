@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 from config import Config
 from handlers import ProcessorHandler, HandlerData
 from services import (
@@ -12,8 +13,12 @@ from services import (
     DynamoService, DynamoServiceData
 )
 
+# Nível de log pelo ambiente (LOG_LEVEL=DEBUG para investigar). O padrão é INFO: no DEBUG
+# o botocore imprime cada requisição e o YAKE cada palavra, e os logs úteis se perdem.
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
+for noisy in ("boto3", "botocore", "s3transfer", "urllib3"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 try:
     cfg = Config()
@@ -60,7 +65,10 @@ try:
         vector_service=vector_service,
         chunk_service=chunk_service,
         dynamo_service=dynamo_service,
-        tag_refiner=tag_refiner_service
+        tag_refiner=tag_refiner_service,
+        tag_refiner_max_candidates=cfg.tag_refiner_max_candidates,
+        tag_max_length=cfg.tag_max_length,
+        tag_window_chars=cfg.tag_window_chars,
     )
     processor = ProcessorHandler(config_handler)
 

@@ -78,7 +78,7 @@ export default function ObjectDetails() {
     setTags(object.tags);
   }
 
-  const TAG_MAX_LENGTH = 26;
+  const TAG_MAX_LENGTH = 32;
 
   function addTag() {
     const tag = newTag.trim().slice(0, TAG_MAX_LENGTH);

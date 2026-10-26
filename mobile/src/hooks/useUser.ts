@@ -21,10 +21,3 @@ export function useDeleteMeMutation() {
   });
 }
 
-export function useRecordStreakMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (localDate: string) => userService.recordStreak(localDate),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.user.me }),
-  });
-}

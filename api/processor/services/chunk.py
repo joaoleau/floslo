@@ -5,7 +5,6 @@ from typing import Iterator
 from .utils import normalize_text
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 # Same separator priority LangChain's RecursiveCharacterTextSplitter used: try to
 # break on paragraph boundaries first, falling back to progressively smaller units

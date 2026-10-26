@@ -88,7 +88,6 @@ func setupRoutes(r *chi.Mux, handlers *Handlers, cfg *config.Config) {
 			r.Get("/user/me", handlers.UserHandler.GetMe)
 			r.Put("/user/me", handlers.UserHandler.UpdateMe)
 			r.Delete("/user/me", handlers.UserHandler.DeleteMe)
-			r.Post("/user/me/streak", handlers.UserHandler.RecordStreak)
 		})
 
 		r.Group(func(r chi.Router) {
@@ -134,7 +133,7 @@ func setupServices(cfg *config.Config, repos *Repositories) *Services {
 	embeddingService := iservice.NewEmbeddingService(cfg.BedrockRuntimeClient, cfg.EmbeddingModelId)
 	vectorService := iservice.NewVectorService(cfg.S3VectorsClient, embeddingService, cfg.VectorBucketName, cfg.VectorIndexName)
 	schedulerService := iservice.NewSchedulerService(repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService)
-	objectService := iservice.NewObjectService(repos.ObjectRepository, repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService, vectorService)
+	objectService := iservice.NewObjectService(repos.ObjectRepository, repos.SchedulerRepository, repos.SchedulerObjectLinkRepository, storageService, vectorService, iservice.TagLimits{MaxLength: cfg.TagMaxLength, MaxPerObject: cfg.MaxTagsPerObject})
 	emailService := iservice.NewEmailService(cfg.SESClient, cfg.SESSenderEmail)
 
 	return &Services{

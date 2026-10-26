@@ -81,7 +81,7 @@ describe('historyService.getRecentMistakes', () => {
       {
         id: 'attempt-1',
         session_id: 'session-1',
-        challenge_type: 'QUIZ',
+        challenge_type: 'MULTIPLE_CHOICE',
         tag: 'historia',
         prompt_text: 'Quando foi a independência?',
         explanation_text: '1822.',
@@ -95,7 +95,7 @@ describe('historyService.getRecentMistakes', () => {
       {
         id: 'attempt-1',
         sessionId: 'session-1',
-        challengeType: 'QUIZ',
+        challengeType: 'MULTIPLE_CHOICE',
         tag: 'historia',
         promptText: 'Quando foi a independência?',
         explanationText: '1822.',
@@ -144,10 +144,9 @@ describe('historyService.recordAttempt', () => {
     historyService.recordAttempt({
       sessionId: 'session-1',
       userId: 'user-1',
-      challengeType: 'QUIZ',
+      challengeType: 'MULTIPLE_CHOICE',
       tag: 'historia',
       language: 'pt',
-      difficulty: 'medium',
       promptText: 'Pergunta?',
       explanationText: 'Explicação.',
       options: [{ id: 'a1', text: 'Certo', correct: true }],
@@ -159,18 +158,17 @@ describe('historyService.recordAttempt', () => {
     });
 
     const [, params] = mockRunSync.mock.calls[0];
-    expect(params[9]).toBe(JSON.stringify([{ id: 'a1', text: 'Certo', correct: true }])); // options_json
-    expect(params[10]).toBe(1); // is_correct
+    expect(params[8]).toBe(JSON.stringify([{ id: 'a1', text: 'Certo', correct: true }])); // options_json
+    expect(params[9]).toBe(1); // is_correct
   });
 
-  it('stores a null options_json for flashcards (no options) and null is_correct when ungraded', () => {
+  it('stores a null options_json for discoveries (no options) and null is_correct when ungraded', () => {
     historyService.recordAttempt({
       sessionId: 'session-1',
       userId: 'user-1',
-      challengeType: 'FLASHCARD',
+      challengeType: 'DISCOVERY',
       tag: 'ingles',
       language: 'en',
-      difficulty: null,
       promptText: 'Título',
       explanationText: 'Conteúdo',
       options: null,
@@ -182,8 +180,8 @@ describe('historyService.recordAttempt', () => {
     });
 
     const [, params] = mockRunSync.mock.calls[0];
-    expect(params[9]).toBeNull(); // options_json
-    expect(params[10]).toBeNull(); // is_correct
+    expect(params[8]).toBeNull(); // options_json
+    expect(params[9]).toBeNull(); // is_correct
   });
 
   it('maps isCorrect=false to 0, not null (0 is falsy but still a real answer)', () => {
@@ -193,7 +191,6 @@ describe('historyService.recordAttempt', () => {
       challengeType: 'TRUE_FALSE',
       tag: 'ciencias',
       language: 'pt',
-      difficulty: 'easy',
       promptText: 'Afirmação',
       explanationText: null,
       options: null,
@@ -205,7 +202,7 @@ describe('historyService.recordAttempt', () => {
     });
 
     const [, params] = mockRunSync.mock.calls[0];
-    expect(params[10]).toBe(0);
+    expect(params[9]).toBe(0);
   });
 });
 
@@ -261,8 +258,8 @@ describe('historyService.getSessionDetail', () => {
       total_challenges: 5,
     });
     mockGetAllSync.mockReturnValue([
-      { id: 'a1', session_id: 'session-1', is_correct: 1, answered_at: 1, challenge_type: 'QUIZ', tag: 't', language: 'pt', difficulty: null, prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 0, time_spent_ms: null, source_object_key: null, source_page: null },
-      { id: 'a2', session_id: 'session-1', is_correct: 0, answered_at: 2, challenge_type: 'QUIZ', tag: 't', language: 'pt', difficulty: null, prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 1, time_spent_ms: null, source_object_key: null, source_page: null },
+      { id: 'a1', session_id: 'session-1', is_correct: 1, answered_at: 1, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 0, time_spent_ms: null, source_object_key: null, source_page: null },
+      { id: 'a2', session_id: 'session-1', is_correct: 0, answered_at: 2, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 1, time_spent_ms: null, source_object_key: null, source_page: null },
     ]);
 
     const result = historyService.getSessionDetail('session-1');
@@ -283,10 +280,9 @@ describe('historyService.getAttemptDetail', () => {
     mockGetFirstSync.mockReturnValue({
       id: 'a1',
       session_id: 's1',
-      challenge_type: 'QUIZ',
+      challenge_type: 'MULTIPLE_CHOICE',
       tag: 't',
       language: 'pt',
-      difficulty: null,
       prompt_text: 'p',
       explanation_text: null,
       options_json: null,

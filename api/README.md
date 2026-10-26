@@ -140,5 +140,5 @@ Representa chunk vetorizado de um objeto contextualizado
     2.6 Recebe topk chunks, e embaralha assim como escolhe conjunto aleatório;
     
     //Aumentaded and Generate
-    2.7 Passa input referenciando formato JSON de retorno, chunks para serem utilizados, dessa forma, será gerado o quiz.
-3. Lambda RAG tendo o quiz retorna para Mobile.
+    2.7 Passa input referenciando formato JSON de retorno, chunks para serem utilizados, dessa forma, serão gerados os desafios.
+3. Lambda RAG tendo os desafios retorna para Mobile.

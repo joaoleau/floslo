@@ -45,19 +45,6 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
     onSuccess({ wrongAttempts: wrongAttemptsRef.current });
   }
 
-  const difficultyColor =
-    item.difficulty.toLowerCase() === 'easy'
-      ? 'text-green-600'
-      : item.difficulty.toLowerCase() === 'medium'
-        ? 'text-yellow-600'
-        : 'text-red-600';
-  const difficultyBg =
-    item.difficulty.toLowerCase() === 'easy'
-      ? 'bg-green-500/10'
-      : item.difficulty.toLowerCase() === 'medium'
-        ? 'bg-yellow-500/10'
-        : 'bg-red-500/10';
-
   return (
     <Animated.View entering={FadeInDown.duration(300)} className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
       <ScrollView
@@ -80,9 +67,6 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
               >
                 {item.tag}
               </Text>
-              <View className={`rounded-full px-2 py-0.5 ${difficultyBg}`} style={{ flexShrink: 0 }}>
-                <Text className={`text-xs font-bold uppercase ${difficultyColor}`}>{item.difficulty}</Text>
-              </View>
             </View>
             <Text className="text-sm font-bold text-foreground" style={{ flexShrink: 0 }}>
               {currentIndex + 1} / {totalItems}
@@ -161,7 +145,7 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="gap-3 pb-4">
-                {[...item.sourceChunks].sort((a, b) => b.score - a.score).map((chunk, index) => (
+                {item.sourceChunks.map((chunk, index) => (
                   <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
                     <View className="flex-row items-center justify-between">
                       <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
@@ -170,9 +154,6 @@ export function TrueFalseChallenge({ item, currentIndex, totalItems, onSuccess }
                           {chunk.objectKey}
                         </Text>
                       </View>
-                      <Text className="text-xs font-semibold text-muted-foreground">
-                        {Math.round(chunk.score * 100)}% relevante
-                      </Text>
                     </View>
 
                     <Text className="text-xs text-muted-foreground">

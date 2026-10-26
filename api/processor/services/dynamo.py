@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 @dataclass(slots=True)

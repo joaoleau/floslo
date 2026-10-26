@@ -5,7 +5,6 @@ from typing import Any
 from .utils import normalize_text
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 @dataclass(slots=True)
@@ -68,7 +67,7 @@ class EmbeddingService:
             embedding = response_body.get("embedding", [])
             input_text_token_count = response_body.get("inputTextTokenCount")
 
-            logger.info(
+            logger.debug(
                 f"Embedded chunk_index={request.chunk_index} object_key={request.object_key}: "
                 f"{len(chunk)} chars -> {input_text_token_count} tokens (real Titan count, "
                 f"used to validate chars/token assumptions behind CHUNK_SIZE)"

@@ -33,7 +33,7 @@ func (h *RAGHandler) RetrieveAndGenerate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resp, err := h.RAGService.RetrieveAndGenerate(r.Context(), userId, input.SchedulerId)
+	resp, err := h.RAGService.RetrieveAndGenerate(r.Context(), userId, input.SchedulerId, input.LocalDate)
 	if err != nil {
 		utils.ResponseWithError(w, http.StatusInternalServerError, err)
 		return
@@ -43,6 +43,7 @@ func (h *RAGHandler) RetrieveAndGenerate(w http.ResponseWriter, r *http.Request)
 		Scheduler: dto.SchedulerResponseDTO{
 			SchedulerId:  resp.Scheduler.Id,
 			Name:         resp.Scheduler.Name,
+				Language:     resp.Scheduler.Language.String(),
 			WeekDays:     utils.WeekdaysToStrings(resp.Scheduler.WeekDays),
 			StartTime:    resp.Scheduler.StartTime,
 			AlarmSound:   resp.Scheduler.AlarmSound,
@@ -54,7 +55,8 @@ func (h *RAGHandler) RetrieveAndGenerate(w http.ResponseWriter, r *http.Request)
 			CreatedAt:    resp.Scheduler.CreatedAt,
 			UpdatedAt:    resp.Scheduler.UpdatedAt,
 		},
-		Challenges: utils.MapSlice(resp.Challenges, challengeResultToDTO),
+		Challenges:    utils.MapSlice(resp.Challenges, challengeResultToDTO),
+		CurrentStreak: resp.CurrentStreak,
 	})
 }
 
@@ -77,32 +79,31 @@ func challengeResultToDTO(result *service.GeneratedChallengeResult) dto.Challeng
 		Language:      result.Language,
 	}
 
-	if result.Quizzes != nil {
-		res.Quizzes = utils.MapSlice(result.Quizzes, func(quiz *service.GeneratedQuiz) dto.GeneratedQuizDTO {
-			return dto.GeneratedQuizDTO{
-				Question: quiz.Question,
-				Alternatives: utils.MapSlice(quiz.Alternatives, func(a service.QuizAlternative) dto.QuizAlternativeDTO {
-					return dto.QuizAlternativeDTO{
+	if result.MultipleChoices != nil {
+		res.MultipleChoices = utils.MapSlice(result.MultipleChoices, func(item *service.GeneratedMultipleChoice) dto.MultipleChoiceDTO {
+			return dto.MultipleChoiceDTO{
+				Question: item.Question,
+				Alternatives: utils.MapSlice(item.Alternatives, func(a service.MultipleChoiceAlternative) dto.MultipleChoiceAlternativeDTO {
+					return dto.MultipleChoiceAlternativeDTO{
 						Id:      a.Id,
 						Text:    a.Text,
 						Correct: a.Correct,
 					}
 				}),
-				Explanation:  quiz.Explanation,
-				Difficulty:   quiz.Difficulty,
-				Tag:          quiz.Tag,
-				SourceChunks: chunksToDTO(quiz.SourceChunks),
+				Explanation:  item.Explanation,
+				Tag:          item.Tag,
+				SourceChunks: chunksToDTO(item.SourceChunks),
 			}
 		})
 	}
 
-	if result.Flashcards != nil {
-		res.Flashcards = utils.MapSlice(result.Flashcards, func(card *service.GeneratedFlashcard) dto.FlashcardDTO {
-			return dto.FlashcardDTO{
-				Title:        card.Title,
-				Content:      card.Content,
-				Tag:          card.Tag,
-				SourceChunks: chunksToDTO(card.SourceChunks),
+	if result.Discoveries != nil {
+		res.Discoveries = utils.MapSlice(result.Discoveries, func(item *service.GeneratedDiscovery) dto.DiscoveryDTO {
+			return dto.DiscoveryDTO{
+				Title:        item.Title,
+				Content:      item.Content,
+				Tag:          item.Tag,
+				SourceChunks: chunksToDTO(item.SourceChunks),
 			}
 		})
 	}
@@ -113,7 +114,6 @@ func challengeResultToDTO(result *service.GeneratedChallengeResult) dto.Challeng
 				Statement:    item.Statement,
 				Answer:       item.Answer,
 				Explanation:  item.Explanation,
-				Difficulty:   item.Difficulty,
 				Tag:          item.Tag,
 				SourceChunks: chunksToDTO(item.SourceChunks),
 			}

@@ -8,8 +8,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.17
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.20.39
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.8.39
-	github.com/aws/aws-sdk-go-v2/service/bedrockagent v1.53.2
-	github.com/aws/aws-sdk-go-v2/service/bedrockagentruntime v1.51.10
 	github.com/aws/aws-sdk-go-v2/service/bedrockruntime v1.50.6
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.3
 	github.com/aws/aws-sdk-go-v2/service/s3vectors v1.7.0
@@ -25,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.23 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.72.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.72.0
 )
 
 require (
