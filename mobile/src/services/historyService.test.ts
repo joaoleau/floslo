@@ -28,6 +28,7 @@ describe('historyService.getTagBreakdown', () => {
       { tag: 'matematica', total: 10, correct: 3, graded: 10 },
       { tag: 'ingles', total: 5, correct: 4, graded: 5 },
       { tag: 'flashcards-sem-nota', total: 2, correct: 0, graded: 0 },
+      { tag: 'so-descobertas', total: 6, correct: 1, graded: 1 },
     ]);
 
     const result = historyService.getTagBreakdown('user-1');
@@ -35,6 +36,8 @@ describe('historyService.getTagBreakdown', () => {
     const bySubject = Object.fromEntries(result.map((stat) => [stat.tag, stat]));
     expect(bySubject.matematica).toEqual({ tag: 'matematica', total: 10, accuracy: 0.3, hasEnoughData: true });
     expect(bySubject.ingles).toEqual({ tag: 'ingles', total: 5, accuracy: 0.8, hasEnoughData: true });
+    // Discoveries count as answers but have no right/wrong, so they don't make a tag "enough data".
+    expect(bySubject['so-descobertas'].hasEnoughData).toBe(false);
     // graded=0 (e.g. a tag answered only via flashcards, which have no right/wrong) must not
     // divide by zero -- accuracy stays null instead of NaN.
     expect(bySubject['flashcards-sem-nota']).toEqual({
@@ -213,7 +216,8 @@ describe('historyService.getSessions', () => {
         started_at: 100,
         completed_at: 200,
         total_challenges: 5,
-        answered_count: 5,
+        answered_count: 6,
+        graded_count: 5,
         correct_count: 4,
       },
     ]);
@@ -228,7 +232,8 @@ describe('historyService.getSessions', () => {
         startedAt: 100,
         completedAt: 200,
         totalChallenges: 5,
-        answeredCount: 5,
+        answeredCount: 6,
+        gradedCount: 5,
         correctCount: 4,
       },
     ]);
@@ -257,13 +262,15 @@ describe('historyService.getSessionDetail', () => {
     mockGetAllSync.mockReturnValue([
       { id: 'a1', session_id: 'session-1', is_correct: 1, answered_at: 1, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 0, source_object_key: null, source_page: null },
       { id: 'a2', session_id: 'session-1', is_correct: 0, answered_at: 2, challenge_type: 'MULTIPLE_CHOICE', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 1, source_object_key: null, source_page: null },
+      { id: 'a3', session_id: 'session-1', is_correct: null, answered_at: 3, challenge_type: 'DISCOVERY', tag: 't', language: 'pt', prompt_text: 'p', explanation_text: null, options_json: null, wrong_attempts: 0, source_object_key: null, source_page: null },
     ]);
 
     const result = historyService.getSessionDetail('session-1');
 
-    expect(result?.answeredCount).toBe(2);
+    expect(result?.answeredCount).toBe(3);
+    expect(result?.gradedCount).toBe(2);
     expect(result?.correctCount).toBe(1);
-    expect(result?.attempts).toHaveLength(2);
+    expect(result?.attempts).toHaveLength(3);
   });
 });
 

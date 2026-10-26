@@ -107,7 +107,10 @@ CRITICAL LANGUAGE REQUIREMENT: you must write EVERY piece of output text below i
 material provided further down may be written in a completely different language -- that is
 expected and does NOT change this requirement. Treat this as a translation task: read the
 material in whatever language it is in, then produce your entire answer in %s. Never fall
-back to the material's language.
+back to the material's language. Translate the prose, but keep technical terms, product and
+service names, commands, code identifiers and established technical jargon exactly as they
+appear in the material: for example, a Kubernetes "Job" or "Pod" stays "Job" or "Pod" and is
+never translated literally.
 `, name, name)
 }
 
@@ -315,6 +318,9 @@ QUESTION rules:
 - One clear, specific question with a single well-defined correct answer.
 - It must make sense on its own: never write "according to the text", "in the passage",
   "the author" or anything that assumes the learner has the material at hand.
+- Name the specific subject the fact belongs to (the technology, system, concept, process,
+  event or person the passage is about), so the learner knows what is being asked without the
+  material. Never refer to it vaguely, as in "this tool", "the process" or "it".
 
 ALTERNATIVES rules:
 - Exactly 4 alternatives, with ids "A", "B", "C", "D" in that order.
@@ -370,6 +376,9 @@ material; never add outside knowledge.
 STATEMENT rules:
 - It must make sense on its own: never write "according to the text", "in the passage",
   "the author" or anything that assumes the learner has the material at hand.
+- Name the specific subject the fact belongs to (the technology, system, concept, process,
+  event or person the passage is about), so the learner knows what is being asked without the
+  material. Never refer to it vaguely, as in "this tool", "the process" or "it".
 - Across the whole set, about half of the statements should be true and half false.
 - A false statement must be plausible: build it by changing one key element of a real fact
   from the passage, not by simply adding a negation.
@@ -413,6 +422,9 @@ passages only to make it clear and self-contained; never add outside knowledge):
   actually teach something: give context, cause, consequence, a concrete example or a
   surprising detail. Every sentence must add real information; do not pad with filler or
   repeat the title in different words.
+- Both parts name the specific subject the idea belongs to (the technology, system, concept,
+  process, event or person the passage is about), never a vague reference such as "this
+  tool", "the process" or "it".
 
 This is NOT a question-and-answer pair: there is no separate question and no separate
 answer, just a hook plus its own explanation. The reader should understand the idea after

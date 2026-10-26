@@ -1,11 +1,10 @@
 import { screen, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { SchedulerCard } from './SchedulerCard';
-import { DISABLED_CARD_COLOR, getColorForId } from '@/lib/hashColor';
+import { getColorForId } from '@/lib/hashColor';
 
-// A cor de fundo fica na View logo dentro do Pressable do card.
-function cardColor(): string {
-  return screen.getByTestId('scheduler-card-surface').props.style.backgroundColor;
+function surface() {
+  return screen.getByTestId('scheduler-card-surface').props;
 }
 import { Scheduler } from '@/types/domain/Scheduler';
 
@@ -111,14 +110,15 @@ describe('SchedulerCard', () => {
     expect(screen.queryByText('Múltipla escolha')).toBeNull();
   });
 
-  it('shows a disabled scheduler without color, also while selecting', async () => {
+  it('shows a disabled scheduler with only the outline, also while selecting', async () => {
     const { rerender } = await renderWithProviders(<SchedulerCard scheduler={scheduler} />);
-    expect(cardColor()).toBe(getColorForId(scheduler.id));
+    expect(surface().style.backgroundColor).toBe(getColorForId(scheduler.id));
 
     await rerender(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
-    expect(cardColor()).toBe(DISABLED_CARD_COLOR);
+    expect(surface().style.backgroundColor).toBeUndefined();
+    expect(surface().className).toContain('border border-border bg-card');
 
     await rerender(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} selectionMode />);
-    expect(cardColor()).toBe(DISABLED_CARD_COLOR);
+    expect(surface().style.backgroundColor).toBeUndefined();
   });
 });

@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Text } from '@/components/ui/text';
 import { ThemeProvider, Stack, useRouter, useRootNavigationState } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import notifee, { EventType, AndroidCategory, Notification } from '@notifee/react-native';
+import notifee, { EventType, AndroidCategory } from '@notifee/react-native';
 import { QueryClientProvider, focusManager } from '@tanstack/react-query';
 import {
   useFonts,
@@ -16,10 +16,10 @@ import {
 } from '@expo-google-fonts/inter';
 
 import { authService } from '@/services/authService';
-import { schedulerService } from '@/services/schedulerService';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
 import { activeFiring } from '@/lib/activeFiring';
-import { onboardingStorage } from '@/storage/onboardingStorage';
+import { alarmScreen } from '../../modules/alarm-screen';
+import { sessionService } from '@/services/sessionService';
 import { onSessionExpired } from '@/api/http/client';
 import { queryClient } from '@/lib/queryClient';
 import { NAV_THEME } from '@/lib/theme';
@@ -44,20 +44,6 @@ ErrorUtils.setGlobalHandler((error, isFatal) => {
   defaultErrorHandler(error, isFatal);
 });
 
-// O alarme só se encerra pelos desafios: a notificação é fixa, mas o Android 14 ou superior
-// ainda deixa o usuário descartá-la. Descartada, ela volta a ser exibida (e a tocar). Quando a
-// tela de disparo tira a notificação da barra, isso não conta como descarte.
-async function redisplayDismissedAlarm(type: EventType, notification: Notification | undefined): Promise<boolean> {
-  if (type !== EventType.DISMISSED || notification?.android?.category !== AndroidCategory.ALARM) return false;
-  console.log('[Notifee] Alarme descartado sem os desafios, exibindo de novo', notification.id);
-  try {
-    await notifee.displayNotification(notification);
-  } catch (err) {
-    console.error('[Notifee] Falha ao exibir de novo o alarme descartado', err);
-  }
-  return true;
-}
-
 notifee.onBackgroundEvent(async ({ type, detail }) => {
   const { notification, pressAction } = detail;
 
@@ -68,8 +54,6 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
   });
 
   if (!notification) return;
-
-  if (await redisplayDismissedAlarm(type, notification)) return;
 
   // O app estava apenas em segundo plano (não morto) quando o toque aconteceu — esse evento
   // não passa pelo onForegroundEvent, e getInitialNotification()/getDisplayedNotifications()
@@ -153,16 +137,9 @@ export default function RootLayout() {
             // SUBSTITUIÇÃO AQUI: Usando o seu userService lindamente!
             await userService.getMe();
 
-            const hasSeenOnboarding = await onboardingStorage.hasSeenOnboarding();
-            router.replace(hasSeenOnboarding ? '/(tabs)' : '/onboarding');
-
-            // A fresh install / re-login (or a different account on this same device) has
-            // no native alarm triggers scheduled yet even though the backend already has
-            // enabled schedulers — reconcile them now. Fire-and-forget: a failure here
-            // shouldn't block the user from reaching the app.
-            schedulerService.resyncAll().catch((resyncErr) => {
-              console.warn('[RootLayout] Falha ao resincronizar alarmes nativos', resyncErr);
-            });
+            // Mesmo passo do login e do cadastro: reagenda os alarmes e decide entre o manual
+            // de uso e as abas (ver sessionService).
+            router.replace(await sessionService.start());
           } catch (apiError) {
             console.warn('[Auth] Token inválido ou usuário deletado. Limpando...', apiError);
             await authService.logout();
@@ -235,7 +212,12 @@ export default function RootLayout() {
         // ser respondido: não abre outra.
         if (targetSchedulerId && activeFiring.isHandled(targetSchedulerId as string)) {
           console.log('[RootLayout] Alarme já atendido, mantendo a tela atual', targetSchedulerId);
+          hideOverLockScreenWithoutFiring();
           return;
+        }
+
+        if (!targetSchedulerId) {
+          hideOverLockScreenWithoutFiring();
         }
 
         if (targetSchedulerId) {
@@ -274,8 +256,6 @@ export default function RootLayout() {
         category: detail.notification?.android?.category,
         data: detail.notification?.data,
       });
-
-      redisplayDismissedAlarm(type, detail.notification);
 
       if (type === EventType.PRESS && detail.notification?.android?.category === AndroidCategory.ALARM) {
         const payload = detail.notification.data;
@@ -316,6 +296,16 @@ export default function RootLayout() {
       </QueryClientProvider>
     </GestureHandlerRootView>
   );
+}
+
+// O módulo nativo (modules/alarm-screen) mostra o app sobre a tela de bloqueio quando ele é
+// aberto com o celular bloqueado, porque isso só acontece pelo alarme em tela cheia. Se não houver
+// alarme para mostrar (já respondido, ou nenhum encontrado), o app volta a exigir o desbloqueio.
+function hideOverLockScreenWithoutFiring() {
+  if (activeFiring.anyOpen()) return;
+  alarmScreen.setShowOverLockScreen(false).catch((err) => {
+    console.warn('[RootLayout] Falha ao deixar de mostrar o app sobre o bloqueio', err);
+  });
 }
 
 // Um erro de render (ex.: acesso a propriedade de undefined num mapper) sem isso derruba

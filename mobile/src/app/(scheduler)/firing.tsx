@@ -28,6 +28,7 @@ import { activeFiring } from '@/lib/activeFiring';
 import { RingingAlarm, useRingingAlarm } from '@/hooks/useRingingAlarm';
 import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
+import { alarmScreen } from '../../../modules/alarm-screen';
 
 // Botões de silenciar o som e de parar a vibração, um embaixo do outro, os mesmos no
 // carregamento, na tela de erro e nos desafios. O de vibração só aparece quando o agendador vibra.
@@ -315,7 +316,7 @@ function FiringScreenContent({
               Os materiais deste agendador foram excluídos, então não há conteúdo para gerar desafios.
               Vincule um objeto a ele para voltar a tocar normalmente.
             </Text>
-            <Button onPress={stopAlarm} className="mt-2 rounded-3xl bg-white/15 px-6 py-3">
+            <Button onPress={stopAlarm} className="mt-2 h-12 rounded-3xl bg-white/15 px-6">
               <Text className="font-semibold text-white">Dispensar alarme</Text>
             </Button>
           </View>
@@ -431,7 +432,14 @@ export default function FiringScreen() {
     alarmNavStorage.clearPendingAlarmNav().catch((err) => {
       console.warn('[FiringScreen] Falha ao descartar o toque pendente do alarme', err);
     });
-    return () => activeFiring.finish(schedulerId);
+    return () => {
+      activeFiring.finish(schedulerId);
+      // O app só aparece sobre a tela de bloqueio enquanto o alarme está aberto (ver
+      // modules/alarm-screen): ao fechar o disparo, volta a exigir o desbloqueio.
+      alarmScreen.setShowOverLockScreen(false).catch((err) => {
+        console.warn('[FiringScreen] Falha ao deixar de mostrar o app sobre o bloqueio', err);
+      });
+    };
   }, [schedulerId]);
 
   // ==========================================
@@ -460,7 +468,7 @@ export default function FiringScreen() {
         <Text className="text-white/75 text-center text-sm">
           {error instanceof Error ? error.message : 'Erro desconhecido.'}
         </Text>
-        <Button onPress={() => refetch()} className="bg-white/15 rounded-3xl px-6 py-3">
+        <Button onPress={() => refetch()} className="h-12 bg-white/15 rounded-3xl px-6">
           <Text className="font-semibold text-white">Tentar novamente</Text>
         </Button>
       </View>

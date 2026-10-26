@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { Pressable, View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -64,6 +64,9 @@ const CHALLENGE_TYPE_DESCRIPTIONS: Record<ChallengeTypeName, string> = {
   TRUE_FALSE: 'Julgue afirmações',
   DISCOVERY: 'Fatos novos, sem responder',
 };
+
+// Linha de ajuste com switch (Vibração, Som): mesma altura mínima e mesmo recuo dos dois lados.
+const SETTING_ROW = 'min-h-14 flex-row items-center gap-3 rounded-md border border-border px-4 py-2.5';
 
 const OBJECTS_HELP_TEXT =
   'São os materiais de estudo (documentos) já enviados na aba Objetos. Vincule aqui os que você quer usar: os desafios deste agendador são gerados a partir do conteúdo deles.';
@@ -184,9 +187,17 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 placeholder="Nome do alerta"
               />
 
-              <View className="h-10 flex-row items-center rounded-md border border-border px-4">
-                <Ionicons name="radio-outline" size={20} color={colors.brand} />
-                <Text className="ml-3 flex-1">Vibração</Text>
+              {/* Vibração e Som seguem o mesmo formato de linha (SETTING_ROW): ícone, rótulo com o
+                  estado embaixo e o switch à direita, com a mesma altura e o mesmo recuo, para os
+                  dois switches ficarem alinhados. */}
+              <View testID="vibration-row" className={SETTING_ROW}>
+                <View className="flex-1 flex-row items-center gap-3">
+                  <MaterialCommunityIcons name="vibrate" size={20} color={colors.brand} />
+                  <View className="flex-1">
+                    <Text className="font-medium text-foreground">Vibração</Text>
+                    <Text className="text-xs text-muted-foreground">{scheduler.vibration ? 'Ativada' : 'Desativada'}</Text>
+                  </View>
+                </View>
                 <Switch
                   checked={scheduler.vibration}
                   onCheckedChange={(value) => update('vibration', value)}
@@ -196,7 +207,7 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
               {/* Uma coisa só (label + nome do som escolhido + switch), não dois campos
                   separados -- toque em qualquer lugar do bloco (menos o switch) abre o
                   seletor, o switch liga/desliga o som. Sem seta: o próprio toque já é óbvio. */}
-              <View className="flex-row items-center rounded-md border border-border pl-4 pr-3 py-2.5">
+              <View testID="sound-row" className={SETTING_ROW}>
                 <Pressable
                   onPress={() => scheduler.soundEnabled && router.push('/(scheduler)/sounds')}
                   disabled={!scheduler.soundEnabled}

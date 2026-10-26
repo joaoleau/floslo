@@ -2,11 +2,11 @@ import { screen, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { ObjectCard } from './ObjectCard';
 import { ObjectType } from '@/types/domain/Object';
-import { DISABLED_CARD_COLOR, getColorForId } from '@/lib/hashColor';
+import { getColorForId } from '@/lib/hashColor';
 
 // A cor de fundo fica na View logo dentro do Pressable do card.
-function cardColor(): string {
-  return screen.getByTestId('object-card-surface').props.style.backgroundColor;
+function surface() {
+  return screen.getByTestId('object-card-surface').props;
 }
 
 const object: ObjectType = {
@@ -32,13 +32,14 @@ describe('ObjectCard', () => {
     expect(screen.getByText('Processando')).toBeTruthy();
   });
 
-  it('shows the card without color while the object is processing or after it failed, keeping the badge', async () => {
+  it('shows only the outline, without the colored fill, while the object is processing or after it failed', async () => {
     const { rerender } = await renderWithProviders(<ObjectCard object={object} />);
-    expect(cardColor()).toBe(getColorForId(object.id));
+    expect(surface().style.backgroundColor).toBe(getColorForId(object.id));
 
     for (const status of ['processing', 'failed'] as const) {
       await rerender(<ObjectCard object={{ ...object, status }} />);
-      expect(cardColor()).toBe(DISABLED_CARD_COLOR);
+      expect(surface().style.backgroundColor).toBeUndefined();
+      expect(surface().className).toContain('border border-border bg-card');
     }
     expect(screen.getByText('Falhou')).toBeTruthy();
   });

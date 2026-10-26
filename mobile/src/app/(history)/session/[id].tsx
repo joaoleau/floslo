@@ -11,6 +11,7 @@ import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
 
 import { useSessionDetailQuery } from '@/hooks/useHistory';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { sessionScoreLabel } from '@/lib/sessionScore';
 
 export default function SessionDetailScreen() {
   const colors = useThemeColors();
@@ -40,7 +41,7 @@ export default function SessionDetailScreen() {
               {new Date(session.startedAt).toLocaleString('pt-BR')}
             </Text>
             <Text className="text-sm text-muted-foreground">
-              {session.correctCount}/{session.answeredCount} de primeira
+              {sessionScoreLabel(session)}
               {!session.completedAt && ' • sessão não concluída'}
             </Text>
           </Card>

@@ -265,3 +265,24 @@ func TestTokenBudget(t *testing.T) {
 		t.Errorf("tokenBudget above the cap = %d, want %d", got, maxOutputTokens)
 	}
 }
+
+func TestPromptsAskForSelfContainedItemsAndKeepTechnicalTerms(t *testing.T) {
+	slots := testSlots(1, false)
+
+	prompts := map[string]string{
+		"multiple choice": multipleChoicePrompt("pt", slots),
+		"true/false":      trueFalsePrompt("pt", slots),
+		"discovery":       discoveryPrompt("pt", slots),
+	}
+
+	for name, prompt := range prompts {
+		t.Run(name, func(t *testing.T) {
+			if !strings.Contains(prompt, "the specific subject") {
+				t.Error("the prompt must ask to name the subject the item is about")
+			}
+			if !strings.Contains(prompt, `a Kubernetes "Job" or "Pod" stays "Job" or "Pod"`) {
+				t.Error("the prompt must ask to keep technical terms untranslated")
+			}
+		})
+	}
+}

@@ -14,6 +14,7 @@ import { AuthLoadingScreen } from '@/components/auth/AuthLoadingScreen';
 import { useLoginMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
+import { sessionService } from '@/services/sessionService';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function LoginScreen() {
 
     try {
       await loginMutation.mutateAsync({ username, password });
-      router.replace('/(tabs)');
+      router.replace(await sessionService.start());
     } catch (error: any) {
       console.error('[Login] Falha ao fazer login', error);
       showAlert('Erro', error.message || 'Falha ao fazer login');

@@ -106,10 +106,10 @@ function alarmSettingsOf(scheduler: Scheduler): AlarmSettings {
 }
 
 /**
- * Cria (ou reaproveita) o canal do agendador e monta a notificação do alarme. A notificação é
- * fixa (ongoing, sem autoCancel): o alarme só se encerra pelos desafios, então ela não pode ser
- * descartada com um gesto nem sumir ao ser tocada. Quem a remove é a tela de disparo, ao
- * assumir o som.
+ * Cria (ou reaproveita) o canal do agendador e monta a notificação do alarme. O alarme é a tela
+ * de disparo, que abre sozinha (fullScreenAction); a notificação é só o meio que o Android exige
+ * para abri-la, e pode ser removida como a de qualquer despertador. Tocada, ela abre o disparo
+ * e some (autoCancel); o som passa a ser tocado pela própria tela.
  */
 async function prepareAlarmNotification(settings: AlarmSettings) {
   // Sound name must be lowercase, no spaces, matching the raw resource filename.
@@ -134,8 +134,8 @@ async function prepareAlarmNotification(settings: AlarmSettings) {
     android: {
       channelId,
       category: AndroidCategory.ALARM,
-      autoCancel: false,
-      ongoing: true,
+      autoCancel: true,
+      ongoing: false,
       loopSound: true,
       // launchActivity precisa estar aqui, igual na tela cheia do próprio firing.tsx --
       // sem ele, o Android pode simplesmente não lançar a activity automaticamente com a

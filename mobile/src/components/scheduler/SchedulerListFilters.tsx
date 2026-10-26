@@ -5,11 +5,11 @@ import { Scheduler } from '@/types/domain/Scheduler';
 
 export type SchedulerFilter = 'all' | 'today' | 'tomorrow' | 'disabled';
 
-const FILTER_OPTIONS: { value: SchedulerFilter; label: string; badgeColor: string }[] = [
-  { value: 'all', label: 'Todos', badgeColor: '#3B82F6' },
-  { value: 'today', label: 'Hoje', badgeColor: '#10B981' },
-  { value: 'tomorrow', label: 'Amanhã', badgeColor: '#F59E0B' },
-  { value: 'disabled', label: 'Desativados', badgeColor: '#9CA3AF' },
+const FILTER_OPTIONS: { value: SchedulerFilter; label: string }[] = [
+  { value: 'all', label: 'Todos' },
+  { value: 'today', label: 'Hoje' },
+  { value: 'tomorrow', label: 'Amanhã' },
+  { value: 'disabled', label: 'Desativados' },
 ];
 
 const WEEKDAY_BY_INDEX = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -43,7 +43,9 @@ interface SchedulerListFiltersProps {
 // Mesmo padrão preto/branco usado em switch/weekdays: filtro selecionado vira pílula
 // preta com texto branco, os demais ficam em outline neutro. A contagem ao lado de cada
 // filtro é recalculada a cada render a partir da lista completa (matchesSchedulerFilter é
-// pura, então reaproveitá-la aqui não duplica a regra de cada filtro).
+// pura, então reaproveitá-la aqui não duplica a regra de cada filtro). O contador também é
+// neutro: com uma cor por filtro, ele parecia indicar os agendadores daquela cor, já que os
+// cards da lista são coloridos.
 export function SchedulerListFilters({ value, onChange, schedulers }: SchedulerListFiltersProps) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -62,10 +64,11 @@ export function SchedulerListFilters({ value, onChange, schedulers }: SchedulerL
               {option.label}
             </Text>
             <View
-              className="items-center justify-center rounded-full px-1.5"
-              style={{ minWidth: 20, height: 20, backgroundColor: option.badgeColor }}
+              testID={`scheduler-filter-count-${option.value}`}
+              className={`items-center justify-center rounded-full px-1.5 ${selected ? 'bg-white/20' : 'bg-muted'}`}
+              style={{ minWidth: 20, height: 20 }}
             >
-              <Text className="text-[11px] font-bold text-white">{count}</Text>
+              <Text className={`text-[11px] font-bold ${selected ? 'text-white' : 'text-foreground'}`}>{count}</Text>
             </View>
           </Pressable>
         );

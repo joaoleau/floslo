@@ -162,3 +162,14 @@ describe('SchedulerForm challenges', () => {
     expect(screen.queryByTestId('language-option-fr')).toBeNull();
   });
 });
+
+describe('SchedulerForm vibration and sound rows', () => {
+  it('lays out both switch rows the same way, so the switches line up', async () => {
+    await renderForm();
+    const vibration = screen.getByTestId('vibration-row').props.className;
+    const sound = screen.getByTestId('sound-row').props.className;
+    expect(vibration).toBe(sound);
+    expect(screen.getByText('Vibração')).toBeTruthy();
+    expect(screen.getByText('Ativada')).toBeTruthy();
+  });
+});

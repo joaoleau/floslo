@@ -123,7 +123,8 @@ export const historyService = {
           tag: r.tag,
           total: r.total,
           accuracy: r.graded > 0 ? r.correct / r.graded : null,
-          hasEnoughData: r.total >= MIN_ATTEMPTS_FOR_INSIGHT,
+          // A Descoberta não tem acerto: só as perguntas com certo ou errado contam para o insight.
+          hasEnoughData: r.graded >= MIN_ATTEMPTS_FOR_INSIGHT,
         })
       )
       .sort((a, b) => {
@@ -177,10 +178,12 @@ export const historyService = {
       completed_at: number | null;
       total_challenges: number;
       answered_count: number;
+      graded_count: number;
       correct_count: number;
     }>(
       `SELECT s.id, s.scheduler_id, s.scheduler_name, s.started_at, s.completed_at, s.total_challenges,
               COUNT(a.id) as answered_count,
+              SUM(CASE WHEN a.is_correct IS NOT NULL THEN 1 ELSE 0 END) as graded_count,
               SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
        FROM sessions s
        LEFT JOIN attempts a ON a.session_id = s.id
@@ -199,7 +202,8 @@ export const historyService = {
       completedAt: r.completed_at,
       totalChallenges: r.total_challenges,
       answeredCount: r.answered_count,
-      correctCount: r.correct_count,
+      gradedCount: r.graded_count ?? 0,
+      correctCount: r.correct_count ?? 0,
     }));
   },
 
@@ -229,6 +233,7 @@ export const historyService = {
       completedAt: session.completed_at,
       totalChallenges: session.total_challenges,
       answeredCount: attempts.length,
+      gradedCount: attempts.filter((a) => a.isCorrect !== null).length,
       correctCount: attempts.filter((a) => a.isCorrect === true).length,
       attempts,
     };
@@ -266,7 +271,7 @@ export const historyService = {
       tag,
       total,
       accuracy: graded > 0 ? correct / graded : null,
-      hasEnoughData: total >= MIN_ATTEMPTS_FOR_INSIGHT,
+      hasEnoughData: graded >= MIN_ATTEMPTS_FOR_INSIGHT,
     };
 
     const recentRows = db.getAllSync<AttemptRow>(

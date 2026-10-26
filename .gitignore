@@ -64,3 +64,5 @@ floslo_credentials.csv
 # generated native folders
 mobile/ios
 mobile/android
+# Saída do Gradle dos módulos nativos locais (modules/*), gerada pelo build do app
+mobile/modules/*/android/build/

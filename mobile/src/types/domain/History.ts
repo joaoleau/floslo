@@ -12,7 +12,7 @@ export interface TagStat {
   tag: string;
   total: number;
   accuracy: number | null;
-  hasEnoughData: boolean; // false quando total < MIN_ATTEMPTS_FOR_INSIGHT
+  hasEnoughData: boolean; // false quando as respostas com certo ou errado < MIN_ATTEMPTS_FOR_INSIGHT
 }
 
 export interface MistakeEntry {
@@ -34,6 +34,9 @@ export interface SessionSummary {
   totalChallenges: number;
   correctCount: number;
   answeredCount: number;
+  // Respostas que têm certo ou errado (Múltipla escolha e Verdadeiro ou Falso). A Descoberta
+  // não tem acerto, então fica fora do placar "x/y de primeira".
+  gradedCount: number;
 }
 
 // Uma alternativa de Múltipla escolha, ou uma das duas opções fixas de Verdadeiro/Falso -- guardado

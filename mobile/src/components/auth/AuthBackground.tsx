@@ -70,8 +70,10 @@ function Blob({ config }: { config: BlobConfig }) {
 export function AuthBackground({ children }: { children: React.ReactNode }) {
   const colors = useThemeColors();
 
+  // overflow hidden: os blobs começam fora da área (top negativo) e, sem o recorte, passavam
+  // por cima do header das telas de cadastro e de recuperação de senha, que fica logo acima.
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View testID="auth-background" style={{ flex: 1, backgroundColor: colors.background, overflow: 'hidden' }}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {BLOBS.map((blob, index) => (
           <Blob key={index} config={blob} />

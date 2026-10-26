@@ -25,6 +25,11 @@ export const activeFiring = {
     return !!schedulerId && activeSchedulerId === schedulerId;
   },
 
+  // Se há alguma tela de disparo aberta, de qualquer agendador.
+  anyOpen(): boolean {
+    return activeSchedulerId !== null;
+  },
+
   // Diz se este alarme já está sendo atendido ou acabou de ser respondido, e não deve abrir
   // outra tela de disparo.
   isHandled(schedulerId: string | null | undefined, now: number = Date.now()): boolean {

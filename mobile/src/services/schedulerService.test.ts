@@ -190,15 +190,16 @@ describe('schedulerService.toggleStatus', () => {
 });
 
 describe('alarm notification', () => {
-  it('cannot be swiped away nor disappear when tapped, so the alarm only ends through the challenges', async () => {
+  it('can be removed like the notification of any alarm clock, and opens the firing screen by itself', async () => {
     mockUpdate.mockResolvedValue(makeDTO({ scheduler_id: 'sched-1', enabled: true, weekdays: ['MON'] }));
 
     await schedulerService.toggleStatus('sched-1', true);
 
     const [notification] = mockCreateTriggerNotification.mock.calls[0];
-    expect(notification.android.ongoing).toBe(true);
-    expect(notification.android.autoCancel).toBe(false);
+    expect(notification.android.ongoing).toBe(false);
+    expect(notification.android.autoCancel).toBe(true);
     expect(notification.android.loopSound).toBe(true);
+    expect(notification.android.fullScreenAction).toEqual({ id: 'default', launchActivity: 'default' });
   });
 
   it('keeps the sound and vibration of the scheduler on the device for the firing screen', async () => {
@@ -228,7 +229,7 @@ describe('alarm notification', () => {
     expect(notification.id).toBe('sched-1__monday');
     expect(notification.data).toEqual({ schedulerId: 'sched-1' });
     expect(notification.android.category).toBe('ALARM');
-    expect(notification.android.ongoing).toBe(true);
+    expect(notification.android.ongoing).toBe(false);
   });
 });
 

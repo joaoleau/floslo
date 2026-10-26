@@ -17,33 +17,45 @@ interface OnboardingStep {
 }
 
 // Cor de cada passo casa com o acento que aquela peça do app já usa em outro lugar
-// (âmbar = alarmes/agendadores, azul = objetos, índigo = desafios, verde = sequência/
-// histórico -- a mesma paleta nova de StudyWeekStrip), pra já ir familiarizando o
-// usuário com a linguagem visual antes mesmo de chegar nas telas de verdade.
+// (azul = objetos, âmbar = alarmes/agendadores, índigo = desafios, rosa = permissões, verde =
+// sequência/histórico), pra já ir familiarizando o usuário com a linguagem visual antes mesmo de
+// chegar nas telas de verdade. A ordem segue o uso: o agendador só pode ser criado depois que
+// existe um documento processado para vincular a ele.
 const STEPS: OnboardingStep[] = [
-  {
-    icon: 'alarm-outline',
-    color: '#F59E0B',
-    title: 'Crie um agendador',
-    description: 'Escolha o horário e os dias da semana. Quando o alarme tocar, você precisa responder um desafio pra desligá-lo.',
-  },
   {
     icon: 'document-text-outline',
     color: '#3B82F6',
     title: 'Envie seus materiais',
-    description: 'PDFs, anotações, slides -- é a partir deles que os desafios do seu agendador são gerados.',
+    description:
+      'Na aba Objetos, envie seus documentos em PDF. O app lê o conteúdo e identifica os principais assuntos de cada um, as tags, que você pode revisar e ajustar.',
+  },
+  {
+    icon: 'alarm-outline',
+    color: '#F59E0B',
+    title: 'Crie um agendador',
+    description:
+      'Escolha o horário, os dias da semana e os documentos de estudo. Quando o alarme tocar, ele só desliga depois que você responder todos os desafios.',
   },
   {
     icon: 'school-outline',
     color: '#6366F1',
-    title: 'Vincule desafios',
-    description: 'Múltipla escolha, Verdadeiro ou Falso e Descoberta: escolha como quer estudar cada material.',
+    title: 'Escolha os desafios',
+    description:
+      'Em cada agendador, defina quantos itens de Descoberta, Múltipla escolha e Verdadeiro ou Falso cada alarme traz, até 10 no total, e o idioma em que eles são escritos.',
+  },
+  {
+    icon: 'notifications-outline',
+    color: '#EC4899',
+    title: 'Deixe o alarme tocar',
+    description:
+      'Ative as permissões de alarmes e de notificações em tela cheia, para o alarme tocar na hora certa e abrir sozinho com o celular bloqueado. A tela inicial avisa quando falta alguma.',
   },
   {
     icon: 'flame',
     color: '#30A14E',
     title: 'Acompanhe sua sequência',
-    description: 'No Histórico você vê os dias seguidos estudando, o que já respondeu e em quais assuntos precisa reforçar.',
+    description:
+      'Cada dia de estudo conta na sua sequência. No Histórico você vê o desempenho por assunto, os erros recentes e as sessões que já respondeu.',
   },
 ];
 
@@ -106,7 +118,7 @@ export default function Onboarding() {
         ))}
       </View>
 
-      <Button onPress={next} className="mb-6 rounded-3xl bg-brand-100 py-3.5">
+      <Button onPress={next} className="mb-6 h-12 rounded-3xl bg-brand-100">
         <Text className="text-center font-semibold text-white">{isLast ? 'Começar' : 'Próximo'}</Text>
       </Button>
     </Screen>

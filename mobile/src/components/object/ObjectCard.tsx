@@ -6,7 +6,9 @@ import { Text } from '@/components/ui/text';
 import { ObjectTags } from '@/components/object/ObjectTags';
 import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
 import { ObjectType } from '@/types/domain/Object';
-import { getCardColor } from '@/lib/hashColor';
+import { getColorForId } from '@/lib/hashColor';
+import { cardSurface } from '@/lib/cardSurface';
+import { useThemeColors } from '@/hooks/useThemeColors';
 import { getExtensionColor } from '@/lib/fileExtensionColors';
 
 interface ObjectCardProps {
@@ -22,25 +24,21 @@ interface ObjectCardProps {
 // fixa por tipo de arquivo (getExtensionColor) -- independente da cor do card -- pra
 // continuar reconhecível item a item.
 export function ObjectCard({ object, onPress, onLongPress, selectionMode = false, selected = false }: ObjectCardProps) {
-  // Em processamento ou com falha, o documento ainda não gera desafios: o card fica sem cor,
-  // como o agendador desligado, e o selo continua dizendo qual dos dois é, para o estado não
-  // depender só da cor.
-  const backgroundColor = getCardColor(object.id, object.status === 'active');
+  const colors = useThemeColors();
+  // Em processamento ou com falha, o documento ainda não gera desafios: o card fica só com o
+  // contorno, sem fundo colorido, como o agendador desligado, e o selo continua dizendo qual dos
+  // dois é, para o estado não depender só da cor.
+  const outlined = object.status !== 'active';
+  const backgroundColor = getColorForId(object.id);
+  const ink = outlined ? colors.primary : '#FFFFFF';
   const extensionColor = getExtensionColor(object.extension);
 
   return (
     <Pressable testID="object-card" onPress={onPress} onLongPress={onLongPress}>
       <View
         testID="object-card-surface"
-        className="rounded-[28px] px-4 py-3.5 gap-2.5"
-        style={{
-          backgroundColor,
-          opacity: selectionMode && !selected ? 0.5 : 1,
-          borderWidth: selected ? 3 : 0,
-          borderColor: '#FFFFFF',
-          borderBottomWidth: 3,
-          borderBottomColor: selected ? '#FFFFFF' : 'rgba(0,0,0,0.18)',
-        }}
+        className={`rounded-[28px] px-4 py-3.5 gap-2.5 ${outlined ? 'border border-border bg-card' : ''}`}
+        style={cardSurface({ color: backgroundColor, outlined, selected, dimmed: selectionMode && !selected, ink })}
       >
         <View className="flex-row items-start justify-between gap-2">
           {selectionMode && (
@@ -50,17 +48,17 @@ export function ObjectCard({ object, onPress, onLongPress, selectionMode = false
               style={{
                 width: 20,
                 height: 20,
-                backgroundColor: selected ? '#FFFFFF' : 'transparent',
+                backgroundColor: selected ? ink : 'transparent',
                 borderWidth: selected ? 0 : 2,
-                borderColor: '#FFFFFF',
+                borderColor: ink,
               }}
             >
-              {selected && <Ionicons name="checkmark" size={13} color={backgroundColor} />}
+              {selected && <Ionicons name="checkmark" size={13} color={outlined ? colors.primaryForeground : backgroundColor} />}
             </View>
           )}
 
           <Text
-            className="flex-1 text-base font-semibold text-white"
+            className={`flex-1 text-base font-semibold ${outlined ? 'text-foreground' : 'text-white'}`}
             numberOfLines={1}
             ellipsizeMode="tail"
           >
@@ -76,7 +74,7 @@ export function ObjectCard({ object, onPress, onLongPress, selectionMode = false
           </View>
         </View>
 
-        <ObjectTags tags={object.tags} maxVisible={3} variant="onColor" />
+        <ObjectTags tags={object.tags} maxVisible={3} variant={outlined ? 'default' : 'onColor'} />
       </View>
     </Pressable>
   );

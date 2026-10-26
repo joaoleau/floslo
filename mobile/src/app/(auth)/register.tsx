@@ -16,6 +16,7 @@ import { useRegisterMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { isPasswordValid } from '@/lib/passwordPolicy';
 import { showAlert } from '@/services/alertService';
+import { sessionService } from '@/services/sessionService';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function RegisterScreen() {
 
     try {
       await registerMutation.mutateAsync({ email, username, password });
-      router.replace('/(tabs)');
+      router.replace(await sessionService.start());
     } catch (error: any) {
       console.error('[Register] Falha ao criar conta', error);
       showAlert('Erro', error.message || 'Falha ao criar conta');

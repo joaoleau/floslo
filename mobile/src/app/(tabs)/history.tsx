@@ -13,6 +13,7 @@ import { StudyWeekStrip } from '@/components/history/StudyWeekStrip';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
 import { getColorForId } from '@/lib/hashColor';
 import { getCardEdgeColor } from '@/lib/cardEdge';
+import { sessionScoreLabel } from '@/lib/sessionScore';
 
 import {
   useRecentMistakesQuery,
@@ -164,8 +165,7 @@ export default function HistoryScreen() {
                             {session.schedulerName}
                           </Text>
                           <Text className="text-xs text-muted-foreground">
-                            {new Date(session.startedAt).toLocaleDateString('pt-BR')} • {session.correctCount}/
-                            {session.answeredCount} de primeira
+                            {new Date(session.startedAt).toLocaleDateString('pt-BR')} • {sessionScoreLabel(session)}
                           </Text>
                         </View>
                         <Ionicons name="chevron-forward" size={16} color={colors.brandSoft} />
