@@ -231,9 +231,10 @@ export default function RootLayout() {
         }
 
         // A tela de disparo deste alarme já está aberta (o app só voltou ao primeiro plano, ou
-        // a notificação ainda estava na barra enquanto os desafios carregavam): não abre outra.
-        if (targetSchedulerId && activeFiring.isOpen(targetSchedulerId as string)) {
-          console.log('[RootLayout] Disparo já aberto, mantendo a tela atual', targetSchedulerId);
+        // a notificação ainda estava na barra enquanto os desafios carregavam), ou ele acabou de
+        // ser respondido: não abre outra.
+        if (targetSchedulerId && activeFiring.isHandled(targetSchedulerId as string)) {
+          console.log('[RootLayout] Alarme já atendido, mantendo a tela atual', targetSchedulerId);
           return;
         }
 
@@ -278,8 +279,8 @@ export default function RootLayout() {
 
       if (type === EventType.PRESS && detail.notification?.android?.category === AndroidCategory.ALARM) {
         const payload = detail.notification.data;
-        if (payload?.schedulerId && activeFiring.isOpen(payload.schedulerId as string)) {
-          console.log('[Notifee][foreground] Disparo já aberto, mantendo a tela atual', payload.schedulerId);
+        if (payload?.schedulerId && activeFiring.isHandled(payload.schedulerId as string)) {
+          console.log('[Notifee][foreground] Alarme já atendido, mantendo a tela atual', payload.schedulerId);
         } else if (payload?.schedulerId) {
           console.log('[Notifee][foreground] navegando para firing', payload.schedulerId);
           router.replace({

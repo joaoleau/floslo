@@ -27,6 +27,7 @@ import { getColorForId } from '@/lib/hashColor';
 import { activeFiring } from '@/lib/activeFiring';
 import { RingingAlarm, useRingingAlarm } from '@/hooks/useRingingAlarm';
 import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
+import { alarmNavStorage } from '@/storage/alarmNavStorage';
 
 // Botão de silenciar, o mesmo no carregamento, na tela de erro e nos desafios.
 function MuteButton({ alarm }: { alarm: RingingAlarm }) {
@@ -406,6 +407,9 @@ export default function FiringScreen() {
 
   useEffect(() => {
     activeFiring.start(schedulerId);
+    alarmNavStorage.clearPendingAlarmNav().catch((err) => {
+      console.warn('[FiringScreen] Falha ao descartar o toque pendente do alarme', err);
+    });
     return () => activeFiring.finish(schedulerId);
   }, [schedulerId]);
 

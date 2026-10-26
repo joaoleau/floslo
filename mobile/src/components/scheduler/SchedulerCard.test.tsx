@@ -1,6 +1,12 @@
 import { screen, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { SchedulerCard } from './SchedulerCard';
+import { DISABLED_CARD_COLOR, getColorForId } from '@/lib/hashColor';
+
+// A cor de fundo fica na View logo dentro do Pressable do card.
+function cardColor(): string {
+  return screen.getByTestId('scheduler-card-surface').props.style.backgroundColor;
+}
 import { Scheduler } from '@/types/domain/Scheduler';
 
 const scheduler: Scheduler = {
@@ -105,13 +111,14 @@ describe('SchedulerCard', () => {
     expect(screen.queryByText('Múltipla escolha')).toBeNull();
   });
 
-  it('dims a disabled scheduler outside of selection mode, but not while selecting', async () => {
-    const { rerender } = await renderWithProviders(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
-    expect(screen.getByTestId('scheduler-card').props.style).toEqual({ opacity: 0.45 });
+  it('shows a disabled scheduler without color, also while selecting', async () => {
+    const { rerender } = await renderWithProviders(<SchedulerCard scheduler={scheduler} />);
+    expect(cardColor()).toBe(getColorForId(scheduler.id));
 
-    // Being dimmed as "off" would be confusing feedback while the user is mid-selection --
-    // the selection-mode dimming (on the inner View) takes over instead.
+    await rerender(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
+    expect(cardColor()).toBe(DISABLED_CARD_COLOR);
+
     await rerender(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} selectionMode />);
-    expect(screen.getByTestId('scheduler-card').props.style).toBeUndefined();
+    expect(cardColor()).toBe(DISABLED_CARD_COLOR);
   });
 });

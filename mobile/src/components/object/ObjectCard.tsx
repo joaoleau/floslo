@@ -6,7 +6,7 @@ import { Text } from '@/components/ui/text';
 import { ObjectTags } from '@/components/object/ObjectTags';
 import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
 import { ObjectType } from '@/types/domain/Object';
-import { getColorForId } from '@/lib/hashColor';
+import { getCardColor } from '@/lib/hashColor';
 import { getExtensionColor } from '@/lib/fileExtensionColors';
 
 interface ObjectCardProps {
@@ -22,20 +22,16 @@ interface ObjectCardProps {
 // fixa por tipo de arquivo (getExtensionColor) -- independente da cor do card -- pra
 // continuar reconhecível item a item.
 export function ObjectCard({ object, onPress, onLongPress, selectionMode = false, selected = false }: ObjectCardProps) {
-  const backgroundColor = getColorForId(object.id);
+  // Em processamento ou com falha, o documento ainda não gera desafios: o card fica sem cor,
+  // como o agendador desligado, e o selo continua dizendo qual dos dois é, para o estado não
+  // depender só da cor.
+  const backgroundColor = getCardColor(object.id, object.status === 'active');
   const extensionColor = getExtensionColor(object.extension);
 
   return (
-    <Pressable
-      testID="object-card"
-      onPress={onPress}
-      onLongPress={onLongPress}
-      // Em processamento ou com falha, o documento ainda não gera desafios: o card fica
-      // esmaecido, como o agendador desligado, e o selo continua dizendo qual dos dois é, para o
-      // estado não depender só da cor.
-      style={object.status !== 'active' && !selectionMode ? { opacity: 0.45 } : undefined}
-    >
+    <Pressable testID="object-card" onPress={onPress} onLongPress={onLongPress}>
       <View
+        testID="object-card-surface"
         className="rounded-[28px] px-4 py-3.5 gap-2.5"
         style={{
           backgroundColor,

@@ -1,13 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { View, Pressable, ScrollView, Modal } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { MultipleChoice } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { SourceChunksSheet } from '@/components/challenges/SourceChunksSheet';
 import { ChallengeResult } from '@/types/domain/History';
 
 interface MultipleChoiceChallengeProps {
@@ -138,46 +138,7 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
         </View>
       </ScrollView>
 
-      {/* Detalhe de onde a pergunta veio: os trechos (chunks) do material que embasaram a
-          pergunta — documento de origem, página, posição do trecho e o quão relevante o
-          modelo considerou aquele trecho. */}
-      <Modal visible={showSources} transparent animationType="slide" onRequestClose={() => setShowSources(false)}>
-        <View className="flex-1 justify-end bg-black/40">
-          <Card className="max-h-[75%] rounded-t-3xl p-5 gap-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-foreground">Baseado em</Text>
-              <Pressable hitSlop={8} onPress={() => setShowSources(false)}>
-                <Ionicons name="close" size={24} color={colors.brand} />
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View className="gap-3 pb-4">
-                {item.sourceChunks.map((chunk, index) => (
-                  <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
-                        <Ionicons name="document-text-outline" size={14} color={colors.brandSoft} />
-                        <Text className="text-xs font-medium text-foreground flex-shrink overflow-hidden" numberOfLines={1}>
-                          {chunk.objectKey}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text className="text-xs text-muted-foreground">
-                      Página {chunk.page} • Trecho #{chunk.chunkIndex + 1}
-                    </Text>
-
-                    <Text className="text-sm text-foreground leading-relaxed" numberOfLines={5}>
-                      {chunk.content}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </Card>
-        </View>
-      </Modal>
+      <SourceChunksSheet visible={showSources} chunks={item.sourceChunks} onClose={() => setShowSources(false)} />
     </Animated.View>
   );
 }

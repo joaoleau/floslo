@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { WeekDays } from '@/components/scheduler/WeekDays';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
 import { Challenger, LANGUAGE_FLAGS, Scheduler } from '@/types/domain/Scheduler';
-import { getColorForId } from '@/lib/hashColor';
+import { getCardColor } from '@/lib/hashColor';
 
 interface SchedulerCardProps {
   scheduler: Scheduler;
@@ -45,18 +45,17 @@ export function SchedulerCard({
   selectionMode = false,
   selected = false,
 }: SchedulerCardProps) {
-  const backgroundColor = getColorForId(scheduler.id);
+  // Desligado, o card fica sem cor (cinza neutro), como o documento que ainda não gera desafios.
+  const backgroundColor = getCardColor(scheduler.id, scheduler.enabled);
 
   return (
     <Pressable
       testID="scheduler-card"
       onPress={onPress}
       onLongPress={onLongPress}
-      // Um pouco menos vibrante que antes (0.55 -> 0.45) pra "desligado" ler mais claramente
-      // como desligado, sem virar um contorno vazio.
-      style={!scheduler.enabled && !selectionMode ? { opacity: 0.45 } : undefined}
     >
       <View
+        testID="scheduler-card-surface"
         className="rounded-[28px] p-3.5 gap-1.5"
         style={{
           backgroundColor,

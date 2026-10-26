@@ -2,6 +2,12 @@ import { screen, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { ObjectCard } from './ObjectCard';
 import { ObjectType } from '@/types/domain/Object';
+import { DISABLED_CARD_COLOR, getColorForId } from '@/lib/hashColor';
+
+// A cor de fundo fica na View logo dentro do Pressable do card.
+function cardColor(): string {
+  return screen.getByTestId('object-card-surface').props.style.backgroundColor;
+}
 
 const object: ObjectType = {
   id: 'obj-1',
@@ -26,13 +32,13 @@ describe('ObjectCard', () => {
     expect(screen.getByText('Processando')).toBeTruthy();
   });
 
-  it('dims the card while the object is processing or after it failed, keeping the badge', async () => {
+  it('shows the card without color while the object is processing or after it failed, keeping the badge', async () => {
     const { rerender } = await renderWithProviders(<ObjectCard object={object} />);
-    expect(screen.getByTestId('object-card').props.style).toBeUndefined();
+    expect(cardColor()).toBe(getColorForId(object.id));
 
     for (const status of ['processing', 'failed'] as const) {
       await rerender(<ObjectCard object={{ ...object, status }} />);
-      expect(screen.getByTestId('object-card').props.style).toEqual({ opacity: 0.45 });
+      expect(cardColor()).toBe(DISABLED_CARD_COLOR);
     }
     expect(screen.getByText('Falhou')).toBeTruthy();
   });

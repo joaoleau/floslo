@@ -22,6 +22,13 @@ export const alarmNavStorage = {
     await AsyncStorage.setItem(PENDING_ALARM_NAV_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
   },
 
+  // Descarta o toque guardado. A tela de disparo chama isso ao abrir, venha de onde vier: o
+  // toque já foi atendido, e se ficasse guardado reabriria o mesmo alarme na próxima volta ao
+  // primeiro plano, mesmo depois de os desafios terem sido respondidos.
+  async clearPendingAlarmNav(): Promise<void> {
+    await AsyncStorage.removeItem(PENDING_ALARM_NAV_KEY);
+  },
+
   async takePendingAlarmNav(): Promise<PendingAlarmNav | null> {
     const raw = await AsyncStorage.getItem(PENDING_ALARM_NAV_KEY);
     if (!raw) return null;
