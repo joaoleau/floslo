@@ -1,6 +1,6 @@
 // src/types/domain/History.ts
 
-export type ChallengeType = 'QUIZ' | 'FLASHCARD' | 'TRUE_FALSE';
+export type ChallengeType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'DISCOVERY';
 
 // Resultado que cada componente de desafio devolve ao concluir, pra firing.tsx gravar o
 // attempt correspondente no histórico. O tempo gasto é medido pelo firing.tsx (não aqui) --
@@ -38,7 +38,7 @@ export interface SessionSummary {
   answeredCount: number;
 }
 
-// Uma alternativa de Quiz, ou uma das duas opções fixas de Verdadeiro/Falso -- guardado
+// Uma alternativa de Múltipla escolha, ou uma das duas opções fixas de Verdadeiro/Falso -- guardado
 // pra tela de revisão poder mostrar o desafio original de novo, com a correta destacada.
 export interface ReviewOption {
   id: string;
@@ -52,10 +52,9 @@ export interface AttemptEntry {
   challengeType: ChallengeType;
   tag: string;
   language: string;
-  difficulty: string | null;
   promptText: string;
   explanationText: string | null;
-  options: ReviewOption[] | null; // null pra FLASHCARD (não tem alternativas)
+  options: ReviewOption[] | null; // null pra DISCOVERY (não tem alternativas)
   isCorrect: boolean | null;
   wrongAttempts: number;
   answeredAt: number;
@@ -84,7 +83,6 @@ export interface RecordAttemptInput {
   challengeType: ChallengeType;
   tag: string;
   language: string;
-  difficulty: string | null;
   promptText: string;
   explanationText: string | null;
   options: ReviewOption[] | null;

@@ -26,6 +26,7 @@ type Services struct {
 type Repositories struct {
 	SchedulerRepository *irepository.SchedulerRepository
 	ObjectRepository    *irepository.ObjectRepository
+	UserRepository      *irepository.UserRepository
 }
 
 type Handlers struct {
@@ -74,6 +75,7 @@ func setupRepositories(db *dynamodb.Client, table string) *Repositories {
 	return &Repositories{
 		SchedulerRepository: irepository.NewSchedulerRepository(db, table),
 		ObjectRepository: irepository.NewObjectRepository(db, table),
+		UserRepository: irepository.NewUserRepository(db, table),
 	}
 }
 
@@ -81,7 +83,8 @@ func setupServices(cfg *config.Config, repos *Repositories) *Services {
 	embeddingService := iservice.NewEmbeddingService(cfg.BedrockRuntimeClient, cfg.EmbeddingModelId)
 	vectorService := iservice.NewVectorService(cfg.S3VectorsClient, embeddingService, cfg.VectorBucketName, cfg.VectorIndexName)
 	generationService := iservice.NewGenerationService(cfg.BedrockRuntimeClient, cfg.GenerateModelId)
-	ragService := iservice.NewRAGService(vectorService, generationService, repos.SchedulerRepository, repos.ObjectRepository)
+	streakService := iservice.NewStreakService(repos.UserRepository)
+	ragService := iservice.NewRAGService(vectorService, generationService, repos.SchedulerRepository, repos.ObjectRepository, streakService)
 
 	return &Services{
 		RAGService: ragService,

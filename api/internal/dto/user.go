@@ -29,10 +29,3 @@ type UserResponseDTO struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
-type RecordStreakRequestDTO struct {
-	LocalDate string `json:"local_date"`
-}
-
-type RecordStreakResponseDTO struct {
-	CurrentStreak int `json:"current_streak"`
-}

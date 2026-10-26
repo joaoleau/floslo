@@ -2,7 +2,7 @@
 
 import { Scheduler, SupportedLanguage } from './Scheduler';
 
-export interface QuizAlternative {
+export interface MultipleChoiceAlternative {
   id: string;
   text: string;
   correct: boolean;
@@ -17,16 +17,16 @@ export interface SourceChunk {
   language: string;
 }
 
-export interface Quiz {
+export interface MultipleChoice {
   question: string;
-  alternatives: QuizAlternative[];
+  alternatives: MultipleChoiceAlternative[];
   explanation: string;
-  difficulty: string;
   tag: string;
   sourceChunks: SourceChunk[];
 }
 
-export interface Flashcard {
+// Só apresenta o conteúdo ("você sabia?"), sem pergunta e sem nota.
+export interface Discovery {
   title: string;
   content: string;
   tag: string;
@@ -37,7 +37,6 @@ export interface TrueFalseItem {
   statement: string;
   answer: boolean;
   explanation: string;
-  difficulty: string;
   tag: string;
   sourceChunks: SourceChunk[];
 }
@@ -48,11 +47,14 @@ export interface TrueFalseItem {
 // parent ChallengeResultDTO (lost otherwise once flattened) so firing.tsx can show which
 // language the content was generated in.
 export type ChallengeItem =
-  | { type: 'QUIZ'; language: SupportedLanguage; data: Quiz }
-  | { type: 'FLASHCARD'; language: SupportedLanguage; data: Flashcard }
-  | { type: 'TRUE_FALSE'; language: SupportedLanguage; data: TrueFalseItem };
+  | { type: 'MULTIPLE_CHOICE'; language: SupportedLanguage; data: MultipleChoice }
+  | { type: 'TRUE_FALSE'; language: SupportedLanguage; data: TrueFalseItem }
+  | { type: 'DISCOVERY'; language: SupportedLanguage; data: Discovery };
 
 export interface RAG {
   scheduler: Scheduler;
   challenges: ChallengeItem[];
+  // Sequência de dias de estudo já com o dia deste disparo; ausente quando o dia não foi
+  // registrado.
+  currentStreak?: number;
 }

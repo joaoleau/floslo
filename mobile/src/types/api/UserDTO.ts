@@ -14,10 +14,3 @@ export interface UpdateUserRequestDTO {
   current_password?: string;
 }
 
-export interface RecordStreakRequestDTO {
-  local_date: string;
-}
-
-export interface RecordStreakResponseDTO {
-  current_streak: number;
-}

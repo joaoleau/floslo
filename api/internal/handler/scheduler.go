@@ -47,6 +47,7 @@ func (h *SchedulerHandler) CreateScheduler(w http.ResponseWriter, r *http.Reques
 	utils.ResponseWithData(w, http.StatusCreated, dto.SchedulerResponseDTO{
 		SchedulerId:    scheduler.Id,
 		Name:             scheduler.Name,
+		Language:         scheduler.Language.String(),
 		WeekDays:         utils.WeekdaysToStrings(scheduler.WeekDays),
 		StartTime:        scheduler.StartTime,
 		AlarmSound:       scheduler.AlarmSound,
@@ -76,6 +77,7 @@ func (h *SchedulerHandler) GetSchedulerById(w http.ResponseWriter, r *http.Reque
 	utils.ResponseWithData(w, http.StatusOK, dto.GetSchedulerResponseDTO{
 		SchedulerId:    scheduler.Id,
 		Name:             scheduler.Name,
+		Language:         scheduler.Language.String(),
 		WeekDays:         utils.WeekdaysToStrings(scheduler.WeekDays),
 		StartTime:        scheduler.StartTime,
 		AlarmSound:       scheduler.AlarmSound,
@@ -132,6 +134,7 @@ func (h *SchedulerHandler) UpdateSchedulerById(w http.ResponseWriter, r *http.Re
 	utils.ResponseWithData(w, http.StatusOK, dto.SchedulerResponseDTO{
 		SchedulerId:    updateScheduler.Id,
 		Name:             updateScheduler.Name,
+		Language:         updateScheduler.Language.String(),
 		WeekDays:         utils.WeekdaysToStrings(updateScheduler.WeekDays),
 		StartTime:        updateScheduler.StartTime,
 		AlarmSound:       updateScheduler.AlarmSound,

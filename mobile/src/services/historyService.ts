@@ -24,7 +24,6 @@ interface AttemptRow {
   challenge_type: ChallengeType;
   tag: string;
   language: string;
-  difficulty: string | null;
   prompt_text: string;
   explanation_text: string | null;
   options_json: string | null;
@@ -53,7 +52,6 @@ function mapAttemptRow(row: AttemptRow): AttemptEntry {
     challengeType: row.challenge_type,
     tag: row.tag,
     language: row.language,
-    difficulty: row.difficulty,
     promptText: row.prompt_text,
     explanationText: row.explanation_text,
     options: parseOptions(row.options_json),
@@ -89,10 +87,10 @@ export const historyService = {
   recordAttempt(input: RecordAttemptInput): void {
     db.runSync(
       `INSERT INTO attempts (
-         id, session_id, user_id, challenge_type, tag, language, difficulty,
+         id, session_id, user_id, challenge_type, tag, language,
          prompt_text, explanation_text, options_json, is_correct, wrong_attempts, answered_at,
          time_spent_ms, source_object_key, source_page
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         generateId(),
         input.sessionId,
@@ -100,7 +98,6 @@ export const historyService = {
         input.challengeType,
         input.tag,
         input.language,
-        input.difficulty,
         input.promptText,
         input.explanationText,
         input.options ? JSON.stringify(input.options) : null,

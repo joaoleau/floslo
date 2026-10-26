@@ -238,6 +238,8 @@ Resources:
           VECTOR_INDEX_NAME: floslo-index-v2
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
+          TAG_MAX_LENGTH: "32"
+          MAX_TAGS_PER_OBJECT: "300"
           MAX_UPLOAD_SIZE_MB: "500"
           SES_SENDER_EMAIL: "no-reply@floslo.com.br"
 
@@ -362,7 +364,10 @@ Resources:
           CHUNK_OVERLAP: "300"
           EMBEDDING_MAX_CHUNK_LENGTH: "8000"
           TAG_REFINER_ENABLED: "true"
-          TAG_REFINER_MAX_TAGS: "100"
+          TAG_REFINER_MAX_TAGS: "200"
+          TAG_REFINER_MAX_CANDIDATES: "1000"
+          TAG_MAX_LENGTH: "32"
+          TAG_WINDOW_CHARS: "8000"
           TAG_REFINER_MODEL_ID: amazon.nova-lite-v1:0
           YAKE_MAX_KEYWORDS: "15"
 

@@ -120,6 +120,7 @@ func (r *SchedulerRepository) GetSchedulerById(ctx context.Context, userId strin
 
 func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *model.Scheduler) (*model.Scheduler, error) {
 	update := expression.Set(expression.Name("name"), expression.Value(scheduler.Name)).
+		Set(expression.Name("language"), expression.Value(scheduler.Language)).
 		Set(expression.Name("weekdays"), expression.Value(scheduler.WeekDays)).
 		Set(expression.Name("start_time"), expression.Value(scheduler.StartTime)).
 		Set(expression.Name("alarm_sound"), expression.Value(scheduler.AlarmSound)).
@@ -161,11 +162,13 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 // RemoveObjectId tira um objectId de object_ids sem tocar no resto do agendador --
 // usado na exclusão de um objeto, pra limpar toda referência a ele. Se o agendador já
 // não existe (ErrSchedulerNotFound) ou já não referencia esse objeto, não faz nada e
-// retorna sem erro: nenhum dos dois casos é um problema real pra quem chamou.
-func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string, schedulerId string, objectId string) error {
+// retorna sem erro: nenhum dos dois casos é um problema real pra quem chamou. O retorno
+// é quantos object_ids sobraram, pra quem chamou saber se o agendador ficou vazio sem
+// precisar buscá-lo de novo.
+func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string, schedulerId string, objectId string) (int, error) {
 	scheduler, err := r.GetSchedulerById(ctx, userId, schedulerId)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	updatedIds := make([]string, 0, len(scheduler.ObjectIds))
@@ -175,9 +178,48 @@ func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string,
 		}
 	}
 	if len(updatedIds) == len(scheduler.ObjectIds) {
-		return nil
+		return len(updatedIds), nil
 	}
 
+	key, err := attributevalue.MarshalMap(map[string]string{
+		"PK": "USER#" + userId,
+		"SK": "SCHEDULER#" + schedulerId,
+	})
+	if err != nil {
+		logger.Log.Error("failed to marshal key: ", logger.Any("error", err))
+		return 0, fmt.Errorf("failed to marshal key: %w", err)
+	}
+
+	update := expression.Set(expression.Name("object_ids"), expression.Value(updatedIds)).
+		Set(expression.Name("updated_at"), expression.Value(time.Now().UTC().Format(time.RFC3339)))
+	expr, err := expression.NewBuilder().WithUpdate(update).Build()
+	if err != nil {
+		logger.Log.Error("failed to build expression: ", logger.Any("error", err))
+		return 0, fmt.Errorf("failed to build expression: %w", err)
+	}
+
+	_, err = r.db.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(r.table),
+		Key:                       key,
+		UpdateExpression:          expr.Update(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	})
+	if err != nil {
+		logger.Log.Error("failed to update item: ", logger.Any("error", err))
+		return 0, fmt.Errorf("failed to update item: %w", err)
+	}
+
+	logger.Log.Info("object id removed from scheduler: ", logger.String("scheduler_id", schedulerId), logger.String("object_id", objectId))
+	return len(updatedIds), nil
+}
+
+// Disable liga enabled=false sem mexer em mais nada do agendador -- usado quando o
+// último objeto vinculado a ele é excluído. O alarme já agendado no aparelho não sabe
+// disso na hora (só é apagado no próximo sync do app), então RetrieveAndGenerate tolera
+// um agendador sem objetos e devolve sem desafios em vez de erro, pra esse disparo
+// pendente não quebrar. Se o agendador já não existe, não é erro: nada a desabilitar.
+func (r *SchedulerRepository) Disable(ctx context.Context, userId string, schedulerId string) error {
 	key, err := attributevalue.MarshalMap(map[string]string{
 		"PK": "USER#" + userId,
 		"SK": "SCHEDULER#" + schedulerId,
@@ -187,7 +229,7 @@ func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string,
 		return fmt.Errorf("failed to marshal key: %w", err)
 	}
 
-	update := expression.Set(expression.Name("object_ids"), expression.Value(updatedIds)).
+	update := expression.Set(expression.Name("enabled"), expression.Value(false)).
 		Set(expression.Name("updated_at"), expression.Value(time.Now().UTC().Format(time.RFC3339)))
 	expr, err := expression.NewBuilder().WithUpdate(update).Build()
 	if err != nil {
@@ -201,13 +243,18 @@ func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string,
 		UpdateExpression:          expr.Update(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
+		ConditionExpression:       aws.String("attribute_exists(PK)"),
 	})
 	if err != nil {
+		var conditionFailed *types.ConditionalCheckFailedException
+		if errors.As(err, &conditionFailed) {
+			return nil
+		}
 		logger.Log.Error("failed to update item: ", logger.Any("error", err))
 		return fmt.Errorf("failed to update item: %w", err)
 	}
 
-	logger.Log.Info("object id removed from scheduler: ", logger.String("scheduler_id", schedulerId), logger.String("object_id", objectId))
+	logger.Log.Info("scheduler disabled, no objects left: ", logger.String("scheduler_id", schedulerId))
 	return nil
 }
 

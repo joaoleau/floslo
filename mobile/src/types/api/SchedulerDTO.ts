@@ -4,28 +4,28 @@
 // api/processor/services/tag.py's SUPPORTED_LANGUAGES -- no shared package between them.
 export type SupportedLanguage = 'pt' | 'en' | 'es' | 'fr' | 'de' | 'it';
 
-export interface QuizChallengeConfigDTO {
-  difficulty: string;
+export interface MultipleChoiceChallengeConfigDTO {
   question_count: number;
-}
-
-export interface FlashcardChallengeConfigDTO {
-  card_count: number;
 }
 
 export interface TrueFalseChallengeConfigDTO {
-  difficulty: string;
   question_count: number;
 }
 
+export interface DiscoveryChallengeConfigDTO {
+  discovery_count: number;
+}
+
 export type ChallengerDTO =
-  | { challenge_type: 'QUIZ'; language: SupportedLanguage; challenge: QuizChallengeConfigDTO }
-  | { challenge_type: 'FLASHCARD'; language: SupportedLanguage; challenge: FlashcardChallengeConfigDTO }
-  | { challenge_type: 'TRUE_FALSE'; language: SupportedLanguage; challenge: TrueFalseChallengeConfigDTO };
+  | { challenge_type: 'MULTIPLE_CHOICE'; challenge: MultipleChoiceChallengeConfigDTO }
+  | { challenge_type: 'TRUE_FALSE'; challenge: TrueFalseChallengeConfigDTO }
+  | { challenge_type: 'DISCOVERY'; challenge: DiscoveryChallengeConfigDTO };
 
 export interface SchedulerDTO {
   scheduler_id: string;
   name: string;
+  // Idioma de saída do agendador, aplicado a todos os desafios do disparo.
+  language: SupportedLanguage;
   weekdays: string[];
   start_time: string;
   alarm_sound: string;
@@ -42,6 +42,7 @@ export interface SchedulerDTO {
 
 export interface CreateSchedulerRequestDTO {
   name: string;
+  language: SupportedLanguage;
   weekdays: string[];
   start_time: string;
   alarm_sound: string;

@@ -11,24 +11,25 @@ interface LanguagePickerProps {
   onChange: (language: SupportedLanguage) => void;
 }
 
-// Trigger que abre uma folha inferior com a lista de idiomas -- mesmo padrão já usado no app
-// para "Selecionar som" (linha compacta) e para o modal de fontes dos desafios (folha que sobe
-// de baixo), em vez da fileira de bolinhas soltas que tínhamos antes.
+// Campo simples com o idioma escolhido; ao tocar abre uma folha inferior com a lista.
 export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
   const colors = useThemeColors();
   const [open, setOpen] = useState(false);
   const selected = SUPPORTED_LANGUAGES.find((option) => option.value === value) ?? SUPPORTED_LANGUAGES[0];
 
   return (
-    <View className="gap-2 mt-4">
-      <Text className="font-medium text-foreground">Idioma do desafio</Text>
+    <View className="gap-2">
+      <Text className="font-medium text-foreground">Idioma dos desafios</Text>
 
       <Pressable
+        testID="language-picker"
         onPress={() => setOpen(true)}
         className="h-12 flex-row items-center gap-3 rounded-xl border border-border bg-muted px-4"
       >
         <Text style={{ fontSize: 20 }}>{selected.flag}</Text>
-        <Text className="flex-1 font-medium text-foreground">{selected.label}</Text>
+        <Text testID="language-selected-label" className="flex-1 font-medium text-foreground">
+          {selected.label}
+        </Text>
         <Ionicons name="chevron-down" size={18} color={colors.brand} />
       </Pressable>
 
@@ -36,7 +37,7 @@ export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
         <View className="flex-1 justify-end bg-black/40">
           <Card className="rounded-t-3xl p-5 gap-1">
             <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-lg font-semibold text-foreground">Idioma do desafio</Text>
+              <Text className="text-lg font-semibold text-foreground">Idioma dos desafios</Text>
               <Pressable hitSlop={8} onPress={() => setOpen(false)}>
                 <Ionicons name="close" size={24} color={colors.brand} />
               </Pressable>
@@ -47,6 +48,7 @@ export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
               return (
                 <Pressable
                   key={option.value}
+                  testID={`language-option-${option.value}`}
                   onPress={() => {
                     onChange(option.value);
                     setOpen(false);

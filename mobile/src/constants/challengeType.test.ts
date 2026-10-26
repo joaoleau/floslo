@@ -1,6 +1,6 @@
 import { CHALLENGE_TYPE_META } from './challengeType';
 
-const EXPECTED_TYPES = ['QUIZ', 'FLASHCARD', 'TRUE_FALSE'] as const;
+const EXPECTED_TYPES = ['MULTIPLE_CHOICE', 'TRUE_FALSE', 'DISCOVERY'] as const;
 
 // Regression guard for the refactor: every screen that iterates CHALLENGE_TYPE_META
 // (history's mistake badges, the scheduler card's challenge chips) assumes all three

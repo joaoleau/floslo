@@ -9,30 +9,26 @@ import (
 	"github.com/joaoleau/floslo/internal/utils"
 )
 
-type QuizChallengeConfigDTO struct {
-	Difficulty    string `json:"difficulty"`
-	QuestionCount int    `json:"question_count"`
-}
-
-type FlashcardChallengeConfigDTO struct {
-	CardCount int `json:"card_count"`
+type MultipleChoiceChallengeConfigDTO struct {
+	QuestionCount int `json:"question_count"`
 }
 
 type TrueFalseChallengeConfigDTO struct {
-	Difficulty    string `json:"difficulty"`
-	QuestionCount int    `json:"question_count"`
+	QuestionCount int `json:"question_count"`
+}
+
+type DiscoveryChallengeConfigDTO struct {
+	DiscoveryCount int `json:"discovery_count"`
 }
 
 type ChallengerDTO struct {
 	ChallengeType string      `json:"challenge_type"`
-	Language      string      `json:"language"`
 	Challenge     interface{} `json:"challenge"`
 }
 
 func (c *ChallengerDTO) UnmarshalJSON(data []byte) error {
 	var envelope struct {
 		ChallengeType string          `json:"challenge_type"`
-		Language      string          `json:"language"`
 		Challenge     json.RawMessage `json:"challenge"`
 	}
 	if err := json.Unmarshal(data, &envelope); err != nil {
@@ -40,25 +36,24 @@ func (c *ChallengerDTO) UnmarshalJSON(data []byte) error {
 	}
 
 	c.ChallengeType = envelope.ChallengeType
-	c.Language = envelope.Language
 
 	switch model.ChallengeType(envelope.ChallengeType) {
-	case model.ChallengeTypeQuiz:
-		var cfg QuizChallengeConfigDTO
+	case model.ChallengeTypeMultipleChoice:
+		var cfg MultipleChoiceChallengeConfigDTO
 		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
-			return fmt.Errorf("invalid quiz challenge config: %w", err)
-		}
-		c.Challenge = cfg
-	case model.ChallengeTypeFlashcard:
-		var cfg FlashcardChallengeConfigDTO
-		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
-			return fmt.Errorf("invalid flashcard challenge config: %w", err)
+			return fmt.Errorf("invalid multiple choice challenge config: %w", err)
 		}
 		c.Challenge = cfg
 	case model.ChallengeTypeTrueFalse:
 		var cfg TrueFalseChallengeConfigDTO
 		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
 			return fmt.Errorf("invalid true/false challenge config: %w", err)
+		}
+		c.Challenge = cfg
+	case model.ChallengeTypeDiscovery:
+		var cfg DiscoveryChallengeConfigDTO
+		if err := json.Unmarshal(envelope.Challenge, &cfg); err != nil {
+			return fmt.Errorf("invalid discovery challenge config: %w", err)
 		}
 		c.Challenge = cfg
 	default:
@@ -71,20 +66,19 @@ func (c *ChallengerDTO) UnmarshalJSON(data []byte) error {
 func ChallengerToDTO(c model.Challenger) ChallengerDTO {
 	dto := ChallengerDTO{
 		ChallengeType: c.ChallengeType.String(),
-		Language:      c.Language.String(),
 	}
 	switch c.ChallengeType {
-	case model.ChallengeTypeQuiz:
-		if c.Quiz != nil {
-			dto.Challenge = QuizChallengeConfigDTO{Difficulty: c.Quiz.Difficulty, QuestionCount: c.Quiz.QuestionCount}
-		}
-	case model.ChallengeTypeFlashcard:
-		if c.Flashcard != nil {
-			dto.Challenge = FlashcardChallengeConfigDTO{CardCount: c.Flashcard.CardCount}
+	case model.ChallengeTypeMultipleChoice:
+		if c.MultipleChoice != nil {
+			dto.Challenge = MultipleChoiceChallengeConfigDTO{QuestionCount: c.MultipleChoice.QuestionCount}
 		}
 	case model.ChallengeTypeTrueFalse:
 		if c.TrueFalse != nil {
-			dto.Challenge = TrueFalseChallengeConfigDTO{Difficulty: c.TrueFalse.Difficulty, QuestionCount: c.TrueFalse.QuestionCount}
+			dto.Challenge = TrueFalseChallengeConfigDTO{QuestionCount: c.TrueFalse.QuestionCount}
+		}
+	case model.ChallengeTypeDiscovery:
+		if c.Discovery != nil {
+			dto.Challenge = DiscoveryChallengeConfigDTO{DiscoveryCount: c.Discovery.DiscoveryCount}
 		}
 	}
 	return dto
@@ -95,15 +89,14 @@ func challengerDTOsToModel(challengers []ChallengerDTO) ([]model.Challenger, err
 	for i, c := range challengers {
 		m := model.Challenger{
 			ChallengeType: model.ChallengeType(c.ChallengeType),
-			Language:      model.Language(c.Language),
 		}
 		switch cfg := c.Challenge.(type) {
-		case QuizChallengeConfigDTO:
-			m.Quiz = &model.QuizChallengeConfig{Difficulty: cfg.Difficulty, QuestionCount: cfg.QuestionCount}
-		case FlashcardChallengeConfigDTO:
-			m.Flashcard = &model.FlashcardChallengeConfig{CardCount: cfg.CardCount}
+		case MultipleChoiceChallengeConfigDTO:
+			m.MultipleChoice = &model.MultipleChoiceChallengeConfig{QuestionCount: cfg.QuestionCount}
 		case TrueFalseChallengeConfigDTO:
-			m.TrueFalse = &model.TrueFalseChallengeConfig{Difficulty: cfg.Difficulty, QuestionCount: cfg.QuestionCount}
+			m.TrueFalse = &model.TrueFalseChallengeConfig{QuestionCount: cfg.QuestionCount}
+		case DiscoveryChallengeConfigDTO:
+			m.Discovery = &model.DiscoveryChallengeConfig{DiscoveryCount: cfg.DiscoveryCount}
 		default:
 			return nil, fmt.Errorf("unhandled challenge config type for challenge type %s", c.ChallengeType)
 		}
@@ -122,6 +115,7 @@ func challengersToDTOList(challengers []model.Challenger) []ChallengerDTO {
 
 type CreateSchedulerRequestDTO struct {
 	Name         string          `json:"name"`
+	Language     string          `json:"language"`
 	WeekDays     []string        `json:"weekdays"`
 	StartTime    string          `json:"start_time"`
 	AlarmSound   string          `json:"alarm_sound"`
@@ -146,6 +140,7 @@ func (dto *CreateSchedulerRequestDTO) ToModel() (*model.Scheduler, error) {
 
 	return &model.Scheduler{
 		Name:         dto.Name,
+		Language:     model.Language(dto.Language),
 		WeekDays:     weekdays,
 		StartTime:    dto.StartTime,
 		AlarmSound:   dto.AlarmSound,
@@ -160,6 +155,7 @@ func (dto *CreateSchedulerRequestDTO) ToModel() (*model.Scheduler, error) {
 type SchedulerResponseDTO struct {
 	SchedulerId  string          `json:"scheduler_id"`
 	Name         string          `json:"name"`
+	Language     string          `json:"language"`
 	WeekDays     []string        `json:"weekdays"`
 	StartTime    string          `json:"start_time"`
 	AlarmSound   string          `json:"alarm_sound"`
@@ -175,6 +171,7 @@ type SchedulerResponseDTO struct {
 type GetSchedulerResponseDTO struct {
 	SchedulerId  string          `json:"scheduler_id"`
 	Name         string          `json:"name"`
+	Language     string          `json:"language"`
 	WeekDays     []string        `json:"weekdays"`
 	StartTime    string          `json:"start_time"`
 	AlarmSound   string          `json:"alarm_sound"`
@@ -189,6 +186,7 @@ type GetSchedulerResponseDTO struct {
 
 type UpdateSchedulerRequestDTO struct {
 	Name         *string          `json:"name"`
+	Language     *string          `json:"language"`
 	WeekDays     *[]string        `json:"weekdays"`
 	StartTime    *string          `json:"start_time"`
 	AlarmSound   *string          `json:"alarm_sound"`
@@ -219,8 +217,15 @@ func (dto *UpdateSchedulerRequestDTO) ToModel() (*model.UpdateScheduler, error) 
 		challengers = &values
 	}
 
+	var language *model.Language
+	if dto.Language != nil {
+		value := model.Language(*dto.Language)
+		language = &value
+	}
+
 	return &model.UpdateScheduler{
 		Name:         dto.Name,
+		Language:     language,
 		WeekDays:     weekdays,
 		StartTime:    dto.StartTime,
 		AlarmSound:   dto.AlarmSound,
@@ -249,6 +254,7 @@ func ToSchedulerResponseDTOList(schedulers []*model.Scheduler) []*SchedulerRespo
 		result[i] = &SchedulerResponseDTO{
 			SchedulerId:  scheduler.Id,
 			Name:         scheduler.Name,
+			Language:     scheduler.Language.String(),
 			WeekDays:     utils.WeekdaysToStrings(scheduler.WeekDays),
 			StartTime:    scheduler.StartTime,
 			AlarmSound:   scheduler.AlarmSound,

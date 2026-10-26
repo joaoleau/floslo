@@ -11,7 +11,7 @@ export const CHALLENGE_TYPE_META: Record<
   ChallengeType,
   { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; label: string }
 > = {
-  QUIZ: { icon: 'school-outline', color: '#208fe9', label: 'Quiz' },
-  FLASHCARD: { icon: 'albums-outline', color: '#f8c73f', label: 'Flashcard' },
+  MULTIPLE_CHOICE: { icon: 'school-outline', color: '#208fe9', label: 'Múltipla escolha' },
   TRUE_FALSE: { icon: 'checkmark-done-outline', color: '#c23232', label: 'Verdadeiro ou Falso' },
+  DISCOVERY: { icon: 'sparkles-outline', color: '#7c5cc4', label: 'Descoberta' },
 };

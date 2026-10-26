@@ -144,34 +144,36 @@ export default function HistoryScreen() {
           {sessionsQuery.data && sessionsQuery.data.length > 0 && (
             <Card className="rounded-3xl p-5 gap-4">
               <Text className="text-lg font-semibold text-foreground">Sessões recentes</Text>
-              <View className="gap-2">
-                {sessionsQuery.data.map((session) => {
-                  const schedulerColor = getColorForId(session.schedulerId);
-                  return (
-                    <Pressable
-                      key={session.id}
-                      className="flex-row items-center gap-3 justify-between rounded-xl border border-border p-3"
-                      style={{ borderBottomWidth: 2, borderBottomColor: getCardEdgeColor(mode) }}
-                      onPress={() => router.push({ pathname: '/(history)/session/[id]', params: { id: session.id } })}
-                    >
-                      <View
-                        className="rounded-full"
-                        style={{ width: 8, height: 8, backgroundColor: schedulerColor, flexShrink: 0 }}
-                      />
-                      <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
-                        <Text className="font-medium text-foreground" numberOfLines={1}>
-                          {session.schedulerName}
-                        </Text>
-                        <Text className="text-xs text-muted-foreground">
-                          {new Date(session.startedAt).toLocaleDateString('pt-BR')} • {session.correctCount}/
-                          {session.answeredCount} de primeira
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color={colors.brandSoft} />
-                    </Pressable>
-                  );
-                })}
-              </View>
+              <ScrollView style={{ maxHeight: 320 }} nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle={scrollIndicatorStyle} persistentScrollbar>
+                <View className="gap-2">
+                  {sessionsQuery.data.map((session) => {
+                    const schedulerColor = getColorForId(session.schedulerId);
+                    return (
+                      <Pressable
+                        key={session.id}
+                        className="flex-row items-center gap-3 justify-between rounded-xl border border-border p-3"
+                        style={{ borderBottomWidth: 2, borderBottomColor: getCardEdgeColor(mode) }}
+                        onPress={() => router.push({ pathname: '/(history)/session/[id]', params: { id: session.id } })}
+                      >
+                        <View
+                          className="rounded-full"
+                          style={{ width: 8, height: 8, backgroundColor: schedulerColor, flexShrink: 0 }}
+                        />
+                        <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0 }}>
+                          <Text className="font-medium text-foreground" numberOfLines={1}>
+                            {session.schedulerName}
+                          </Text>
+                          <Text className="text-xs text-muted-foreground">
+                            {new Date(session.startedAt).toLocaleDateString('pt-BR')} • {session.correctCount}/
+                            {session.answeredCount} de primeira
+                          </Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={16} color={colors.brandSoft} />
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </ScrollView>
             </Card>
           )}
         </ScrollView>

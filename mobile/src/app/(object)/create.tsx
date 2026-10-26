@@ -64,7 +64,7 @@ export default function CreateObject() {
       await uploadMutation.mutateAsync(pickedFile);
       showAlert(
         'Documento enviado',
-        'Pode levar alguns minutos até ele ficar disponível para gerar quizzes.',
+        'Pode levar alguns minutos até ele ficar disponível para gerar multiple_choices.',
         [{ text: 'OK', onPress: () => router.back() }]
       );
     } catch (err) {

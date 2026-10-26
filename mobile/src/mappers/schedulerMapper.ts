@@ -4,7 +4,7 @@ import {
   SchedulerDTO,
   UpdateSchedulerRequestDTO,
 } from '@/types/api/SchedulerDTO';
-import { Challenger, QuizDifficulty, Scheduler } from '@/types/domain/Scheduler';
+import { Challenger, Scheduler } from '@/types/domain/Scheduler';
 
 // The UI (WeekDays component) and the native alarm-scheduling logic
 // (schedulerService's calculateNextTrigger) both use lowercase full day
@@ -39,29 +39,20 @@ function weekDaysToDTO(domain: string[]): string[] {
 
 function challengerToDomain(item: ChallengerDTO): Challenger {
   switch (item.challenge_type) {
-    case 'QUIZ':
+    case 'MULTIPLE_CHOICE':
       return {
-        challengeType: 'QUIZ',
-        language: item.language,
-        challenge: {
-          questionCount: item.challenge.question_count,
-          difficulty: item.challenge.difficulty as QuizDifficulty,
-        },
-      };
-    case 'FLASHCARD':
-      return {
-        challengeType: 'FLASHCARD',
-        language: item.language,
-        challenge: { cardCount: item.challenge.card_count },
+        challengeType: 'MULTIPLE_CHOICE',
+        challenge: { questionCount: item.challenge.question_count },
       };
     case 'TRUE_FALSE':
       return {
         challengeType: 'TRUE_FALSE',
-        language: item.language,
-        challenge: {
-          questionCount: item.challenge.question_count,
-          difficulty: item.challenge.difficulty as QuizDifficulty,
-        },
+        challenge: { questionCount: item.challenge.question_count },
+      };
+    case 'DISCOVERY':
+      return {
+        challengeType: 'DISCOVERY',
+        challenge: { discoveryCount: item.challenge.discovery_count },
       };
     default: {
       const unknown: { challenge_type: string } = item;
@@ -76,29 +67,20 @@ function challengersToDomain(raw: ChallengerDTO[]): Challenger[] {
 
 function challengerToDTO(item: Challenger): ChallengerDTO {
   switch (item.challengeType) {
-    case 'QUIZ':
+    case 'MULTIPLE_CHOICE':
       return {
-        challenge_type: 'QUIZ',
-        language: item.language,
-        challenge: {
-          question_count: item.challenge.questionCount,
-          difficulty: item.challenge.difficulty,
-        },
-      };
-    case 'FLASHCARD':
-      return {
-        challenge_type: 'FLASHCARD',
-        language: item.language,
-        challenge: { card_count: item.challenge.cardCount },
+        challenge_type: 'MULTIPLE_CHOICE',
+        challenge: { question_count: item.challenge.questionCount },
       };
     case 'TRUE_FALSE':
       return {
         challenge_type: 'TRUE_FALSE',
-        language: item.language,
-        challenge: {
-          question_count: item.challenge.questionCount,
-          difficulty: item.challenge.difficulty,
-        },
+        challenge: { question_count: item.challenge.questionCount },
+      };
+    case 'DISCOVERY':
+      return {
+        challenge_type: 'DISCOVERY',
+        challenge: { discovery_count: item.challenge.discoveryCount },
       };
   }
 }
@@ -112,6 +94,7 @@ export const schedulerMapper = {
     return {
       id: raw.scheduler_id,
       name: raw.name,
+      language: raw.language,
       weekDays: weekDaysToDomain(raw.weekdays),
       startTime: raw.start_time,
       alarmSound: raw.alarm_sound,
@@ -130,6 +113,7 @@ export const schedulerMapper = {
   toDTO(domain: Scheduler): CreateSchedulerRequestDTO {
     return {
       name: domain.name,
+      language: domain.language,
       weekdays: weekDaysToDTO(domain.weekDays),
       start_time: domain.startTime,
       alarm_sound: domain.alarmSound,
@@ -144,6 +128,7 @@ export const schedulerMapper = {
   toUpdateDTO(domain: Partial<Scheduler>): UpdateSchedulerRequestDTO {
     return {
       name: domain.name,
+      language: domain.language,
       weekdays: domain.weekDays ? weekDaysToDTO(domain.weekDays) : undefined,
       start_time: domain.startTime,
       alarm_sound: domain.alarmSound,

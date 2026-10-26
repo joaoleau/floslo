@@ -27,22 +27,26 @@ type GenerateResponseContent struct {
 	Text string `json:"text"`
 }
 
-type GeneratedQuiz struct {
-	Question     string            `json:"question"`
-	Alternatives []QuizAlternative `json:"alternatives"`
-	Explanation  string            `json:"explanation"`
-	Difficulty   string            `json:"difficulty"`
-	Tag          string            `json:"tag"`
-	SourceChunks []RetrievedChunk  `json:"source_chunks"`
+// Os itens gerados trazem SourceChunks (os trechos usados), que não vêm do modelo: quem monta
+// os slots é o backend, e o item i da resposta é ligado ao slot i por posição. Se o modelo
+// devolver uma quantidade diferente da pedida, cada item recebe todos os trechos da chamada.
+
+type GeneratedMultipleChoice struct {
+	Question     string                      `json:"question"`
+	Alternatives []MultipleChoiceAlternative `json:"alternatives"`
+	Explanation  string                      `json:"explanation"`
+	Tag          string                      `json:"tag"`
+	SourceChunks []RetrievedChunk            `json:"source_chunks"`
 }
 
-type QuizAlternative struct {
+type MultipleChoiceAlternative struct {
 	Id      string `json:"id"`
 	Text    string `json:"text"`
 	Correct bool   `json:"correct"`
 }
 
-type GeneratedFlashcard struct {
+// GeneratedDiscovery só apresenta um conteúdo ("você sabia?"), sem pergunta e sem nota.
+type GeneratedDiscovery struct {
 	Title        string           `json:"title"`
 	Content      string           `json:"content"`
 	Tag          string           `json:"tag"`
@@ -53,7 +57,6 @@ type GeneratedTrueFalse struct {
 	Statement    string           `json:"statement"`
 	Answer       bool             `json:"answer"` // true = the statement is factually correct
 	Explanation  string           `json:"explanation"`
-	Difficulty   string           `json:"difficulty"`
 	Tag          string           `json:"tag"`
 	SourceChunks []RetrievedChunk `json:"source_chunks"`
 }
@@ -68,6 +71,20 @@ func NewGenerationService(modelClient *bedrockruntime.Client, modelId string) *G
 		ModelClient: modelClient,
 		ModelId:     modelId,
 	}
+}
+
+// GenerationSlot é uma vaga do prompt: a passagem principal (o chunk foco) e, se houver, uma
+// de apoio só para dar contexto.
+type GenerationSlot struct {
+	Main    RetrievedChunk
+	Support *RetrievedChunk
+}
+
+func (s GenerationSlot) chunks() []RetrievedChunk {
+	if s.Support == nil {
+		return []RetrievedChunk{s.Main}
+	}
+	return []RetrievedChunk{s.Main, *s.Support}
 }
 
 var languageNames = map[string]string{
@@ -86,10 +103,10 @@ func languageHeaderInstruction(language string) string {
 	}
 	return fmt.Sprintf(`
 CRITICAL LANGUAGE REQUIREMENT: you must write EVERY piece of output text below in %s. The
-CONTEXT material provided further down may be written in a completely different language --
-that is expected and does NOT change this requirement. Treat this as a translation task: read
-the context in whatever language it is in, then produce your entire answer in %s. Never fall
-back to the context's language.
+material provided further down may be written in a completely different language -- that is
+expected and does NOT change this requirement. Treat this as a translation task: read the
+material in whatever language it is in, then produce your entire answer in %s. Never fall
+back to the material's language.
 `, name, name)
 }
 
@@ -98,7 +115,7 @@ func languageReminderInstruction(language string) string {
 	if !ok {
 		return ""
 	}
-	return fmt.Sprintf("\nReminder: write the entire output (every piece of text) in %s, regardless of what language the context below is in. Do not default to the context's language.\n", name)
+	return fmt.Sprintf("\nReminder: write the entire output (every piece of text) in %s, regardless of what language the material below is in. Do not default to the material's language.\n", name)
 }
 
 func topicsListText(tags []string) string {
@@ -109,6 +126,27 @@ func topicsListText(tags []string) string {
 		topicsList.WriteString("\n")
 	}
 	return topicsList.String()
+}
+
+// slotsPromptText monta o bloco SLOTS do prompt. Os rótulos são só posições ("SLOT 1"): o
+// modelo nunca vê nem devolve ids de chunk.
+func slotsPromptText(slots []GenerationSlot) string {
+	var text strings.Builder
+	for i, slot := range slots {
+		fmt.Fprintf(&text, "SLOT %d\nMAIN PASSAGE:\n%s\n", i+1, slot.Main.Content)
+		if slot.Support != nil {
+			fmt.Fprintf(&text, "\nSUPPORT PASSAGE:\n%s\n", slot.Support.Content)
+		}
+		text.WriteString("\n")
+	}
+	return text.String()
+}
+
+// maxOutputTokens é o teto de tokens de saída por chamada.
+const maxOutputTokens = 4000
+
+func tokenBudget(base int, perItem int, count int) int {
+	return min(base+perItem*count, maxOutputTokens)
 }
 
 func (s *GenerationService) invoke(ctx context.Context, prompt string, maxTokens int) (string, error) {
@@ -191,28 +229,142 @@ func truncateForLog(text string) string {
 	return text[:maxLen] + "...(truncated)"
 }
 
-func (s *GenerationService) GenerateQuizzes(ctx context.Context, query string, tags []string, contextText string, count int, difficulty string, language string) ([]*GeneratedQuiz, error) {
-	prompt := fmt.Sprintf(`
-You are an intelligent educational quiz generator.
-%s
-Based ONLY on the provided context,
-generate EXACTLY %d distinct multiple choice study question(s), at difficulty level: %s.
-The "quizzes" array in your response MUST contain EXACTLY %d item(s) — never more, never fewer.
+// slotItem é o que um item gerado precisa oferecer para ser validado e ligado ao slot.
+type slotItem interface {
+	isUsable() bool
+	tagPointer() *string
+	bindSource(sources []RetrievedChunk)
+}
 
-All questions MUST be distinct from each other and grounded ONLY in the provided context.
-If — and only if — you are generating more than one question, spread them across the
-different topics below where the context supports it, instead of concentrating all
-questions on a single topic. If you are generating only one question, ignore the "spread"
-guidance and just pick whichever single topic is best supported by the context.
+func (q *GeneratedMultipleChoice) isUsable() bool {
+	if strings.TrimSpace(q.Question) == "" || len(q.Alternatives) != 4 {
+		return false
+	}
+	correct := 0
+	for _, alternative := range q.Alternatives {
+		if strings.TrimSpace(alternative.Text) == "" {
+			return false
+		}
+		if alternative.Correct {
+			correct++
+		}
+	}
+	// Sem exatamente uma alternativa correta o usuário não conseguiria concluir o desafio.
+	return correct == 1
+}
 
-Each question MUST have EXACTLY 4 alternatives, with ids "A", "B", "C", "D" in that order.
-EXACTLY ONE of the 4 alternatives MUST have "correct": true — the other 3 MUST have
-"correct": false. Never generate fewer or more than 4 alternatives.
+func (q *GeneratedMultipleChoice) tagPointer() *string                 { return &q.Tag }
+func (q *GeneratedMultipleChoice) bindSource(sources []RetrievedChunk) { q.SourceChunks = sources }
+
+func (d *GeneratedDiscovery) isUsable() bool {
+	return strings.TrimSpace(d.Content) != ""
+}
+
+func (d *GeneratedDiscovery) tagPointer() *string                 { return &d.Tag }
+func (d *GeneratedDiscovery) bindSource(sources []RetrievedChunk) { d.SourceChunks = sources }
+
+func (t *GeneratedTrueFalse) isUsable() bool {
+	return strings.TrimSpace(t.Statement) != ""
+}
+
+func (t *GeneratedTrueFalse) tagPointer() *string                 { return &t.Tag }
+func (t *GeneratedTrueFalse) bindSource(sources []RetrievedChunk) { t.SourceChunks = sources }
+
+// itemsFromResponse converte a resposta do modelo em itens ligados aos slots. O item i
+// corresponde ao slot i, decisão do backend: o modelo não devolve ids. A ligação só vale se
+// a quantidade devolvida for exatamente a pedida e todos os itens forem utilizáveis; caso
+// contrário o conteúdo ainda é entregue, com todos os trechos da chamada como fonte.
+func itemsFromResponse[T any, P interface {
+	*T
+	slotItem
+}](raw string, wrapperKey string, slots []GenerationSlot, tags []string) ([]*T, error) {
+	parsed, err := parseWrappedArray[T](raw, wrapperKey)
+	if err != nil {
+		return nil, err
+	}
+
+	bound := len(parsed) == len(slots)
+	items := make([]*T, 0, len(parsed))
+	for i := range parsed {
+		item := P(&parsed[i])
+		if !item.isUsable() {
+			logger.Log.Error("model returned an unusable item, dropping it", logger.String("key", wrapperKey), logger.Any("position", i))
+			bound = false
+			continue
+		}
+		if tag := item.tagPointer(); strings.TrimSpace(*tag) == "" && len(tags) > 0 {
+			*tag = tags[0]
+		}
+		items = append(items, &parsed[i])
+	}
+
+	if len(items) > len(slots) {
+		logger.Log.Info(
+			"model returned more items than requested, truncating",
+			logger.String("key", wrapperKey),
+			logger.Any("requested", len(slots)),
+			logger.Any("returned", len(items)),
+		)
+		items = items[:len(slots)]
+		bound = false
+	}
+
+	if len(items) == 0 {
+		return nil, fmt.Errorf("%s generation returned no usable items", wrapperKey)
+	}
+
+	var allSources []RetrievedChunk
+	for _, slot := range slots {
+		allSources = append(allSources, slot.chunks()...)
+	}
+
+	for i, item := range items {
+		if !bound {
+			P(item).bindSource(allSources)
+			continue
+		}
+		P(item).bindSource(slots[i].chunks())
+	}
+
+	return items, nil
+}
+
+func multipleChoicePrompt(language string, slots []GenerationSlot, tags []string) string {
+	return fmt.Sprintf(`
+You are an expert author of multiple-choice study questions.
 %s
-You MUST respond ONLY with valid JSON.
+The material below is split into numbered SLOTS. Each slot has a MAIN PASSAGE and may have
+SUPPORT passages. Generate EXACTLY %d multiple-choice questions: one per slot, in the same
+order as the slots. The "multiple_choices" array in your response MUST contain EXACTLY %d item(s),
+never more, never fewer.
+
+For each slot, write ONE question about ONE single fact or idea from that slot's MAIN
+PASSAGE. Use the SUPPORT passages only to make the question clear and self-contained.
+Ground every question ONLY in the provided material; never add outside knowledge.
+
+QUESTION rules:
+- One clear, specific question with a single well-defined correct answer.
+- It must make sense on its own: never write "according to the text", "in the passage",
+  "the author" or anything that assumes the learner has the material at hand.
+
+ALTERNATIVES rules:
+- Exactly 4 alternatives, with ids "A", "B", "C", "D" in that order.
+- EXACTLY ONE alternative has "correct": true; the other three have "correct": false.
+- The wrong alternatives must be plausible and related to the topic, but clearly wrong
+  according to the material. Do not use "all of the above" or "none of the above". Keep the
+  four alternatives similar in length and style so the correct one is not easy to spot, and
+  vary which position holds the correct one.
+
+EXPLANATION rules:
+- One or two short sentences stating why the correct alternative is right. It is shown to
+  the learner after they answer.
+
+All questions must be distinct from one another.
+%s
+You MUST respond ONLY with valid JSON, in EXACTLY this shape:
 
 {
-  "quizzes": [
+  "multiple_choices": [
     {
       "question": "string",
       "alternatives": [
@@ -222,259 +374,132 @@ You MUST respond ONLY with valid JSON.
         { "id": "D", "text": "string", "correct": false }
       ],
       "explanation": "string",
-      "difficulty": "easy|medium|hard",
       "tag": "string"
     }
   ]
 }
 
-CONTEXT:
+SLOTS:
 %s
 
-TOPICS (each question should be grounded in ONE of these; set "tag" to whichever topic that specific question is really about):
+TOPICS (set "tag" to the topic this question is really about):
 %s
-SEARCH QUERY (what was used to retrieve the context above):
-%s
-`, languageHeaderInstruction(language), count, difficulty, count, languageReminderInstruction(language), contextText, topicsListText(tags), query)
-
-	maxTokens := 500 + count*300
-	if maxTokens > 4000 {
-		maxTokens = 4000
-	}
-
-	raw, err := s.invoke(ctx, prompt, maxTokens)
-	if err != nil {
-		return nil, err
-	}
-
-	quizzes, err := parseWrappedArray[GeneratedQuiz](raw, "quizzes")
-	if err != nil {
-		return nil, err
-	}
-
-	if len(quizzes) > count {
-		logger.Log.Info(
-			"model returned more quizzes than requested, truncating",
-			logger.Any("requested", count),
-			logger.Any("returned", len(quizzes)),
-		)
-		quizzes = quizzes[:count]
-	}
-
-	generated := make([]*GeneratedQuiz, len(quizzes))
-	for i := range quizzes {
-		quiz := quizzes[i]
-		if quiz.Tag == "" && len(tags) > 0 {
-			quiz.Tag = tags[0]
-		}
-		generated[i] = &quiz
-	}
-
-	return generated, nil
+`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots), topicsListText(tags))
 }
 
-func (s *GenerationService) GenerateFlashcards(ctx context.Context, query string, tags []string, contextText string, count int, language string) ([]*GeneratedFlashcard, error) {
-	prompt := fmt.Sprintf(`
-You are an intelligent generator of bite-sized study facts ("did you know" style flashcards)
-for a mobile app screen -- each card needs enough substance to not look empty, so shallow
-one-liners are not acceptable.
+func trueFalsePrompt(language string, slots []GenerationSlot, tags []string) string {
+	return fmt.Sprintf(`
+You are an expert author of true-or-false study statements.
 %s
-Based ONLY on the provided context, generate EXACTLY %d distinct flashcard(s).
-The "flashcards" array in your response MUST contain EXACTLY %d item(s) — never more, never fewer.
+The material below is split into numbered SLOTS. Each slot has a MAIN PASSAGE and may have
+SUPPORT passages. Generate EXACTLY %d statements: one per slot, in the same order as the
+slots. The "items" array in your response MUST contain EXACTLY %d item(s), never more,
+never fewer.
 
-Each flashcard has TWO parts:
-- "title": a short, punchy hook (roughly 4-9 words) that grabs attention and names the idea --
-  e.g. "Mitochondria carry their own DNA" or "Rome didn't fall in a single battle".
-- "content": a genuinely substantial explanation of that hook — 3 to 5 full sentences that
-  actually teach something: give context, cause, consequence, a concrete example, or a
+For each slot, write ONE factual STATEMENT (not a question) about ONE single fact or idea
+from that slot's MAIN PASSAGE, and set "answer" to true if the statement is correct
+according to the material or false if it is wrong. Use the SUPPORT passages only to make
+the statement clear and self-contained. Ground every statement ONLY in the provided
+material; never add outside knowledge.
+
+STATEMENT rules:
+- It must make sense on its own: never write "according to the text", "in the passage",
+  "the author" or anything that assumes the learner has the material at hand.
+- Across the whole set, about half of the statements should be true and half false.
+- A false statement must be plausible: build it by changing one key element of a real fact
+  from the passage, not by simply adding a negation.
+- Avoid words such as "always", "never", "only" or "all" that give the answer away.
+
+EXPLANATION rules:
+- One or two short sentences stating the correct fact. It is shown to the learner after
+  they answer.
+
+All statements must be distinct from one another.
+%s
+You MUST respond ONLY with valid JSON, in EXACTLY this shape:
+
+{
+  "items": [
+    { "statement": "string", "answer": true, "explanation": "string", "tag": "string" }
+  ]
+}
+
+SLOTS:
+%s
+
+TOPICS (set "tag" to the topic this statement is really about):
+%s
+`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots), topicsListText(tags))
+}
+
+func discoveryPrompt(language string, slots []GenerationSlot, tags []string) string {
+	return fmt.Sprintf(`
+You are an intelligent generator of bite-sized study facts ("did you know" style) for a
+mobile app screen. Each item needs enough substance to not look empty, so shallow one-liners
+are not acceptable.
+%s
+The material below is split into numbered SLOTS. Each slot has a MAIN PASSAGE and may have
+SUPPORT passages. Generate EXACTLY %d discoveries: one per slot, in the same order as the
+slots. The "discoveries" array in your response MUST contain EXACTLY %d item(s), never more,
+never fewer.
+
+Each discovery has TWO parts, both about ONE idea from the slot's MAIN PASSAGE (use SUPPORT
+passages only to make it clear and self-contained; never add outside knowledge):
+- "title": a short, punchy hook (roughly 4 to 9 words) that names the idea, for example
+  "Mitochondria carry their own DNA".
+- "content": a genuinely substantial explanation of that hook, 3 to 5 full sentences that
+  actually teach something: give context, cause, consequence, a concrete example or a
   surprising detail. Every sentence must add real information; do not pad with filler or
   repeat the title in different words.
 
-This is NOT a question-and-answer pair: there is no separate question and no separate answer,
-just a hook plus its own explanation. The reader should come away actually understanding the
-idea after reading "content" alone, with nothing left to figure out or respond to. All
-flashcards MUST be distinct from each other and grounded ONLY in the provided context.
-If — and only if — you are generating more than one flashcard, spread them across the
-different topics below where the context supports it. If you are generating only one, ignore
-the "spread" guidance and just pick whichever single topic is best supported by the context.
+This is NOT a question-and-answer pair: there is no separate question and no separate
+answer, just a hook plus its own explanation. The reader should understand the idea after
+reading "content" alone, with nothing left to respond to. All discoveries must be distinct
+from one another.
 %s
-You MUST respond ONLY with valid JSON, in EXACTLY this shape -- a top-level object with a
-"flashcards" key (never a bare top-level array), and each item having ONLY the three keys
-"title", "content" and "tag" (never "front"/"back"/"question"/"answer" -- those belong to a
-different, question-style challenge and must NOT be used here):
+You MUST respond ONLY with valid JSON, in EXACTLY this shape: a top-level object with a
+"discoveries" key, and each item having ONLY the keys "title", "content" and "tag".
 
 {
-  "flashcards": [
+  "discoveries": [
     {
       "title": "Mitochondria carry their own DNA",
-      "content": "Unlike the cell's other organelles, mitochondria have a small genome of their own, separate from the nucleus. That's because, under the endosymbiotic theory, they were once free-living bacteria absorbed by another cell billions of years ago. Over time that relationship became permanent: the host cell provides protection and nutrients, and the mitochondria provide energy. Mitochondrial DNA is also inherited almost entirely from the mother, making it a useful tool for tracing maternal ancestry.",
+      "content": "Unlike the cell's other organelles, mitochondria have a small genome of their own, separate from the nucleus. Under the endosymbiotic theory, they were once free-living bacteria absorbed by another cell billions of years ago. Over time that relationship became permanent: the host cell provides protection and nutrients, and the mitochondria provide energy. Mitochondrial DNA is also inherited almost entirely from the mother, which makes it a useful tool for tracing maternal ancestry.",
       "tag": "cell biology"
     }
   ]
 }
 
-CONTEXT:
+SLOTS:
 %s
 
-TOPICS (each flashcard should be grounded in ONE of these; set "tag" to whichever topic that specific flashcard is really about):
+TOPICS (set "tag" to the topic this discovery is really about):
 %s
-SEARCH QUERY (what was used to retrieve the context above):
-%s
-`, languageHeaderInstruction(language), count, count, languageReminderInstruction(language), contextText, topicsListText(tags), query)
+`, languageHeaderInstruction(language), len(slots), len(slots), languageReminderInstruction(language), slotsPromptText(slots), topicsListText(tags))
+}
 
-	maxTokens := 500 + count*350
-	if maxTokens > 4000 {
-		maxTokens = 4000
-	}
-
-	raw, err := s.invoke(ctx, prompt, maxTokens)
+func (s *GenerationService) GenerateMultipleChoices(ctx context.Context, slots []GenerationSlot, tags []string, language string) ([]*GeneratedMultipleChoice, error) {
+	raw, err := s.invoke(ctx, multipleChoicePrompt(language, slots, tags), tokenBudget(500, 300, len(slots)))
 	if err != nil {
 		return nil, err
 	}
+	return itemsFromResponse[GeneratedMultipleChoice](raw, "multiple_choices", slots, tags)
+}
 
-	rawCards, err := parseWrappedArray[rawFlashcard](raw, "flashcards")
+func (s *GenerationService) GenerateTrueFalse(ctx context.Context, slots []GenerationSlot, tags []string, language string) ([]*GeneratedTrueFalse, error) {
+	raw, err := s.invoke(ctx, trueFalsePrompt(language, slots, tags), tokenBudget(400, 250, len(slots)))
 	if err != nil {
 		return nil, err
 	}
-
-	if len(rawCards) > count {
-		logger.Log.Info(
-			"model returned more flashcards than requested, truncating",
-			logger.Any("requested", count),
-			logger.Any("returned", len(rawCards)),
-		)
-		rawCards = rawCards[:count]
-	}
-
-	generated := make([]*GeneratedFlashcard, 0, len(rawCards))
-	for _, card := range rawCards {
-		content := card.resolveContent()
-		if content == "" {
-			logger.Log.Error("flashcard item had no usable content field, dropping it", logger.Any("raw_item", card))
-			continue
-		}
-		tag := card.Tag
-		if tag == "" && len(tags) > 0 {
-			tag = tags[0]
-		}
-		generated = append(generated, &GeneratedFlashcard{Title: card.resolveTitle(), Content: content, Tag: tag})
-	}
-
-	if len(generated) == 0 {
-		return nil, fmt.Errorf("flashcard generation returned no usable content")
-	}
-
-	return generated, nil
+	return itemsFromResponse[GeneratedTrueFalse](raw, "items", slots, tags)
 }
 
-type rawFlashcard struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-	Front   string `json:"front"`
-	Back    string `json:"back"`
-	Text    string `json:"text"`
-	Fact    string `json:"fact"`
-	Tag     string `json:"tag"`
-}
-
-func (r rawFlashcard) resolveTitle() string {
-	switch {
-	case strings.TrimSpace(r.Title) != "":
-		return strings.TrimSpace(r.Title)
-	case strings.TrimSpace(r.Front) != "" && strings.TrimSpace(r.Back) != "":
-		return ""
-	default:
-		return ""
-	}
-}
-
-func (r rawFlashcard) resolveContent() string {
-	switch {
-	case strings.TrimSpace(r.Content) != "":
-		return strings.TrimSpace(r.Content)
-	case strings.TrimSpace(r.Front) != "" && strings.TrimSpace(r.Back) != "":
-		return strings.TrimSpace(r.Front) + " " + strings.TrimSpace(r.Back)
-	case strings.TrimSpace(r.Text) != "":
-		return strings.TrimSpace(r.Text)
-	case strings.TrimSpace(r.Fact) != "":
-		return strings.TrimSpace(r.Fact)
-	case strings.TrimSpace(r.Front) != "":
-		return strings.TrimSpace(r.Front)
-	case strings.TrimSpace(r.Title) != "":
-		return strings.TrimSpace(r.Title)
-	default:
-		return ""
-	}
-}
-
-func (s *GenerationService) GenerateTrueFalse(ctx context.Context, query string, tags []string, contextText string, count int, difficulty string, language string) ([]*GeneratedTrueFalse, error) {
-	prompt := fmt.Sprintf(`
-You are an intelligent educational true-or-false study question generator.
-%s
-Based ONLY on the provided context,
-generate EXACTLY %d distinct true-or-false statement(s), at difficulty level: %s.
-The "items" array in your response MUST contain EXACTLY %d item(s) — never more, never fewer.
-
-Each item is a single factual STATEMENT (not a question) about the context, plus "answer":
-true if the statement is factually correct according to the context, or false if it is
-factually wrong. Roughly half of the statements across the whole set should be true and half
-false — don't make them all true or all false. All statements MUST be distinct from each
-other and grounded ONLY in the provided context.
-If — and only if — you are generating more than one item, spread them across the different
-topics below where the context supports it. If you are generating only one, ignore the
-"spread" guidance and just pick whichever single topic is best supported by the context.
-%s
-You MUST respond ONLY with valid JSON.
-
-{
-  "items": [
-    { "statement": "string", "answer": true, "explanation": "string", "difficulty": "easy|medium|hard", "tag": "string" }
-  ]
-}
-
-CONTEXT:
-%s
-
-TOPICS (each item should be grounded in ONE of these; set "tag" to whichever topic that specific item is really about):
-%s
-SEARCH QUERY (what was used to retrieve the context above):
-%s
-`, languageHeaderInstruction(language), count, difficulty, count, languageReminderInstruction(language), contextText, topicsListText(tags), query)
-
-	maxTokens := 400 + count*250
-	if maxTokens > 4000 {
-		maxTokens = 4000
-	}
-
-	raw, err := s.invoke(ctx, prompt, maxTokens)
+func (s *GenerationService) GenerateDiscoveries(ctx context.Context, slots []GenerationSlot, tags []string, language string) ([]*GeneratedDiscovery, error) {
+	raw, err := s.invoke(ctx, discoveryPrompt(language, slots, tags), tokenBudget(500, 350, len(slots)))
 	if err != nil {
 		return nil, err
 	}
-
-	items, err := parseWrappedArray[GeneratedTrueFalse](raw, "items")
-	if err != nil {
-		return nil, err
-	}
-
-	if len(items) > count {
-		logger.Log.Info(
-			"model returned more true/false items than requested, truncating",
-			logger.Any("requested", count),
-			logger.Any("returned", len(items)),
-		)
-		items = items[:count]
-	}
-
-	generated := make([]*GeneratedTrueFalse, len(items))
-	for i := range items {
-		item := items[i]
-		if item.Tag == "" && len(tags) > 0 {
-			item.Tag = tags[0]
-		}
-		generated[i] = &item
-	}
-
-	return generated, nil
+	return itemsFromResponse[GeneratedDiscovery](raw, "discoveries", slots, tags)
 }
 
 func cleanJSONResponse(text string) string {

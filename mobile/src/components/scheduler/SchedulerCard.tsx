@@ -5,8 +5,7 @@ import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
 import { WeekDays } from '@/components/scheduler/WeekDays';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
-import { DIFFICULTY_LABELS, DIFFICULTY_META } from '@/constants/difficulty';
-import { Challenger, LANGUAGE_FLAGS, QuizDifficulty, Scheduler } from '@/types/domain/Scheduler';
+import { Challenger, LANGUAGE_FLAGS, Scheduler } from '@/types/domain/Scheduler';
 import { getColorForId } from '@/lib/hashColor';
 
 interface SchedulerCardProps {
@@ -21,22 +20,12 @@ interface SchedulerCardProps {
 
 function challengeConfigLabel(item: Challenger): string {
   switch (item.challengeType) {
-    case 'QUIZ':
+    case 'MULTIPLE_CHOICE':
       return `${item.challenge.questionCount} questões`;
     case 'TRUE_FALSE':
       return `${item.challenge.questionCount} afirmações`;
-    case 'FLASHCARD':
-      return `${item.challenge.cardCount} cartões`;
-  }
-}
-
-function challengeDifficulty(item: Challenger): QuizDifficulty | null {
-  switch (item.challengeType) {
-    case 'QUIZ':
-    case 'TRUE_FALSE':
-      return item.challenge.difficulty;
-    case 'FLASHCARD':
-      return null;
+    case 'DISCOVERY':
+      return `${item.challenge.discoveryCount} descobertas`;
   }
 }
 
@@ -44,8 +33,9 @@ function challengeDifficulty(item: Challenger): QuizDifficulty | null {
 // tirada do hash do próprio id -- ver getColorForId). A ideia continua sendo puxar
 // pra estética de "app de estudo" (tipo cursos/lições), não de relógio: hora em destaque,
 // weekdays ao lado da hora (aproveitando o espaço que sobrava à direita) e cada desafio
-// configurado listado em duas linhas (tipo+idioma, depois dificuldade+config). Dimensões
-// bem reduzidas (fonte do horário, ícones, paddings) mantendo todos os mesmos detalhes.
+// configurado listado em uma linha (tipo e quantidade). O idioma é do agendador, então
+// aparece uma vez só, no cabeçalho. Dimensões bem reduzidas (fonte do horário, ícones,
+// paddings) mantendo todos os mesmos detalhes.
 export function SchedulerCard({
   scheduler,
   onPress,
@@ -97,6 +87,18 @@ export function SchedulerCard({
           <Text className="flex-1 text-sm font-semibold text-white">{scheduler.name}</Text>
 
           <View className="flex-row items-center gap-1.5">
+            <View testID="scheduler-card-language" className="items-center justify-center rounded-full bg-white/20 px-2 py-0.5">
+              <Text
+                style={{
+                  fontSize: 13,
+                  lineHeight: 18,
+                  textAlign: 'center',
+                  includeFontPadding: false,
+                }}
+              >
+                {LANGUAGE_FLAGS[scheduler.language]}
+              </Text>
+            </View>
             {scheduler.objectIds.length > 0 && (
               <View className="flex-row items-center gap-1 rounded-full bg-white/20 px-2 py-1">
                 <Ionicons name="document-text" size={13} color="#FFFFFF" />
@@ -122,49 +124,18 @@ export function SchedulerCard({
           <View className="gap-1">
             {scheduler.challengers.map((item, index) => {
               const meta = CHALLENGE_TYPE_META[item.challengeType];
-              const difficulty = challengeDifficulty(item);
-              const difficultyMeta = difficulty ? DIFFICULTY_META[difficulty] : null;
 
               return (
                 <View
                   key={`${item.challengeType}-${index}`}
                   className="flex-row items-center justify-between gap-2 rounded-xl bg-white/15 px-2.5 py-1.5"
                 >
-                  <View className="flex-1 gap-1">
-                    <View className="flex-row items-center gap-1.5">
-                      <Ionicons name={meta.icon} size={14} color="#FFFFFF" />
-                      <Text className="flex-1 text-xs font-medium text-white">{meta.label}</Text>
-                    </View>
-
-                    <View className="flex-row items-center gap-1">
-                      {difficultyMeta && difficulty && (
-                        <>
-                          <Ionicons name={difficultyMeta.icon} size={12} color="#FFFFFF" />
-                          <Text className="text-xs font-medium text-white">
-                            {DIFFICULTY_LABELS[difficulty]}
-                          </Text>
-                          <Text className="text-xs text-white/50">•</Text>
-                        </>
-                      )}
-                      <Text className="text-xs text-white/80">{challengeConfigLabel(item)}</Text>
-                    </View>
+                  <View className="flex-row items-center gap-1.5">
+                    <Ionicons name={meta.icon} size={14} color="#FFFFFF" />
+                    <Text className="text-xs font-medium text-white">{meta.label}</Text>
                   </View>
 
-                  <View
-                    className="items-center justify-center rounded-full bg-white/20"
-                    style={{ width: 26, height: 26 }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 15,
-                        lineHeight: 18,
-                        textAlign: 'center',
-                        includeFontPadding: false,
-                      }}
-                    >
-                      {LANGUAGE_FLAGS[item.language]}
-                    </Text>
-                  </View>
+                  <Text className="text-xs text-white/80">{challengeConfigLabel(item)}</Text>
                 </View>
               );
             })}

@@ -6,6 +6,7 @@ function makeScheduler(overrides: Partial<Scheduler> = {}): Scheduler {
   return {
     id: 'scheduler-1',
     name: 'Sem Nome',
+    language: 'pt',
     weekDays: [],
     startTime: '08:00',
     alarmSound: 'chic_pop',

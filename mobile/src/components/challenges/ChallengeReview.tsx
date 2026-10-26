@@ -5,12 +5,12 @@ import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-// Modo leitura de um desafio já respondido (Quiz/V-F) -- usado tanto na revisão do
+// Modo leitura de um desafio já respondido (Múltipla escolha/V-F) -- usado tanto na revisão do
 // histórico (mobile/src/app/(history)/attempt/[id].tsx) quanto pra voltar/revisar um
 // desafio já respondido dentro da própria sessão de firing (mobile/src/app/(scheduler)/
 // firing.tsx). Não marca qual alternativa errada específica foi escolhida (só a
 // contagem de erros), já que essa granularidade não é guardada.
-export function QuizLikeReview({
+export function ChoiceReview({
   promptText,
   explanationText,
   options,
@@ -60,7 +60,8 @@ export function QuizLikeReview({
   );
 }
 
-export function FlashcardReview({ promptText, explanationText }: { promptText: string; explanationText: string | null }) {
+// Modo leitura da Descoberta: o título em destaque e, abaixo, o conteúdo.
+export function DiscoveryReview({ promptText, explanationText }: { promptText: string; explanationText: string | null }) {
   const showTitle = !!explanationText && promptText !== explanationText;
 
   return (

@@ -7,7 +7,7 @@ import { Header } from '@/components/common/Header';
 import { ErrorState } from '@/components/common/ErrorState';
 import { Text } from '@/components/ui/text';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
-import { QuizLikeReview, FlashcardReview } from '@/components/challenges/ChallengeReview';
+import { ChoiceReview, DiscoveryReview } from '@/components/challenges/ChallengeReview';
 
 import { useAttemptDetailQuery } from '@/hooks/useHistory';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -45,7 +45,7 @@ export default function AttemptReviewScreen() {
           </View>
 
           {attempt.options ? (
-            <QuizLikeReview
+            <ChoiceReview
               promptText={attempt.promptText}
               explanationText={attempt.explanationText}
               options={attempt.options}
@@ -53,7 +53,7 @@ export default function AttemptReviewScreen() {
               colors={colors}
             />
           ) : (
-            <FlashcardReview promptText={attempt.promptText} explanationText={attempt.explanationText} />
+            <DiscoveryReview promptText={attempt.promptText} explanationText={attempt.explanationText} />
           )}
 
           {attempt.sourceObjectKey && (

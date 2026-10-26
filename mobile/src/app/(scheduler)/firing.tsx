@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Pressable, Platform, ActivityIndicator, BackHandler, Vibration, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import notifee from '@notifee/react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,37 +12,28 @@ import * as Application from 'expo-application';
 
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { QuizChallenge } from '@/components/challenges/QuizChallenge';
-import { FlashcardChallenge } from '@/components/challenges/FlashcardChallenge';
+import { MultipleChoiceChallenge } from '@/components/challenges/MultipleChoiceChallenge';
+import { DiscoveryChallenge } from '@/components/challenges/DiscoveryChallenge';
 import { TrueFalseChallenge } from '@/components/challenges/TrueFalseChallenge';
-import { QuizLikeReview, FlashcardReview } from '@/components/challenges/ChallengeReview';
+import { ChoiceReview, DiscoveryReview } from '@/components/challenges/ChallengeReview';
 import { ChallengeItem, RAG } from '@/types/domain/RAG';
+import { User } from '@/types/domain/User';
 import { LANGUAGE_FLAGS } from '@/types/domain/Scheduler';
 import { ChallengeResult, ReviewOption } from '@/types/domain/History';
 import { useRagQuery } from '@/hooks/useFiring';
-import { useMeQuery, useRecordStreakMutation } from '@/hooks/useUser';
+import { useMeQuery } from '@/hooks/useUser';
+import { queryKeys } from '@/lib/queryKeys';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { historyService } from '@/services/historyService';
 import { useInvalidateHistory } from '@/hooks/useHistory';
 import { getColorForId } from '@/lib/hashColor';
 
-// "YYYY-MM-DD" no fuso local do aparelho -- o backend não tem como saber o fuso do
-// usuário sozinho, então quem manda a data local é sempre o cliente.
-function todayLocalDate(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
 // Extrai os campos específicos de cada tipo de desafio pro registro no histórico --
 // centralizado aqui pra manter o TypeScript estreitando `answered.data` corretamente por tipo.
 function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
   switch (answered.type) {
-    case 'QUIZ':
+    case 'MULTIPLE_CHOICE':
       return {
-        difficulty: answered.data.difficulty as string | null,
         promptText: answered.data.question,
         explanationText: answered.data.explanation as string | null,
         options: answered.data.alternatives.map(
@@ -52,7 +44,6 @@ function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
       };
     case 'TRUE_FALSE':
       return {
-        difficulty: answered.data.difficulty as string | null,
         promptText: answered.data.statement,
         explanationText: answered.data.explanation as string | null,
         options: [
@@ -62,12 +53,12 @@ function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
         isCorrect: result.wrongAttempts === 0,
         sourceChunks: answered.data.sourceChunks,
       };
-    case 'FLASHCARD':
+    case 'DISCOVERY':
       return {
-        difficulty: null as string | null,
         promptText: answered.data.title || answered.data.content,
         explanationText: answered.data.content as string | null,
         options: null,
+        // Só apresenta conteúdo: não tem certo ou errado.
         isCorrect: null,
         sourceChunks: answered.data.sourceChunks,
       };
@@ -99,21 +90,37 @@ function FiringScreenContent({
 
   const { data: user } = useMeQuery();
   const invalidateHistory = useInvalidateHistory();
-  const recordStreakMutation = useRecordStreakMutation();
+  const queryClient = useQueryClient();
   const historySessionIdRef = useRef<string | null>(null);
+
+  // A floslo-rag já registrou o dia de estudo ao gerar este disparo (a data local vai no
+  // próprio pedido, ver firingService) e devolveu a sequência atualizada, que entra direto no
+  // cache do usuário, sem outra chamada à nuvem.
+  const currentStreak = ragData.currentStreak;
+  useEffect(() => {
+    if (currentStreak === undefined) return;
+    queryClient.setQueryData<User>(queryKeys.user.me, (cached) => (cached ? { ...cached, currentStreak } : cached));
+  }, [queryClient, currentStreak]);
+
+  // O backend devolve sucesso com challenges=[] quando o agendador ficou sem nenhum objeto
+  // vinculado (o último foi excluído) -- ver RAGService.RetrieveAndGenerate. O alarme já
+  // tocando não sabia disso de antemão, então em vez de tentar renderizar um desafio que não
+  // existe, a tela mostra um aviso e deixa só desligar o alarme.
+  const hasNoChallenges = ragData.challenges.length === 0;
 
   // Uma sessão de histórico por disparo de alarme -- criada assim que sabemos quantos
   // desafios existem, pra cada resposta (handleChallengeSuccess) já ter uma sessão pra
-  // referenciar. Guardado em ref (não state) porque não precisa disparar re-render.
+  // referenciar. Guardado em ref (não state) porque não precisa disparar re-render. Sem
+  // desafio nenhum não há o que responder, então nem cria a sessão.
   useEffect(() => {
-    if (!user || historySessionIdRef.current) return;
+    if (!user || historySessionIdRef.current || hasNoChallenges) return;
     historySessionIdRef.current = historyService.startSession({
       userId: user.id,
       schedulerId: ragData.scheduler.id,
       schedulerName: ragData.scheduler.name || 'Agendador sem nome',
       totalChallenges: ragData.challenges.length,
     });
-  }, [user, ragData]);
+  }, [user, ragData, hasNoChallenges]);
 
   // Quanto tempo o usuário passou no desafio atual, pro histórico -- medido aqui (não
   // dentro de cada componente de desafio) porque esses componentes rodam callbacks de
@@ -234,7 +241,6 @@ function FiringScreenContent({
         challengeType: answered.type,
         tag: answered.data.tag,
         language: answered.language,
-        difficulty: fields.difficulty,
         promptText: fields.promptText,
         explanationText: fields.explanationText,
         options: fields.options,
@@ -245,11 +251,6 @@ function FiringScreenContent({
         sourcePage: primarySource?.page ?? null,
       });
     }
-
-    // Sequência de dias vive no backend (no próprio item do usuário) -- fire-and-forget,
-    // não pode travar o fluxo do alarme se a rede estiver fora do ar. Sobrevive à troca
-    // de aparelho de propósito: quem decide o streak é o backend, não o SQLite local.
-    recordStreakMutation.mutate(todayLocalDate());
 
     setAnsweredResults((prev) => ({ ...prev, [currentChallengeIndex]: result }));
     setMaxReachedIndex((prev) => Math.max(prev, currentChallengeIndex + 1));
@@ -303,11 +304,9 @@ function FiringScreenContent({
           <Text className="text-sm text-white/75 font-medium text-center" numberOfLines={1}>
             {ragData.scheduler.name || 'Seu agendador está tocando'}
           </Text>
-          {currentChallenge && (
-            <View className="flex-row items-center bg-white/15 rounded-full px-2 py-0.5">
-              <Text style={{ fontSize: 12 }}>{LANGUAGE_FLAGS[currentChallenge.language]}</Text>
-            </View>
-          )}
+          <View className="flex-row items-center bg-white/15 rounded-full px-2 py-0.5">
+            <Text style={{ fontSize: 12 }}>{LANGUAGE_FLAGS[ragData.scheduler.language]}</Text>
+          </View>
         </View>
 
         {total > 1 && (
@@ -356,25 +355,39 @@ function FiringScreenContent({
 
       {/* Área do desafio: ocupa o resto da tela até as bordas, sem padding lateral/inferior */}
       <View className="flex-1 px-1">
-        {isReviewing && currentChallenge ? (
+        {hasNoChallenges ? (
+          <View className="flex-1 items-center justify-center gap-4 px-8">
+            <View className="h-20 w-20 items-center justify-center rounded-full bg-white/15">
+              <Ionicons name="document-outline" size={36} color="white" />
+            </View>
+            <Text className="text-white text-center text-lg font-bold">Nenhum objeto configurado</Text>
+            <Text className="text-white/75 text-center">
+              Os materiais deste agendador foram excluídos, então não há conteúdo para gerar desafios.
+              Vincule um objeto a ele para voltar a tocar normalmente.
+            </Text>
+            <Button onPress={stopAlarm} className="mt-2 rounded-3xl bg-white/15 px-6 py-3">
+              <Text className="font-semibold text-white">Dispensar alarme</Text>
+            </Button>
+          </View>
+        ) : isReviewing && currentChallenge ? (
           <ChallengeReviewPane challenge={currentChallenge} result={answeredResults[currentChallengeIndex]} colors={colors} />
         ) : (
           <>
-            {currentChallenge?.type === 'QUIZ' && (
-              <QuizChallenge
+            {currentChallenge?.type === 'MULTIPLE_CHOICE' && (
+              <MultipleChoiceChallenge
                 key={`challenge-${currentChallengeIndex}`}
-                quiz={currentChallenge.data}
+                item={currentChallenge.data}
                 currentIndex={currentChallengeIndex}
-                totalQuizzes={total}
+                totalItems={total}
                 onSuccess={handleChallengeSuccess}
               />
             )}
-            {currentChallenge?.type === 'FLASHCARD' && (
-              <FlashcardChallenge
+            {currentChallenge?.type === 'DISCOVERY' && (
+              <DiscoveryChallenge
                 key={`challenge-${currentChallengeIndex}`}
-                flashcard={currentChallenge.data}
+                discovery={currentChallenge.data}
                 currentIndex={currentChallengeIndex}
-                totalFlashcards={total}
+                totalDiscoveries={total}
                 onSuccess={handleChallengeSuccess}
               />
             )}
@@ -418,7 +431,7 @@ function ChallengeReviewPane({
         contentContainerStyle={{ padding: 24, paddingBottom: 32 }}
       >
         {fields.options ? (
-          <QuizLikeReview
+          <ChoiceReview
             promptText={fields.promptText}
             explanationText={fields.explanationText}
             options={fields.options}
@@ -426,7 +439,7 @@ function ChallengeReviewPane({
             colors={colors}
           />
         ) : (
-          <FlashcardReview promptText={fields.promptText} explanationText={fields.explanationText} />
+          <DiscoveryReview promptText={fields.promptText} explanationText={fields.explanationText} />
         )}
       </ScrollView>
     </View>
