@@ -1,5 +1,7 @@
 package dto
 
+import "path"
+
 // LocalDate é o dia local do aparelho (YYYY-MM-DD), registrado como dia de estudo quando o
 // disparo é gerado.
 type RAGRequestDTO struct {
@@ -13,6 +15,8 @@ type MultipleChoiceAlternativeDTO struct {
 	Correct bool   `json:"correct"`
 }
 
+// ObjectKey leva só o nome do arquivo, e não a chave do S3 (tenants/<usuário>/context/...): o
+// caminho interno e o identificador do usuário não saem da API.
 type ChunkDTO struct {
 	Content    string  `json:"content"`
 	Score      float64 `json:"score"`
@@ -20,6 +24,14 @@ type ChunkDTO struct {
 	Page       int     `json:"page"`
 	ChunkIndex int     `json:"chunk_index"`
 	Language   string  `json:"language"`
+}
+
+// DocumentName tira da chave do S3 o prefixo do tenant, deixando só o nome do arquivo.
+func DocumentName(objectKey string) string {
+	if objectKey == "" {
+		return ""
+	}
+	return path.Base(objectKey)
 }
 
 type MultipleChoiceDTO struct {

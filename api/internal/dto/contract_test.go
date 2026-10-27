@@ -161,3 +161,16 @@ func TestRegisterRequestCarriesTheAcceptedTermsVersion(t *testing.T) {
 		t.Errorf("TermsVersion = %q, want the version sent by the app", got)
 	}
 }
+
+func TestDocumentNameHidesTheTenantPath(t *testing.T) {
+	tests := map[string]string{
+		"tenants/usr_61d38e8d/context/biologia.pdf": "biologia.pdf",
+		"biologia.pdf": "biologia.pdf",
+		"":             "",
+	}
+	for key, want := range tests {
+		if got := DocumentName(key); got != want {
+			t.Fatalf("DocumentName(%q) = %q, want %q", key, got, want)
+		}
+	}
+}

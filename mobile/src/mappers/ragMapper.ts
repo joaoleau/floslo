@@ -11,12 +11,13 @@ import { ChallengeItem, Discovery, MultipleChoice, RAG, SourceChunk, TrueFalseIt
 import { SupportedLanguage } from '@/types/domain/Scheduler';
 import { schedulerMapper } from './schedulerMapper';
 import { shuffle } from '@/lib/shuffle';
+import { documentName } from '@/lib/documentName';
 
 function sourceChunksToDomain(chunks: { content: string; score: number; object_key: string; page: number; chunk_index: number; language: string }[]): SourceChunk[] {
   return chunks.map((chunk) => ({
     content: chunk.content,
     score: chunk.score,
-    objectKey: chunk.object_key,
+    objectKey: documentName(chunk.object_key),
     page: chunk.page,
     chunkIndex: chunk.chunk_index,
     language: chunk.language,

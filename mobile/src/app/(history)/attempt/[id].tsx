@@ -13,6 +13,7 @@ import { ChoiceReview, DiscoveryReview } from '@/components/challenges/Challenge
 import { useAttemptDetailQuery } from '@/hooks/useHistory';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { dateLocale } from '@/i18n';
+import { documentName } from '@/lib/documentName';
 
 export default function AttemptReviewScreen() {
   const colors = useThemeColors();
@@ -61,7 +62,7 @@ export default function AttemptReviewScreen() {
 
           {attempt.sourceObjectKey && (
             <Text className="text-xs text-center text-muted-foreground">
-              {t('history.attempt.basedOn', { source: attempt.sourceObjectKey })}
+              {t('history.attempt.basedOn', { source: documentName(attempt.sourceObjectKey) })}
               {attempt.sourcePage !== null ? ` • ${t('history.attempt.page', { page: attempt.sourcePage })}` : ''}
             </Text>
           )}
