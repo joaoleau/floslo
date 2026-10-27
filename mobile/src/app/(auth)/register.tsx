@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/common/Screen';
@@ -94,28 +94,38 @@ export default function RegisterScreen() {
               )}
 
               {/* O aceite é o consentimento da LGPD, inclusive para a transferência dos dados aos
-                  Estados Unidos: fica desmarcado até o usuário marcar, e o cadastro exige. */}
-              <Pressable
-                testID="accept-terms"
-                onPress={() => setAcceptedTerms((prev) => !prev)}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: acceptedTerms }}
-                className="flex-row items-start gap-2 py-1"
-              >
-                <Ionicons
-                  name={acceptedTerms ? 'checkbox' : 'square-outline'}
-                  size={20}
-                  color={acceptedTerms ? colors.brand : colors.mutedForeground}
-                />
-                <Text className="flex-1 text-sm text-muted-foreground">
-                  <Trans
-                    i18nKey="terms.accept"
-                    components={{
-                      link: <Text testID="terms-link" className="font-semibold text-[#3B82F6]" onPress={() => router.push('/terms')} />,
-                    }}
+                  Estados Unidos: fica desmarcado até o usuário marcar, e o cadastro exige. A caixa e
+                  o texto marcam o aceite; o trecho sublinhado abre os termos. O texto não fica dentro
+                  de um Pressable: ali o toque no trecho sublinhado ia para o Pressable e só marcava a
+                  caixa, sem abrir os termos. */}
+              <View className="flex-row items-start gap-2 py-1">
+                <Pressable
+                  testID="accept-terms"
+                  onPress={() => setAcceptedTerms((prev) => !prev)}
+                  hitSlop={8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: acceptedTerms }}
+                >
+                  <Ionicons
+                    name={acceptedTerms ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={acceptedTerms ? colors.brand : colors.mutedForeground}
                   />
+                </Pressable>
+                {/* Cor e sublinhado do link no style (e não no className) para valerem no trecho
+                    aninhado do texto. */}
+                <Text className="flex-1 text-sm text-muted-foreground" onPress={() => setAcceptedTerms((prev) => !prev)}>
+                  {t('terms.acceptBefore')}
+                  <Text
+                    testID="terms-link"
+                    onPress={() => router.push('/terms')}
+                    style={{ color: '#3B82F6', fontWeight: '600', textDecorationLine: 'underline' }}
+                  >
+                    {t('terms.acceptLink')}
+                  </Text>
+                  {t('terms.acceptAfter')}
                 </Text>
-              </Pressable>
+              </View>
 
               <Button onPress={handleRegister} className="mt-1 rounded-3xl bg-brand-100">
                 <Text className="font-semibold text-white">{t('auth.register.submit')}</Text>

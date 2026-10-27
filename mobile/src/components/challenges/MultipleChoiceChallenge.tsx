@@ -9,6 +9,7 @@ import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { MultipleChoice } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { SourceChunksSheet } from '@/components/challenges/SourceChunksSheet';
+import { alternativeLetter } from '@/lib/shuffle';
 import { ChallengeResult } from '@/types/domain/History';
 
 interface MultipleChoiceChallengeProps {
@@ -82,7 +83,7 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
 
           {/* ALTERNATIVAS */}
           <View className="gap-3">
-            {item.alternatives.map((alt) => {
+            {item.alternatives.map((alt, index) => {
               const isWrong = wrongAnswerId === alt.id;
               const isCorrect = correctAnswerId === alt.id;
 
@@ -100,6 +101,11 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
                         : 'bg-muted border-border active:bg-secondary'
                   }`}
                 >
+                  <Text
+                    className={`mr-3 font-bold ${isWrong ? 'text-red-600' : isCorrect ? 'text-green-600' : 'text-muted-foreground'}`}
+                  >
+                    {alternativeLetter(index)}
+                  </Text>
                   <Text
                     className={`flex-1 font-medium ${isWrong ? 'text-red-600' : isCorrect ? 'text-green-600' : 'text-foreground'}`}
                   >

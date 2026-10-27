@@ -77,7 +77,9 @@ export const base = {
     },
     verify: {
       title: 'Verificar código',
-      instructions: 'Digite o código de {{length}} dígitos enviado para <email>{{email}}</email>.',
+      // Antes e depois do e-mail, que aparece em destaque entre as duas partes.
+      instructionsBefore: 'Digite o código de {{length}} dígitos enviado para ',
+      instructionsAfter: '.',
       resend: 'Não recebeu? Reenviar código',
       invalidTitle: 'Código inválido',
       invalid: 'Código inválido ou expirado. Tente novamente.',
@@ -129,7 +131,7 @@ export const base = {
       system: 'Automático',
     },
     language: {
-      title: 'Idioma do app',
+      title: 'Idioma',
       pt: 'Português',
       en: 'English',
       system: 'Automático',

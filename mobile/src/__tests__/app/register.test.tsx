@@ -20,7 +20,7 @@ jest.mock('@/components/auth/AuthBackground', () => ({
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { TERMS_VERSION } from '@/constants/terms';
-import RegisterScreen from './register';
+import RegisterScreen from '@/app/(auth)/register';
 
 async function fillForm() {
   await fireEvent.changeText(screen.getByPlaceholderText('E-mail'), 'ana@example.com');

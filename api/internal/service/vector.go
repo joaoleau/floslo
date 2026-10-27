@@ -38,13 +38,17 @@ type VectorService struct {
 	VectorIndex      string
 }
 
+// Metadados gravados pelo processor em cada vetor (VectorMetadata em
+// api/processor/services/vector.py). UnmarshalSmithyDocument lê a tag `document`, não a `json`:
+// sem ela, o nome do campo é comparado sem diferenciar maiúsculas, e os nomes com sublinhado
+// (object_key, chunk_index) nunca batiam, chegando sempre vazios ("" e 0).
 type VectorMetadata struct {
-	User       string `json:"user"`
-	ObjectKey  string `json:"object_key"`
-	Language   string `json:"language"`
-	Chunk      string `json:"chunk"`
-	Page       int    `json:"page"`
-	ChunkIndex int    `json:"chunk_index"`
+	User       string `document:"user" json:"user"`
+	ObjectKey  string `document:"object_key" json:"object_key"`
+	Language   string `document:"language" json:"language"`
+	Chunk      string `document:"chunk" json:"chunk"`
+	Page       int    `document:"page" json:"page"`
+	ChunkIndex int    `document:"chunk_index" json:"chunk_index"`
 }
 
 func NewVectorService(client *s3vectors.Client, embeddingService *EmbeddingService, vectorBucket string, vectorIndex string) *VectorService {

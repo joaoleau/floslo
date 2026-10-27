@@ -5,7 +5,10 @@ export const terms = {
     title: 'Termos e privacidade',
     heading: 'Termos de uso e Política de privacidade',
     updatedAt: 'Versão de {{version}}',
-    accept: 'Li e aceito os <link>Termos de uso e a Política de privacidade</link>, inclusive o armazenamento dos meus dados nos Estados Unidos.',
+    // A frase do aceite no cadastro, em três partes: o trecho do meio é o link para os termos.
+    acceptBefore: 'Li e aceito os ',
+    acceptLink: 'Termos de uso e a Política de privacidade',
+    acceptAfter: ', inclusive o armazenamento dos meus dados nos Estados Unidos.',
     acceptRequired: 'Para criar a conta, leia e aceite os Termos de uso e a Política de privacidade.',
     aiNotice: 'Gerado por IA a partir do seu material. Pode conter erros.',
     sections: {

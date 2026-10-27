@@ -7,7 +7,9 @@ export const terms: Translation<typeof ptTerms> = {
     title: 'Terms and privacy',
     heading: 'Terms of use and Privacy policy',
     updatedAt: 'Version of {{version}}',
-    accept: 'I have read and accept the <link>Terms of use and the Privacy policy</link>, including storing my data in the United States.',
+    acceptBefore: 'I have read and accept the ',
+    acceptLink: 'Terms of use and the Privacy policy',
+    acceptAfter: ', including storing my data in the United States.',
     acceptRequired: 'To create the account, read and accept the Terms of use and the Privacy policy.',
     aiNotice: 'AI generated from your material. It may contain mistakes.',
     sections: {

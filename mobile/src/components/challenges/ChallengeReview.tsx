@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { alternativeLetter } from '@/lib/shuffle';
 
 // Modo leitura de um desafio já respondido (Múltipla escolha/V-F) -- usado tanto na revisão do
 // histórico (mobile/src/app/(history)/attempt/[id].tsx) quanto pra voltar/revisar um
@@ -32,19 +33,26 @@ export function ChoiceReview({
     if (option.id === 'FALSE') return t('challenges.trueFalse.false');
     return option.text;
   }
+  // Só as alternativas de Múltipla escolha levam letra; Verdadeiro ou Falso fica sem.
+  const isTrueFalse = options.some((option) => option.id === 'TRUE' || option.id === 'FALSE');
 
   return (
     <View className="gap-4">
       <Text className="text-xl font-bold text-foreground leading-snug">{promptText}</Text>
 
       <View className="gap-3">
-        {options.map((option) => (
+        {options.map((option, index) => (
           <View
             key={option.id}
             className={`w-full p-4 rounded-xl border flex-row items-center justify-between ${
               option.correct ? 'bg-green-500/10 border-green-500' : 'bg-muted border-border'
             }`}
           >
+            {!isTrueFalse && (
+              <Text className={`mr-3 font-bold ${option.correct ? 'text-green-600' : 'text-muted-foreground'}`}>
+                {alternativeLetter(index)}
+              </Text>
+            )}
             <Text className={`flex-1 font-medium ${option.correct ? 'text-green-600' : 'text-foreground'}`}>
               {optionText(option)}
             </Text>

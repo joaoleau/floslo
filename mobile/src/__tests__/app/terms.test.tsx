@@ -2,7 +2,7 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ back: jest.fn(), canGoBack
 
 import { screen } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
-import TermsScreen from './terms';
+import TermsScreen from '@/app/terms';
 
 describe('TermsScreen', () => {
   it('shows every section, including the international transfer and the AI notice', async () => {

@@ -10,6 +10,7 @@ import {
 import { ChallengeItem, Discovery, MultipleChoice, RAG, SourceChunk, TrueFalseItem } from '@/types/domain/RAG';
 import { SupportedLanguage } from '@/types/domain/Scheduler';
 import { schedulerMapper } from './schedulerMapper';
+import { shuffle } from '@/lib/shuffle';
 
 function sourceChunksToDomain(chunks: { content: string; score: number; object_key: string; page: number; chunk_index: number; language: string }[]): SourceChunk[] {
   return chunks.map((chunk) => ({
@@ -27,11 +28,15 @@ function multipleChoiceToDomain(raw: MultipleChoiceDTO): MultipleChoice {
     question: raw.question,
     explanation: raw.explanation,
     tag: raw.tag,
-    alternatives: raw.alternatives.map((alt) => ({
-      id: alt.id,
-      text: alt.text,
-      correct: alt.correct,
-    })),
+    // O modelo tende a escrever a alternativa certa primeiro; embaralhar aqui (uma vez por
+    // disparo, já que a consulta do disparo não é refeita) tira esse padrão.
+    alternatives: shuffle(
+      raw.alternatives.map((alt) => ({
+        id: alt.id,
+        text: alt.text,
+        correct: alt.correct,
+      })),
+    ),
     sourceChunks: sourceChunksToDomain(raw.source_chunks),
   };
 }

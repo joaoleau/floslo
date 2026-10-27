@@ -80,7 +80,8 @@ export const base: Translation<typeof ptBase> = {
     },
     verify: {
       title: 'Verify code',
-      instructions: 'Enter the {{length}}-digit code sent to <email>{{email}}</email>.',
+      instructionsBefore: 'Enter the {{length}}-digit code sent to ',
+      instructionsAfter: '.',
       resend: "Didn't get it? Resend code",
       invalidTitle: 'Invalid code',
       invalid: 'Invalid or expired code. Try again.',
@@ -132,7 +133,7 @@ export const base: Translation<typeof ptBase> = {
       system: 'Automatic',
     },
     language: {
-      title: 'App language',
+      title: 'Language',
       pt: 'Português',
       en: 'English',
       system: 'Automatic',

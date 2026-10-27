@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -55,11 +55,9 @@ export default function VerifyCodeScreen() {
         <View className="p-5">
           <Card className="rounded-3xl p-5 gap-4">
             <Text className="text-muted-foreground">
-              <Trans
-                i18nKey="auth.verify.instructions"
-                values={{ length: CODE_LENGTH, email }}
-                components={{ email: <Text className="font-semibold text-foreground" /> }}
-              />
+              {t('auth.verify.instructionsBefore', { length: CODE_LENGTH })}
+              <Text className="font-semibold text-foreground">{email}</Text>
+              {t('auth.verify.instructionsAfter')}
             </Text>
 
             <CodeInput length={CODE_LENGTH} value={code} onChangeText={handleChangeCode} editable={!verifyResetCodeMutation.isPending} />
