@@ -193,13 +193,17 @@ class BedrockTagRefinerClient:
 A tag is a key concept of the material: a noun or a short noun phrase that names a topic, an idea, a theme or a subject. The document can be about anything, so do not assume a field. Tags guide the generation of study challenges and the search for related content.
 
 For each candidate that points to a real concept, write the clean tag:
-- Remove verbs, pronouns and filler words.
+- Remove verbs, pronouns and filler words, keeping only the concept. "inflation rises sharply" becomes "inflation".
 - Fix spelling, accents and broken or truncated words. "articial" becomes "artificial", "photosyn" becomes "photosynthesis".
 - Use lowercase and the canonical form (singular when natural).
 - Keep it short, ideally 1 to 3 words.
 - {language_rule}
 
-Discard candidates that are not a concept: sentence fragments with no topic, publisher, author, edition or copyright text, and generic words that name nothing (such as "example", "chapter" or "thing").
+Discard candidates that are not a concept: sentence fragments with no topic, names of people or characters, publisher, author, edition or copyright text, and generic words that name nothing (such as "example", "chapter" or "thing"). When several candidates are the same concept, return it once.
+
+You may add a concept when the candidates clearly point to it, but never invent one that the candidates do not support.
+
+Return as many tags as the document really has, and only what it is about: a document with one subject may give a single tag, a dense one may give many. Do not pad the list and do not repeat a tag.
 
 CANDIDATES:
 {candidates_list}

@@ -154,7 +154,7 @@ class PromptTests(unittest.TestCase):
         self.assertIn("A tag is a key concept of the material", prompt)
         self.assertIn("Remove verbs", prompt)
         self.assertIn("Fix spelling", prompt)
-        self.assertNotIn("You may add a concept", prompt)
+        self.assertIn("You may add a concept when the candidates clearly point to it", prompt)
         self.assertTrue(prompt.rstrip().endswith('{"tags": ["...", "..."]}'))
 
     def test_every_candidate_is_listed_in_order_without_a_ranking_claim(self):
@@ -216,7 +216,7 @@ class PromptTests(unittest.TestCase):
     def test_the_prompt_does_not_fix_a_number_of_tags(self):
         prompt = self.prompt([f"c{index}" for index in range(300)])
         instructions = prompt.split("CANDIDATES:")[0].lower()
-        self.assertNotIn("as many tags as the document really has", instructions)
+        self.assertIn("as many tags as the document really has", instructions)
         self.assertNotRegex(instructions, r"\b(top|exactly|at most|up to|between)\b")
         self.assertNotRegex(instructions, r"\d+\s+(tags|keywords|concepts)")
 
