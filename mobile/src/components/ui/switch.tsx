@@ -18,15 +18,11 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
     >
       <SwitchPrimitives.Thumb
         className={cn(
-          'size-4 rounded-full bg-background transition-transform',
+          'size-4 rounded-full bg-background dark:bg-foreground transition-transform',
           Platform.select({
             web: 'pointer-events-none block ring-0',
           }),
-          // Percurso = largura do track (36px) - tamanho do thumb (16px) = 20px exatos,
-          // sem borda no track pra não sobrar folga assimétrica -- ver switch.tsx no plano.
-          props.checked
-            ? 'translate-x-5 dark:bg-primary-foreground'
-            : 'translate-x-0 dark:bg-foreground',
+          props.checked ? 'translate-x-5' : 'translate-x-0',
         )}
       />
     </SwitchPrimitives.Root>

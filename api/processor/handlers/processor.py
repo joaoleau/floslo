@@ -27,13 +27,10 @@ PDF_OCR_REQUIRED_MESSAGE = (
 )
 
 FAILED_OBJECT_TTL_MINUTES = 10
-# Padrão de TAG_MAX_LENGTH. Tamanho máximo de uma tag, em caracteres: o backend em Go usa a
-# mesma variável e corta tag maior numa edição.
 MAX_TAG_LENGTH = 32
 
 
 def _clip_tags(tags: list[str], max_length: int = MAX_TAG_LENGTH) -> list[str]:
-    # Tag que não cabe é descartada, nunca cortada: cortar deixava palavra pela metade.
     seen: set[str] = set()
     kept: list[str] = []
     for tag in tags:
@@ -139,7 +136,6 @@ class ProcessorHandler:
         try:
             total_pages = 0
             total_chunks = 0
-            # O texto de todas as páginas, para o YAKE ler o documento inteiro de uma vez no fim.
             page_texts: list[str] = []
             vector_objects: list[VectorObject] = []
 
@@ -164,7 +160,6 @@ class ProcessorHandler:
                         object_key=object_key,
                         page=page,
                         chunk_index=chunk.index,
-                        # Preenchido com o idioma do documento depois da extração de tags.
                         language="unknown",
                         chunk=chunk.text
                     )
@@ -176,8 +171,6 @@ class ProcessorHandler:
             if not vector_objects:
                 raise RuntimeError(f"No vectors generated for s3://{bucket}/{object_key}")
 
-            # O YAKE roda uma vez sobre o texto do documento inteiro, e as candidatas vão ao
-            # refinador numa chamada só.
             language, candidates = self._extract_tags(object_key, "\n".join(page_texts))
             for vector_object in vector_objects:
                 vector_object.metadata.language = language
@@ -235,9 +228,6 @@ class ProcessorHandler:
             )
 
     def _extract_tags(self, object_key: str, text: str) -> tuple[str, list[str]]:
-        """Extrai as candidatas do texto do documento inteiro. Devolve o idioma detectado e as
-        candidatas, ou ("unknown", []) se a extração falhar: o documento ainda é indexado, só
-        sem tags."""
         try:
             tag_result = self.tag_service.get_tags(text)
             return tag_result.language, [tag.value for tag in tag_result.tags]
@@ -299,12 +289,6 @@ class ProcessorHandler:
         return parts[1]
 
     def _extract_object_name_from_key(self, key: str) -> str | None:
-        # A API dá a cada upload sua própria "pasta" (id único) dentro de
-        # tenants/{userId}/context/ -- tenants/{userId}/context/{id único}/{nome escolhido
-        # pelo usuário} -- pra garantir uma chave S3 exclusiva por upload sem precisar
-        # fundir id e nome num único segmento (ver buildStorageObjectName em
-        # handler/storage.go). O nome de exibição do objeto já é, portanto, só o último
-        # segmento do caminho -- sem nenhum parsing extra de string.
         parts = key.split("/")
         if len(parts) < 3:
             return None

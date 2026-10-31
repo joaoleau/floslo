@@ -1,5 +1,3 @@
-// src/hooks/useHistory.ts
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { historyService } from '@/services/historyService';
@@ -66,10 +64,6 @@ export function useAttemptDetailQuery(attemptId: string) {
   });
 }
 
-// Chamado depois que uma sessão de alarme termina de gravar no SQLite, pra tela de
-// Histórico buscar dado fresco na próxima vez que for aberta (o SQLite não emite eventos
-// de mudança sozinho, diferente de uma query de rede que o React Query já invalida via
-// mutation).
 export function useInvalidateHistory() {
   const queryClient = useQueryClient();
 

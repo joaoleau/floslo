@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -105,5 +107,15 @@ func TestDefaultTagLimitsMatchTheProcessor(t *testing.T) {
 	// O processor devolve até TAG_REFINER_MAX_TAGS (200) tags: o backend não pode cortar abaixo disso.
 	if DefaultTagLimits.MaxPerObject < 200 {
 		t.Errorf("default max tags per object = %d, want at least the 200 the processor returns", DefaultTagLimits.MaxPerObject)
+	}
+}
+
+func TestUpdateObjectTagsRefusesToLeaveTheDocumentWithoutTags(t *testing.T) {
+	service := &ObjectService{TagLimits: TagLimits{}.withDefaults()}
+
+	for _, tags := range [][]string{nil, {}, {"   ", ""}} {
+		if _, err := service.UpdateObjectTags(context.Background(), "user-1", "obj-1", tags); !errors.Is(err, ErrNoTags) {
+			t.Errorf("UpdateObjectTags(%q) error = %v, want ErrNoTags", tags, err)
+		}
 	}
 }

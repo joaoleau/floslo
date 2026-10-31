@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { Screen } from '@/components/common/Screen';
 import { Header } from '@/components/common/Header';
@@ -10,11 +11,13 @@ import { CodeInput } from '@/components/common/CodeInput';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { useResetPasswordMutation, useVerifyResetCodeMutation } from '@/hooks/useAuth';
 import { showAlert } from '@/services/alertService';
+import { errorMessage } from '@/i18n/errors';
 
 const CODE_LENGTH = 6;
 
 export default function VerifyCodeScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { email } = useLocalSearchParams<{ email: string }>();
   const [code, setCode] = useState('');
   const verifyResetCodeMutation = useVerifyResetCodeMutation();
@@ -27,9 +30,9 @@ export default function VerifyCodeScreen() {
     try {
       await verifyResetCodeMutation.mutateAsync({ email, code: value });
       router.push({ pathname: '/(auth)/new-password', params: { email, code: value } });
-    } catch (error: any) {
+    } catch (error) {
       console.error('[VerifyCode] Código inválido', error);
-      showAlert('Código inválido', error.message || 'Código inválido ou expirado. Tente novamente.');
+      showAlert(t('auth.verify.invalidTitle'), errorMessage(error, 'auth.verify.invalid'));
       setCode('');
     }
   }
@@ -38,22 +41,23 @@ export default function VerifyCodeScreen() {
     try {
       await resendMutation.mutateAsync(email);
       setCode('');
-      showAlert('Código reenviado', 'Enviamos um novo código para o seu e-mail.');
-    } catch (error: any) {
+      showAlert(t('auth.verify.resentTitle'), t('auth.verify.resent'));
+    } catch (error) {
       console.error('[VerifyCode] Falha ao reenviar código', error);
-      showAlert('Erro', error.message || 'Falha ao reenviar o código');
+      showAlert(t('common.error'), errorMessage(error, 'auth.verify.resendFailed'));
     }
   }
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <Header title="Verificar código" />
+      <Header title={t('auth.verify.title')} />
       <AuthBackground>
         <View className="p-5">
           <Card className="rounded-3xl p-5 gap-4">
             <Text className="text-muted-foreground">
-              Digite o código de {CODE_LENGTH} dígitos enviado para{' '}
-              <Text className="font-semibold text-foreground">{email}</Text>.
+              {t('auth.verify.instructionsBefore', { length: CODE_LENGTH })}
+              <Text className="font-semibold text-foreground">{email}</Text>
+              {t('auth.verify.instructionsAfter')}
             </Text>
 
             <CodeInput length={CODE_LENGTH} value={code} onChangeText={handleChangeCode} editable={!verifyResetCodeMutation.isPending} />
@@ -61,7 +65,7 @@ export default function VerifyCodeScreen() {
             {verifyResetCodeMutation.isPending && <ActivityIndicator />}
 
             <Pressable onPress={handleResend} disabled={resendMutation.isPending} className="items-center py-2">
-              <Text className="text-sm font-medium text-[#3B82F6]">Não recebeu? Reenviar código</Text>
+              <Text className="text-sm font-medium text-[#3B82F6]">{t('auth.verify.resend')}</Text>
             </Pressable>
           </Card>
         </View>

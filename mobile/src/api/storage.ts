@@ -21,17 +21,6 @@ export const storageApi = {
     return api.delete<{ message: string }>('/api/storage/delete', body);
   },
 
-  /**
-   * Uploads a locally-picked file straight to S3 using a presigned POST.
-   * This deliberately bypasses api/http/client.ts: it's a pre-signed,
-   * anonymous, multipart/form-data POST, not a call to our API.
-   *
-   * Presigned POST (not PUT) is what lets S3 enforce the upload size limit
-   * (content-length-range, set server-side when the URL is signed) and
-   * reject an oversized file before accepting any bytes -- the `file`
-   * field must be appended last, after every other field from `presign.fields`,
-   * per S3's POST policy requirements.
-   */
   async uploadFileToPresignedUrl(presign: PresignUploadDTO, fileUri: string, mimeType?: string): Promise<void> {
     const fileResponse = await fetch(fileUri);
     const blob = await fileResponse.blob();

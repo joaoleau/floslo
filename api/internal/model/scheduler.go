@@ -57,10 +57,6 @@ func (c ChallengeType) String() string {
 	return string(c)
 }
 
-// Language is the scheduler's output/content language (one per scheduler, applied to every
-// challenge of a firing; retrieval never filters by it). Keep this set in sync with
-// api/processor/services/tag.py's SUPPORTED_LANGUAGES and mobile's SUPPORTED_LANGUAGES
-// (src/types/domain/Scheduler.ts) -- there is no shared package between the three.
 type Language string
 
 const (
@@ -97,17 +93,10 @@ type TrueFalseChallengeConfig struct {
 	QuestionCount int `dynamodbav:"question_count"`
 }
 
-// DiscoveryChallengeConfig is content-only ("did you know"): it presents a passage without
-// asking anything, so it produces no grade.
 type DiscoveryChallengeConfig struct {
 	DiscoveryCount int `dynamodbav:"discovery_count"`
 }
 
-// Challenger holds exactly one of MultipleChoice/TrueFalse/Discovery, selected by
-// ChallengeType. Only one config pointer should be non-nil at a time --
-// SchedulerService.validateChallenger enforces this on write; adding a new challenge type
-// means one more ChallengeType const, one more *Config pointer field, and one more switch
-// case, nothing else restructures.
 type Challenger struct {
 	ChallengeType  ChallengeType                  `dynamodbav:"challenge_type"`
 	MultipleChoice *MultipleChoiceChallengeConfig `dynamodbav:"multiple_choice,omitempty"`
@@ -115,8 +104,6 @@ type Challenger struct {
 	Discovery      *DiscoveryChallengeConfig      `dynamodbav:"discovery,omitempty"`
 }
 
-// ItemCount is how many items this challenger asks for in one firing, or 0 when its
-// config is missing.
 func (c Challenger) ItemCount() int {
 	switch c.ChallengeType {
 	case ChallengeTypeMultipleChoice:
@@ -136,18 +123,15 @@ func (c Challenger) ItemCount() int {
 }
 
 type Scheduler struct {
-	PK         string    `dynamodbav:"PK"`
-	SK         string    `dynamodbav:"SK"`
-	Id         string    `dynamodbav:"id"`
-	Name       string    `dynamodbav:"name"`
-	Language   Language  `dynamodbav:"language"`
-	WeekDays   []Weekday `dynamodbav:"weekdays"`
-	StartTime  string    `dynamodbav:"start_time"`
-	AlarmSound string    `dynamodbav:"alarm_sound"`
-	Vibration  bool      `dynamodbav:"vibration"`
-	// Ponteiro (não bool puro) de propósito: nil diferencia "nunca setado" (schedulers
-	// criados antes desse campo existir) de "setado como false" -- o fallback pro
-	// comportamento antigo implícito (ver dto.ToSchedulerResponseDTOList) depende disso.
+	PK           string       `dynamodbav:"PK"`
+	SK           string       `dynamodbav:"SK"`
+	Id           string       `dynamodbav:"id"`
+	Name         string       `dynamodbav:"name"`
+	Language     Language     `dynamodbav:"language"`
+	WeekDays     []Weekday    `dynamodbav:"weekdays"`
+	StartTime    string       `dynamodbav:"start_time"`
+	AlarmSound   string       `dynamodbav:"alarm_sound"`
+	Vibration    bool         `dynamodbav:"vibration"`
 	SoundEnabled *bool        `dynamodbav:"sound_enabled,omitempty"`
 	ObjectIds    []string     `dynamodbav:"object_ids"`
 	Challengers  []Challenger `dynamodbav:"challengers"`

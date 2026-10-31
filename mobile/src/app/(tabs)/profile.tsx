@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/common/Screen';
@@ -18,17 +19,28 @@ import { showAlert } from '@/services/alertService';
 import { useTheme, ThemePreference } from '@/lib/ThemeProvider';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { isPasswordValid } from '@/lib/passwordPolicy';
+import { errorMessage } from '@/i18n/errors';
+import { useLanguagePreference } from '@/hooks/useLanguagePreference';
+import { LanguagePreference } from '@/i18n';
 
-const THEME_OPTIONS: { value: ThemePreference; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { value: 'light', label: 'Claro', icon: 'sunny-outline' },
-  { value: 'dark', label: 'Escuro', icon: 'moon-outline' },
-  { value: 'system', label: 'Automático', icon: 'phone-portrait-outline' },
+const THEME_OPTIONS: { value: ThemePreference; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'light', icon: 'sunny-outline' },
+  { value: 'dark', icon: 'moon-outline' },
+  { value: 'system', icon: 'phone-portrait-outline' },
+];
+
+const LANGUAGE_OPTIONS: { value: LanguagePreference; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { value: 'pt', icon: 'language-outline' },
+  { value: 'en', icon: 'language-outline' },
+  { value: 'system', icon: 'phone-portrait-outline' },
 ];
 
 export default function Profile() {
   const router = useRouter();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { preference, setPreference } = useTheme();
+  const language = useLanguagePreference();
 
   const { data: user, isPending, isError, refetch } = useMeQuery();
   const deleteMeMutation = useDeleteMeMutation();
@@ -47,7 +59,7 @@ export default function Profile() {
     if (!user) return;
     const username = editedUsername.trim();
     if (!username) {
-      showAlert('Atenção', 'O apelido não pode ficar em branco.');
+      showAlert(t('common.attention'), t('profile.usernameRequired'));
       return;
     }
     if (username === user.username) {
@@ -58,9 +70,9 @@ export default function Profile() {
     try {
       await updateMeMutation.mutateAsync({ username });
       setIsEditingUsername(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error('[Profile] Falha ao atualizar apelido', err);
-      showAlert('Erro', err.message || 'Falha ao salvar. O apelido pode já estar em uso.');
+      showAlert(t('common.error'), errorMessage(err, 'profile.usernameFailed'));
     }
   }
 
@@ -71,15 +83,15 @@ export default function Profile() {
 
   async function handleChangePassword() {
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      showAlert('Atenção', 'Preencha sua senha atual, a nova senha e a confirmação.');
+      showAlert(t('common.attention'), t('profile.password.fieldsRequired'));
       return;
     }
     if (!isPasswordValid(newPassword)) {
-      showAlert('Senha fraca', 'Sua nova senha precisa atender aos requisitos listados abaixo do campo.');
+      showAlert(t('auth.weakPassword.title'), t('auth.weakPassword.newMessage'));
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      showAlert('Atenção', 'A confirmação não é igual à nova senha.');
+      showAlert(t('common.attention'), t('auth.newPassword.mismatch'));
       return;
     }
 
@@ -89,10 +101,10 @@ export default function Profile() {
       setNewPassword('');
       setConfirmNewPassword('');
       setShowChangePassword(false);
-      showAlert('Sucesso', 'Sua senha foi alterada.');
-    } catch (err: any) {
+      showAlert(t('common.success'), t('auth.newPassword.changed'));
+    } catch (err) {
       console.error('[Profile] Falha ao trocar senha', err);
-      showAlert('Erro', err.message || 'Senha atual incorreta ou falha ao trocar a senha.');
+      showAlert(t('common.error'), errorMessage(err, 'profile.password.failed'));
     }
   }
 
@@ -103,12 +115,12 @@ export default function Profile() {
 
   function handleDeleteAccount() {
     showAlert(
-      'Excluir conta',
-      'Tem certeza que deseja excluir sua conta? Esta ação não pode ser desfeita.',
+      t('profile.deleteAccount.title'),
+      t('profile.deleteAccount.confirm'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -117,7 +129,7 @@ export default function Profile() {
               router.replace('/(auth)/login');
             } catch (err) {
               console.error('[Profile] Falha ao excluir conta', err);
-              showAlert('Erro', 'Falha ao excluir a conta.');
+              showAlert(t('common.error'), t('profile.deleteAccount.failed'));
             }
           },
         },
@@ -127,14 +139,14 @@ export default function Profile() {
 
   return (
     <Screen edges={['top', 'left', 'right']}>
-      <Header title="Perfil" showBackButton={false} />
+      <Header title={t('profile.title')} showBackButton={false} />
 
       {isPending ? (
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError || !user ? (
-        <ErrorState message="Não foi possível carregar seu perfil." onRetry={() => refetch()} />
+        <ErrorState message={t('profile.loadFailed')} onRetry={() => refetch()} />
       ) : (
         <ScrollView
           className="flex-1"
@@ -184,7 +196,7 @@ export default function Profile() {
               >
                 <View className="flex-row items-center gap-2">
                   <Ionicons name="lock-closed-outline" size={16} color={colors.brand} />
-                  <Text className="font-semibold text-foreground">Trocar senha</Text>
+                  <Text className="font-semibold text-foreground">{t('profile.password.title')}</Text>
                 </View>
                 <Ionicons name={showChangePassword ? 'chevron-up' : 'chevron-down'} size={18} color={colors.brandSoft} />
               </Pressable>
@@ -192,14 +204,14 @@ export default function Profile() {
               {showChangePassword && (
                 <View className="gap-3">
                   <Input
-                    placeholder="Senha atual"
+                    placeholder={t('profile.password.current')}
                     value={currentPassword}
                     onChangeText={setCurrentPassword}
                     secureTextEntry
                   />
-                  <Input placeholder="Nova senha" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+                  <Input placeholder={t('auth.newPassword.newPassword')} value={newPassword} onChangeText={setNewPassword} secureTextEntry />
                   <Input
-                    placeholder="Confirmar nova senha"
+                    placeholder={t('auth.newPassword.confirm')}
                     value={confirmNewPassword}
                     onChangeText={setConfirmNewPassword}
                     secureTextEntry
@@ -213,7 +225,7 @@ export default function Profile() {
                     {updateMeMutation.isPending ? (
                       <ActivityIndicator color="white" />
                     ) : (
-                      <Text className="font-semibold text-white">Confirmar troca</Text>
+                      <Text className="font-semibold text-white">{t('profile.password.submit')}</Text>
                     )}
                   </Button>
                 </View>
@@ -222,7 +234,7 @@ export default function Profile() {
           </Card>
 
           <Card className="rounded-3xl p-5 gap-4">
-            <Text className="text-lg font-semibold text-foreground">Aparência</Text>
+            <Text className="text-lg font-semibold text-foreground">{t('profile.theme.title')}</Text>
             <View className="flex-row gap-3">
               {THEME_OPTIONS.map((option) => {
                 const isSelected = option.value === preference;
@@ -236,7 +248,7 @@ export default function Profile() {
                   >
                     <Ionicons name={option.icon} size={20} color={isSelected ? colors.brand : colors.brandSoft} />
                     <Text className={`text-xs ${isSelected ? 'font-semibold text-brand-100' : 'text-muted-foreground'}`}>
-                      {option.label}
+                      {t(`profile.theme.${option.value}`)}
                     </Text>
                   </Pressable>
                 );
@@ -244,18 +256,55 @@ export default function Profile() {
             </View>
           </Card>
 
+          <Card className="rounded-3xl p-5 gap-4">
+            <Text className="text-lg font-semibold text-foreground">{t('profile.language.title')}</Text>
+            <View className="flex-row gap-3">
+              {LANGUAGE_OPTIONS.map((option) => {
+                const isSelected = option.value === language.preference;
+                return (
+                  <Pressable
+                    key={option.value}
+                    testID={`language-option-${option.value}`}
+                    onPress={() => language.setPreference(option.value)}
+                    className={`flex-1 items-center gap-1.5 rounded-xl border py-3 ${
+                      isSelected ? 'border-brand-100 bg-brand-100/10' : 'border-border'
+                    }`}
+                  >
+                    <Ionicons name={option.icon} size={20} color={isSelected ? colors.brand : colors.brandSoft} />
+                    <Text className={`text-xs ${isSelected ? 'font-semibold text-brand-100' : 'text-muted-foreground'}`}>
+                      {t(`profile.language.${option.value}`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text className="text-xs text-muted-foreground">{t('profile.language.hint')}</Text>
+          </Card>
+
+          <Pressable
+            testID="open-terms"
+            onPress={() => router.push('/terms')}
+            className="flex-row items-center justify-between rounded-3xl border border-border bg-card px-5 py-4"
+          >
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="document-text-outline" size={18} color={colors.brand} />
+              <Text className="font-semibold text-foreground">{t('terms.title')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.brandSoft} />
+          </Pressable>
+
           <Button
             onPress={handleDeleteAccount}
             disabled={deleteMeMutation.isPending}
             className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
           >
             <Ionicons name="trash-outline" size={20} color="white" />
-            <Text className="ml-2 font-semibold text-white">Excluir conta</Text>
+            <Text className="ml-2 font-semibold text-white">{t('profile.deleteAccount.title')}</Text>
           </Button>
 
           <Button onPress={handleLogout} variant="outline" className="rounded-3xl">
             <Ionicons name="log-out-outline" size={20} color={colors.brand} />
-            <Text className="ml-2 font-semibold">Sair</Text>
+            <Text className="ml-2 font-semibold">{t('profile.logout')}</Text>
           </Button>
         </ScrollView>
       )}

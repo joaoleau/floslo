@@ -15,20 +15,16 @@ import (
 
 const deleteVectorsBatchSize = 500
 
-// getVectorsBatchSize é o limite de chaves por requisição do GetVectors.
 const getVectorsBatchSize = 100
 
 type RetrievedChunk struct {
-	// Key é o id determinístico do vetor (vec_<objectId>_<page>_<chunkIndex>), que também
-	// serve para achar os vizinhos de apoio.
 	Key        string
 	Content    string
 	Score      float64
 	ObjectKey  string
 	Page       int
 	ChunkIndex int
-	// Language só identifica o idioma detectado do chunk; nenhuma busca filtra por ele.
-	Language string
+	Language   string
 }
 
 type VectorService struct {
@@ -39,12 +35,12 @@ type VectorService struct {
 }
 
 type VectorMetadata struct {
-	User       string `json:"user"`
-	ObjectKey  string `json:"object_key"`
-	Language   string `json:"language"`
-	Chunk      string `json:"chunk"`
-	Page       int    `json:"page"`
-	ChunkIndex int    `json:"chunk_index"`
+	User       string `document:"user" json:"user"`
+	ObjectKey  string `document:"object_key" json:"object_key"`
+	Language   string `document:"language" json:"language"`
+	Chunk      string `document:"chunk" json:"chunk"`
+	Page       int    `document:"page" json:"page"`
+	ChunkIndex int    `document:"chunk_index" json:"chunk_index"`
 }
 
 func NewVectorService(client *s3vectors.Client, embeddingService *EmbeddingService, vectorBucket string, vectorIndex string) *VectorService {
@@ -71,8 +67,6 @@ func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId strin
 	return s.sortAndBuildChunks(vectors)
 }
 
-// GetChunksByKeys busca chunks diretamente pelo id do vetor, sem consulta de similaridade.
-// Chaves que não existem no índice simplesmente não aparecem no resultado.
 func (s *VectorService) GetChunksByKeys(ctx context.Context, keys []string) (map[string]RetrievedChunk, error) {
 	chunks := make(map[string]RetrievedChunk, len(keys))
 

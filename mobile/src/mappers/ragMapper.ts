@@ -1,5 +1,3 @@
-// src/mappers/ragMapper.ts
-
 import {
   ChallengeResultDTO,
   DiscoveryDTO,
@@ -10,12 +8,14 @@ import {
 import { ChallengeItem, Discovery, MultipleChoice, RAG, SourceChunk, TrueFalseItem } from '@/types/domain/RAG';
 import { SupportedLanguage } from '@/types/domain/Scheduler';
 import { schedulerMapper } from './schedulerMapper';
+import { shuffle } from '@/lib/shuffle';
+import { documentName } from '@/lib/documentName';
 
 function sourceChunksToDomain(chunks: { content: string; score: number; object_key: string; page: number; chunk_index: number; language: string }[]): SourceChunk[] {
   return chunks.map((chunk) => ({
     content: chunk.content,
     score: chunk.score,
-    objectKey: chunk.object_key,
+    objectKey: documentName(chunk.object_key),
     page: chunk.page,
     chunkIndex: chunk.chunk_index,
     language: chunk.language,
@@ -27,11 +27,13 @@ function multipleChoiceToDomain(raw: MultipleChoiceDTO): MultipleChoice {
     question: raw.question,
     explanation: raw.explanation,
     tag: raw.tag,
-    alternatives: raw.alternatives.map((alt) => ({
-      id: alt.id,
-      text: alt.text,
-      correct: alt.correct,
-    })),
+    alternatives: shuffle(
+      raw.alternatives.map((alt) => ({
+        id: alt.id,
+        text: alt.text,
+        correct: alt.correct,
+      })),
+    ),
     sourceChunks: sourceChunksToDomain(raw.source_chunks),
   };
 }
@@ -69,11 +71,21 @@ function challengeResultToItems(raw: ChallengeResultDTO): ChallengeItem[] {
   }
 }
 
+export const FIRING_TYPE_ORDER: ChallengeItem['type'][] = ['DISCOVERY', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
+
+function firingRank(type: string): number {
+  const rank = FIRING_TYPE_ORDER.indexOf(type as ChallengeItem['type']);
+  return rank === -1 ? FIRING_TYPE_ORDER.length : rank;
+}
+
 export const ragMapper = {
   toDomain(raw: RAGDTO): RAG {
+    const results = [...(raw.challenges ?? [])].sort(
+      (a, b) => firingRank(a.challenge_type) - firingRank(b.challenge_type)
+    );
     return {
       scheduler: schedulerMapper.toDomain(raw.scheduler),
-      challenges: (raw.challenges ?? []).flatMap(challengeResultToItems),
+      challenges: results.flatMap(challengeResultToItems),
       currentStreak: raw.current_streak,
     };
   },

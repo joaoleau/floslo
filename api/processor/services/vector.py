@@ -7,7 +7,6 @@ from .utils import build_vector_id
 
 logger = logging.getLogger(__name__)
 
-# Limite do S3 Vectors por requisição de PutVectors e de DeleteVectors.
 VECTORS_BATCH_SIZE = 500
 
 
@@ -92,8 +91,6 @@ class VectorService:
             )
         except Exception:
             logger.exception("Failed batch vector save.")
-            # Com mais de um lote, uma falha no meio deixaria vetores órfãos que o handler
-            # não conhece (ele só recebe os ids quando save() termina) -- limpa aqui.
             self._delete_stored_after_failure(stored_ids)
             raise
 
@@ -143,4 +140,3 @@ class VectorService:
             self.delete(stored_ids)
         except Exception:
             logger.exception(f"Failed cleaning up {len(stored_ids)} vectors stored before a failed save.")
-

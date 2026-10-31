@@ -13,8 +13,6 @@ from services import (
     DynamoService, DynamoServiceData
 )
 
-# Nível de log pelo ambiente (LOG_LEVEL=DEBUG para investigar). O padrão é INFO: no DEBUG
-# o botocore imprime cada requisição e o YAKE cada palavra, e os logs úteis se perdem.
 logger = logging.getLogger()
 logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
 for noisy in ("boto3", "botocore", "s3transfer", "urllib3"):
@@ -52,7 +50,11 @@ try:
     )
     vector_service = VectorService(vector_service_data)
 
-    chunk_service_data = ChunkServiceData(chunk_size=cfg.chunk_size, chunk_overlap=cfg.chunk_overlap)
+    chunk_service_data = ChunkServiceData(
+        chunk_size=cfg.chunk_size,
+        chunk_overlap=cfg.chunk_overlap,
+        min_chunk_length=cfg.min_chunk_length,
+    )
     chunk_service = ChunkService(chunk_service_data)
 
     dynamo_service_data = DynamoServiceData(dynamodb_table_name=cfg.dynamo_table_name, dynamodb_client=cfg.dynamo_client)

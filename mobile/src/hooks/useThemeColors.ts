@@ -1,10 +1,6 @@
 import { useTheme } from '@/lib/ThemeProvider';
 import { FIXED_HEX, HEX } from '@/lib/theme-tokens';
 
-/**
- * Resolves the active theme into plain hex values for places that take a real color
- * (e.g. `<Ionicons color="...">`) instead of a NativeWind className.
- */
 export function useThemeColors() {
   const { mode } = useTheme();
   const hex = mode === 'dark' ? HEX.dark : HEX.light;

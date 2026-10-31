@@ -8,6 +8,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -35,12 +36,11 @@ import { getColorForId } from '@/lib/hashColor';
 import { getExtensionColor } from '@/lib/fileExtensionColors';
 import { showAlert } from '@/services/alertService';
 import { showFieldHelp } from '@/services/fieldHelpService';
-
-const TAGS_HELP_TEXT =
-  'Representam as palavras-chave e os principais conceitos do conteúdo desse objeto, usados para gerar os desafios. Algumas já vêm sugeridas automaticamente pela IA durante o processamento, mas você pode adicionar, remover ou ajustar como preferir.';
+import { objectFailureMessage } from '@/i18n/objectFailure';
 
 export default function ObjectDetails() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -67,12 +67,10 @@ export default function ObjectDetails() {
       setIsRenaming(false);
     } catch (err) {
       console.error(`[ObjectDetails] Falha ao renomear objeto "${object.id}"`, err);
-      showAlert('Erro', 'Falha ao renomear o objeto.');
+      showAlert(t('common.error'), t('objects.detail.renameFailed'));
     }
   }
 
-  // Reset local tag state when a (new) object finishes loading, without a
-  // setState-in-effect cascade — see https://react.dev/learn/you-might-not-need-an-effect
   if (object && object.id !== loadedObjectId) {
     setLoadedObjectId(object.id);
     setTags(object.tags);
@@ -94,12 +92,16 @@ export default function ObjectDetails() {
 
   async function handleSave() {
     if (!object) return;
+    if (tags.length === 0) {
+      showAlert(t('objects.detail.tagRequiredTitle'), t('objects.detail.tagRequired'));
+      return;
+    }
     try {
       await updateTagsMutation.mutateAsync({ id: object.id, tags });
       router.back();
     } catch (err) {
       console.error(`[ObjectDetails] Falha ao salvar tags do objeto "${object.id}"`, err);
-      showAlert('Erro', 'Falha ao salvar as alterações.');
+      showAlert(t('common.error'), t('objects.detail.saveFailed'));
     }
   }
 
@@ -107,12 +109,12 @@ export default function ObjectDetails() {
     if (!object) return;
 
     showAlert(
-      'Excluir Objeto',
-      'Tem certeza que deseja excluir? Esta ação não pode ser desfeita.',
+      t('objects.detail.deleteTitle'),
+      t('objects.detail.deleteConfirm'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -120,7 +122,7 @@ export default function ObjectDetails() {
               router.back();
             } catch (err) {
               console.error(`[ObjectDetails] Falha ao excluir objeto "${object.id}"`, err);
-              showAlert('Erro', 'Falha ao excluir o objeto.');
+              showAlert(t('common.error'), t('objects.detail.deleteFailed'));
             }
           },
         },
@@ -131,7 +133,7 @@ export default function ObjectDetails() {
   if (isPending) {
     return (
       <Screen>
-        <Header title="Editar Objeto" />
+        <Header title={t('objects.detail.title')} />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
@@ -142,25 +144,22 @@ export default function ObjectDetails() {
   if (isError || !object) {
     return (
       <Screen>
-        <Header title="Erro" />
+        <Header title={t('common.error')} />
         <View className="flex-1 justify-center items-center">
-          <Text>Objeto não encontrado.</Text>
+          <Text>{t('errors.api.objectNotFound')}</Text>
         </View>
       </Screen>
     );
   }
 
   const isEditable = object.status === 'active';
-  // Mesma cor por hash do id usada no card da listagem, esmaecendo pro fundo padrão do
-  // app -- só um toque de cor no topo da tela. A badge de extensão usa a mesma cor
-  // semântica por tipo de arquivo do ObjectCard.
   const accentColor = getColorForId(object.id);
   const extensionColor = getExtensionColor(object.extension);
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
       <Header
-        title="Editar Objeto"
+        title={t('objects.detail.title')}
         rightAction={
           updateTagsMutation.isPending ? (
             <ActivityIndicator color={colors.brand} />
@@ -231,7 +230,7 @@ export default function ObjectDetails() {
                   <ObjectStatusBadge status={object.status} />
                   {object.status === 'failed' && (
                     <Text className="flex-1 text-right text-sm text-muted-foreground">
-                      {object.errorMessage || 'Falha ao processar o documento.'}
+                      {objectFailureMessage(object.errorMessage)}
                     </Text>
                   )}
                 </View>
@@ -240,8 +239,8 @@ export default function ObjectDetails() {
               <Separator />
 
               <View className="flex-row items-center gap-1.5">
-                <Text className="text-lg font-semibold text-foreground">Tags</Text>
-                <Pressable onPress={() => showFieldHelp('Tags', TAGS_HELP_TEXT)} hitSlop={8}>
+                <Text className="text-lg font-semibold text-foreground">{t('objects.detail.tags')}</Text>
+                <Pressable onPress={() => showFieldHelp(t('objects.detail.tags'), t('objects.detail.tagsHelp'))} hitSlop={8}>
                   <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
                 </Pressable>
               </View>
@@ -252,7 +251,7 @@ export default function ObjectDetails() {
                   value={newTag}
                   onChangeText={setNewTag}
                   placeholder={
-                    isEditable ? 'Digite uma nova tag' : 'Disponível após o processamento'
+                    isEditable ? t('objects.detail.newTag') : t('objects.detail.availableAfterProcessing')
                   }
                   onSubmitEditing={addTag}
                   editable={isEditable}
@@ -265,6 +264,11 @@ export default function ObjectDetails() {
 
               <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
+                {isEditable && tags.length === 0 && (
+                  <Text className="text-sm text-muted-foreground">
+                    {t('objects.detail.noTags')}
+                  </Text>
+                )}
               </ScrollView>
             </Card>
 
@@ -274,7 +278,7 @@ export default function ObjectDetails() {
               className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
             >
               <Ionicons name="trash-outline" size={20} color="white" />
-              <Text className="ml-2 font-semibold text-white">Excluir objeto</Text>
+              <Text className="ml-2 font-semibold text-white">{t('objects.detail.delete')}</Text>
             </Button>
           </View>
         </KeyboardAvoidingView>

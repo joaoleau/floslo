@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import Animated, { useAnimatedScrollHandler, useSharedValue } from 'react-native-reanimated';
 
 import { Screen } from '@/components/common/Screen';
@@ -26,9 +27,11 @@ import {
 import { queryKeys } from '@/lib/queryKeys';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
+import { errorMessage } from '@/i18n/errors';
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const scrollY = useSharedValue(0);
   const queryClient = useQueryClient();
@@ -42,8 +45,6 @@ export default function Home() {
 
   const visibleSchedulers = schedulers.filter((scheduler) => matchesSchedulerFilter(scheduler, filter));
 
-  // Elemento (não componente) de propósito: um componente declarado aqui dentro seria
-  // recriado a cada render de Home e remontaria a AlarmPermissionBanner sem necessidade.
   const listHeader = (
     <View className="gap-4">
       <AlarmPermissionBanner />
@@ -51,8 +52,6 @@ export default function Home() {
     </View>
   );
 
-  // Force a refresh whenever we come back from create/edit, matching the
-  // previous useFocusEffect-based refetch behavior.
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: queryKeys.schedulers.all });
@@ -96,12 +95,12 @@ export default function Home() {
   function handleDeleteSelected() {
     const count = selectedIds.size;
     showAlert(
-      'Excluir agendadores',
-      `Tem certeza que deseja excluir ${count === 1 ? 'o agendador selecionado' : `os ${count} agendadores selecionados`}?`,
+      t('schedulers.deleteSelected.title'),
+      t('schedulers.deleteSelected.confirm', { count }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const ids = Array.from(selectedIds);
@@ -116,7 +115,7 @@ export default function Home() {
   return (
     <Screen edges={['top', 'left', 'right']}>
       <AnimatedHeader
-        title={selectionMode ? `${selectedIds.size} selecionado${selectedIds.size > 1 ? 's' : ''}` : 'Agendadores'}
+        title={selectionMode ? t('common.selected', { count: selectedIds.size }) : t('schedulers.title')}
         showBackButton={selectionMode}
         onBack={clearSelection}
         scrollY={scrollY}
@@ -136,15 +135,15 @@ export default function Home() {
           <ActivityIndicator size="large" color={colors.brand} />
         </View>
       ) : isError ? (
-        <ErrorState message={error?.message} onRetry={() => refetch()} />
+        <ErrorState message={errorMessage(error, 'schedulers.loadFailed')} onRetry={() => refetch()} />
       ) : schedulers.length === 0 ? (
         <View className="flex-1 pt-[72px] px-4 gap-4">
           <AlarmPermissionBanner />
           <EmptyState
             icon="alarm-outline"
-            title="Nenhum agendador ainda"
-            description="Crie seu primeiro agendador e comece a acordar na hora certa."
-            actionLabel="Criar meu primeiro agendador"
+            title={t('schedulers.empty.title')}
+            description={t('schedulers.empty.description')}
+            actionLabel={t('schedulers.empty.action')}
             onAction={handleCreateScheduler}
             color="#F59E0B"
           />
@@ -157,7 +156,7 @@ export default function Home() {
           scrollEventThrottle={16}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={
-            <Text className="pt-6 text-center text-muted-foreground">Nenhum agendador encontrado para esse filtro.</Text>
+            <Text className="pt-6 text-center text-muted-foreground">{t('schedulers.emptyFilter')}</Text>
           }
           contentContainerClassName="w-full px-4 pt-[72px] pb-32 gap-4"
           showsVerticalScrollIndicator={false}

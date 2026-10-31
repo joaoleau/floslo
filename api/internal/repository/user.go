@@ -226,8 +226,6 @@ func (r *UserRepository) UpdateUserByUserId(ctx context.Context, user_id string,
 	return &updatedUser, nil
 }
 
-// UpdateStreak só toca current_streak/last_active_date -- não precisa (nem deve) passar
-// pelo resto do UpdateUserByUserId, que reescreve username/email/senha/GSI1 junto.
 func (r *UserRepository) UpdateStreak(ctx context.Context, userId string, currentStreak int, lastActiveDate string) (*model.User, error) {
 	key, err := attributevalue.MarshalMap(map[string]string{
 		"PK": "USER#" + userId,

@@ -3,6 +3,7 @@ export interface User {
   username: string;
   email: string;
   currentStreak: number;
+  lastActiveDate: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

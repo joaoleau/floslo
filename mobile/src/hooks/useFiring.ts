@@ -8,5 +8,9 @@ export function useRagQuery(schedulerId: string) {
     queryFn: () => firingService.getBySchedulerId(schedulerId),
     enabled: !!schedulerId,
     retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }

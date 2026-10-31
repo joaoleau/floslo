@@ -1,18 +1,12 @@
 import { Pressable, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 
 interface WeekDaysProps {
   weekDays: string[];
   onToggleDay?: (day: string) => void;
 
-  /**
-   * 'default': contorno neutro do tema (form/detalhe, fundo neutro) -- comportamento
-   * original, inalterado.
-   * 'onColor': pensado pra ficar em cima do fundo colorido do SchedulerCard -- selecionado
-   * vira uma pílula branca sólida (com texto escuro), não selecionado fica só em
-   * outline branco (sem preenchimento).
-   */
   variant?: 'default' | 'onColor';
 
   className?: string;
@@ -20,15 +14,7 @@ interface WeekDaysProps {
   textClassName?: string;
 }
 
-const DAYS = [
-  { value: 'sunday', label: 'D' },
-  { value: 'monday', label: 'S' },
-  { value: 'tuesday', label: 'T' },
-  { value: 'wednesday', label: 'Q' },
-  { value: 'thursday', label: 'Q' },
-  { value: 'friday', label: 'S' },
-  { value: 'saturday', label: 'S' },
-];
+const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 export function WeekDays({
   weekDays,
@@ -38,10 +24,12 @@ export function WeekDays({
   dayClassName,
   textClassName,
 }: WeekDaysProps) {
+  const { t } = useTranslation();
+  const labels = t('history.week.weekdays').split(',');
   return (
     <View className={['flex-row gap-1', className].filter(Boolean).join(' ')}>
-      {DAYS.map((day) => {
-        const selected = weekDays.includes(day.value);
+      {DAYS.map((day, index) => {
+        const selected = weekDays.includes(day);
 
         const pillClassName =
           variant === 'onColor'
@@ -55,16 +43,16 @@ export function WeekDays({
 
         return (
           <Pressable
-            key={day.value}
-            testID={`weekday-${day.value}`}
+            key={day}
+            testID={`weekday-${day}`}
             disabled={!onToggleDay}
-            onPress={() => onToggleDay?.(day.value)}
+            onPress={() => onToggleDay?.(day)}
             className={['items-center justify-center rounded-full', pillClassName, dayClassName]
               .filter(Boolean)
               .join(' ')}
           >
             <Text className={['text-xs font-normal', textColorClassName, textClassName].filter(Boolean).join(' ')}>
-              {day.label}
+              {labels[index]}
             </Text>
           </Pressable>
         );

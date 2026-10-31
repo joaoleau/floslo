@@ -59,7 +59,19 @@ func NewAuthService(
 	}
 }
 
+const TermsVersion = "2026-10-26"
+
+func ValidateTermsAcceptance(version string) error {
+	if version != TermsVersion {
+		return fmt.Errorf("terms of use must be accepted")
+	}
+	return nil
+}
+
 func (s *AuthService) Register(ctx context.Context, user *model.User) error {
+	if err := ValidateTermsAcceptance(user.TermsVersion); err != nil {
+		return err
+	}
 	if user.Username == "" {
 		return fmt.Errorf("username is required")
 	}
@@ -82,7 +94,8 @@ func (s *AuthService) Register(ctx context.Context, user *model.User) error {
 	user.Password = string(hash)
 	user.SetKeys()
 	user.CreatedAt = time.Now().UTC()
-	user.UpdatedAt = time.Now().UTC()
+	user.UpdatedAt = user.CreatedAt
+	user.TermsAcceptedAt = user.CreatedAt
 	err = s.userRepository.NewUser(ctx, user)
 	if err != nil {
 		logger.Log.Error("failed to create user: ", logger.Any("error", err))

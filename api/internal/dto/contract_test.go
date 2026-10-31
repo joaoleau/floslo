@@ -141,3 +141,36 @@ func TestRAGResponseCarriesTheCurrentStreakOnlyWhenRecorded(t *testing.T) {
 	assertKeys(t, "rag response", marshalToMap(t, RAGResponseDTO{CurrentStreak: &streak}), "current_streak")
 	assertNoKeys(t, "rag response without a recorded day", marshalToMap(t, RAGResponseDTO{}), "current_streak")
 }
+
+func TestUserResponseCarriesTheLastActiveDate(t *testing.T) {
+	decoded := marshalToMap(t, UserResponseDTO{CurrentStreak: 3, LastActiveDate: "2026-10-24"})
+
+	assertKeys(t, "user", decoded, "current_streak", "last_active_date")
+	if decoded["last_active_date"] != "2026-10-24" {
+		t.Errorf("last_active_date = %v, want 2026-10-24", decoded["last_active_date"])
+	}
+}
+
+func TestRegisterRequestCarriesTheAcceptedTermsVersion(t *testing.T) {
+	var request RegisterRequestDTO
+	body := `{"username":"ana","email":"ana@example.com","password":"abcd1234","accepted_terms_version":"2026-10-26"}`
+	if err := json.Unmarshal([]byte(body), &request); err != nil {
+		t.Fatalf("unmarshal failed: %v", err)
+	}
+	if got := request.ToModel().TermsVersion; got != "2026-10-26" {
+		t.Errorf("TermsVersion = %q, want the version sent by the app", got)
+	}
+}
+
+func TestDocumentNameHidesTheTenantPath(t *testing.T) {
+	tests := map[string]string{
+		"tenants/usr_61d38e8d/context/biologia.pdf": "biologia.pdf",
+		"biologia.pdf": "biologia.pdf",
+		"":             "",
+	}
+	for key, want := range tests {
+		if got := DocumentName(key); got != want {
+			t.Fatalf("DocumentName(%q) = %q, want %q", key, got, want)
+		}
+	}
+}

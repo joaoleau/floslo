@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Screen } from '@/components/common/Screen';
@@ -16,32 +17,41 @@ import { useRegisterMutation } from '@/hooks/useAuth';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { isPasswordValid } from '@/lib/passwordPolicy';
 import { showAlert } from '@/services/alertService';
+import { sessionService } from '@/services/sessionService';
+import { errorMessage } from '@/i18n/errors';
+import { TERMS_VERSION } from '@/constants/terms';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const registerMutation = useRegisterMutation();
 
   async function handleRegister() {
     if (!email || !username || !password) {
-      showAlert('Atenção', 'Preencha todos os campos.');
+      showAlert(t('common.attention'), t('auth.register.fieldsRequired'));
       return;
     }
     if (!isPasswordValid(password)) {
-      showAlert('Senha fraca', 'Sua senha precisa atender aos requisitos listados abaixo do campo.');
+      showAlert(t('auth.weakPassword.title'), t('auth.weakPassword.message'));
+      return;
+    }
+    if (!acceptedTerms) {
+      showAlert(t('common.attention'), t('terms.acceptRequired'));
       return;
     }
 
     try {
-      await registerMutation.mutateAsync({ email, username, password });
-      router.replace('/(tabs)');
-    } catch (error: any) {
+      await registerMutation.mutateAsync({ email, username, password, accepted_terms_version: TERMS_VERSION });
+      router.replace(await sessionService.start());
+    } catch (error) {
       console.error('[Register] Falha ao criar conta', error);
-      showAlert('Erro', error.message || 'Falha ao criar conta');
+      showAlert(t('common.error'), errorMessage(error, 'auth.register.failed'));
     }
   }
 
@@ -55,18 +65,18 @@ export default function RegisterScreen() {
 
   return (
     <Screen edges={['top', 'left', 'right', 'bottom']}>
-      <Header title="Criar conta" />
+      <Header title={t('auth.register.title')} />
       <AuthBackground>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
             <Card className="rounded-3xl p-5 gap-3">
-              <Input placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <Input placeholder={t('auth.email')} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
 
-              <Input placeholder="Nome de usuário" value={username} onChangeText={setUsername} autoCapitalize="none" />
+              <Input placeholder={t('auth.register.username')} value={username} onChangeText={setUsername} autoCapitalize="none" />
 
               <View className="flex-row items-center">
                 <Input
-                  placeholder="Senha"
+                  placeholder={t('auth.password')}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -83,8 +93,35 @@ export default function RegisterScreen() {
                 </View>
               )}
 
+              <View className="flex-row items-start gap-2 py-1">
+                <Pressable
+                  testID="accept-terms"
+                  onPress={() => setAcceptedTerms((prev) => !prev)}
+                  hitSlop={8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: acceptedTerms }}
+                >
+                  <Ionicons
+                    name={acceptedTerms ? 'checkbox' : 'square-outline'}
+                    size={20}
+                    color={acceptedTerms ? colors.brand : colors.mutedForeground}
+                  />
+                </Pressable>
+                <Text className="flex-1 text-sm text-muted-foreground" onPress={() => setAcceptedTerms((prev) => !prev)}>
+                  {t('terms.acceptBefore')}
+                  <Text
+                    testID="terms-link"
+                    onPress={() => router.push('/terms')}
+                    style={{ color: '#3B82F6', fontWeight: '600', textDecorationLine: 'underline' }}
+                  >
+                    {t('terms.acceptLink')}
+                  </Text>
+                  {t('terms.acceptAfter')}
+                </Text>
+              </View>
+
               <Button onPress={handleRegister} className="mt-1 rounded-3xl bg-brand-100">
-                <Text className="font-semibold text-white">Cadastrar</Text>
+                <Text className="font-semibold text-white">{t('auth.register.submit')}</Text>
               </Button>
             </Card>
           </ScrollView>

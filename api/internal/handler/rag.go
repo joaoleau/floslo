@@ -65,7 +65,7 @@ func chunksToDTO(chunks []service.RetrievedChunk) []dto.ChunkDTO {
 		return dto.ChunkDTO{
 			Content:    c.Content,
 			Score:      c.Score,
-			ObjectKey:  c.ObjectKey,
+			ObjectKey:  dto.DocumentName(c.ObjectKey),
 			Page:       c.Page,
 			ChunkIndex: c.ChunkIndex,
 			Language:   c.Language,

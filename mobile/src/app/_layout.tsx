@@ -16,9 +16,10 @@ import {
 } from '@expo-google-fonts/inter';
 
 import { authService } from '@/services/authService';
-import { schedulerService } from '@/services/schedulerService';
 import { alarmNavStorage } from '@/storage/alarmNavStorage';
-import { onboardingStorage } from '@/storage/onboardingStorage';
+import { activeFiring } from '@/lib/activeFiring';
+import { alarmScreen } from '../../modules/alarm-screen';
+import { sessionService } from '@/services/sessionService';
 import { onSessionExpired } from '@/api/http/client';
 import { queryClient } from '@/lib/queryClient';
 import { NAV_THEME } from '@/lib/theme';
@@ -26,17 +27,14 @@ import { ThemeProvider as AppThemeProvider, useTheme } from '@/lib/ThemeProvider
 import { AppAlert } from '@/components/common/AppAlert';
 import { FieldHelpModal } from '@/components/common/FieldHelpModal';
 
-// IMPORTANTE: Importe o seu userService (ajuste o caminho de acordo com o seu projeto)
 import { userService } from '@/services/userService';
+
+import { i18n, loadLanguagePreference } from '@/i18n';
 
 import '@/styles/global.css';
 
 SplashScreen.preventAutoHideAsync();
 
-// Rede de segurança global: qualquer erro síncrono que escape de um try/catch (ex.: um
-// módulo nativo como notifee/VolumeManager lançando, um bug de mapeamento, etc.) normalmente
-// só aparece como uma RedBox no dispositivo — sem nada no terminal do Metro. Isso garante que
-// pelo menos o log apareça, além de preservar o handler padrão (RedBox continua funcionando).
 const defaultErrorHandler = ErrorUtils.getGlobalHandler();
 ErrorUtils.setGlobalHandler((error, isFatal) => {
   console.error(`[GlobalError] isFatal=${isFatal}`, error);
@@ -54,11 +52,6 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
 
   if (!notification) return;
 
-  // O app estava apenas em segundo plano (não morto) quando o toque aconteceu — esse evento
-  // não passa pelo onForegroundEvent, e getInitialNotification()/getDisplayedNotifications()
-  // no lado do app costumam chegar tarde demais (o Android já removeu a notificação por causa
-  // do autoCancel). Guardamos a intenção aqui para o app consumir assim que voltar ao primeiro
-  // plano, ao invés de simplesmente perder o toque.
   if (type === EventType.PRESS && notification.android?.category === AndroidCategory.ALARM) {
     const schedulerId = notification.data?.schedulerId;
     if (schedulerId && notification.id) {
@@ -96,7 +89,6 @@ export default function RootLayout() {
     Inter_800ExtraBold,
   });
 
-  // Expulsa o usuário caso o interceptor do Axios avise que a sessão morreu
   useEffect(() => {
     onSessionExpired(async () => {
       await authService.logout();
@@ -104,10 +96,6 @@ export default function RootLayout() {
     });
   }, [router]);
 
-  // React Query has no notion of "app foregrounded" on native by default — without
-  // this, refetchInterval/refetchOnWindowFocus never resume reliably after the app
-  // goes to background (the OS can suspend JS timers), so screens like the objects
-  // list stay stuck showing stale data (e.g. "processing") until a full app restart.
   useEffect(() => {
     function onAppStateChange(status: AppStateStatus) {
       if (Platform.OS !== 'web') {
@@ -119,40 +107,25 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
-  // ==========================================
-  // EFEITO 1: CHECAR AUTENTICAÇÃO E ROTA INICIAL
-  // ==========================================
   useEffect(() => {
-    // Segura a splash até a fonte custom (Inter) estar pronta -- sem isso, a primeira tela
-    // pisca rapidinho com a fonte padrão do sistema antes da Inter carregar.
     if (!navigationState?.key || !fontsLoaded) return;
 
     async function checkAuthAndRedirect() {
       try {
+        await loadLanguagePreference();
         const token = await authService.getAccessToken();
         
         if (token) {
           try {
-            // SUBSTITUIÇÃO AQUI: Usando o seu userService lindamente!
             await userService.getMe();
 
-            const hasSeenOnboarding = await onboardingStorage.hasSeenOnboarding();
-            router.replace(hasSeenOnboarding ? '/(tabs)' : '/onboarding');
-
-            // A fresh install / re-login (or a different account on this same device) has
-            // no native alarm triggers scheduled yet even though the backend already has
-            // enabled schedulers — reconcile them now. Fire-and-forget: a failure here
-            // shouldn't block the user from reaching the app.
-            schedulerService.resyncAll().catch((resyncErr) => {
-              console.warn('[RootLayout] Falha ao resincronizar alarmes nativos', resyncErr);
-            });
+            router.replace(await sessionService.start());
           } catch (apiError) {
             console.warn('[Auth] Token inválido ou usuário deletado. Limpando...', apiError);
             await authService.logout();
             router.replace('/(auth)/login');
           }
         } else {
-          // Sem token salvo
           router.replace('/(auth)/login');
         }
       } catch (error) {
@@ -160,7 +133,6 @@ export default function RootLayout() {
         router.replace('/(auth)/login');
       } finally {
         setIsAuthLoading(false);
-        // Oculta o Splash Nativo para revelar a tela final
         await SplashScreen.hideAsync();
       }
     }
@@ -168,9 +140,6 @@ export default function RootLayout() {
     checkAuthAndRedirect();
   }, [navigationState?.key, fontsLoaded, router]);
 
-  // ==========================================
-  // EFEITO 2: NAVEGAR PARA O ALARME
-  // ==========================================
   useEffect(() => {
     if (!navigationState?.key || isAuthLoading) return;
 
@@ -201,9 +170,6 @@ export default function RootLayout() {
           }
         }
 
-        // Último fallback: um toque que aconteceu com o app em segundo plano (não morto) foi
-        // capturado pelo onBackgroundEvent e guardado ali, já que os dois caminhos acima podem
-        // chegar tarde demais para pegá-lo (ver alarmNavStorage).
         if (!targetSchedulerId) {
           const pending = await alarmNavStorage.takePendingAlarmNav();
           if (pending) {
@@ -211,6 +177,16 @@ export default function RootLayout() {
             targetChallengeType = pending.challengeType ?? null;
             targetNotificationId = pending.notificationId;
           }
+        }
+
+        if (targetSchedulerId && activeFiring.isHandled(targetSchedulerId as string)) {
+          console.log('[RootLayout] Alarme já atendido, mantendo a tela atual', targetSchedulerId);
+          hideOverLockScreenWithoutFiring();
+          return;
+        }
+
+        if (!targetSchedulerId) {
+          hideOverLockScreenWithoutFiring();
         }
 
         if (targetSchedulerId) {
@@ -221,9 +197,6 @@ export default function RootLayout() {
             params: {
               schedulerId: targetSchedulerId as string,
               challengeType: targetChallengeType as string,
-              // A weekday-recurring alarm's actual notification id is `${schedulerId}__${day}`,
-              // not the bare schedulerId — the firing screen needs the real id to cancel the
-              // right notification (see schedulerService's dayNotificationId).
               notificationId: (targetNotificationId ?? targetSchedulerId) as string,
             }
           });
@@ -252,7 +225,9 @@ export default function RootLayout() {
 
       if (type === EventType.PRESS && detail.notification?.android?.category === AndroidCategory.ALARM) {
         const payload = detail.notification.data;
-        if (payload?.schedulerId) {
+        if (payload?.schedulerId && activeFiring.isHandled(payload.schedulerId as string)) {
+          console.log('[Notifee][foreground] Alarme já atendido, mantendo a tela atual', payload.schedulerId);
+        } else if (payload?.schedulerId) {
           console.log('[Notifee][foreground] navegando para firing', payload.schedulerId);
           router.replace({
             pathname: '/(scheduler)/firing',
@@ -289,9 +264,13 @@ export default function RootLayout() {
   );
 }
 
-// Um erro de render (ex.: acesso a propriedade de undefined num mapper) sem isso derruba
-// a árvore inteira sem deixar rastro estruturado — só a RedBox nativa. Loga antes de mostrar
-// uma tela mínima de fallback, em vez de deixar o app em branco.
+function hideOverLockScreenWithoutFiring() {
+  if (activeFiring.anyOpen()) return;
+  alarmScreen.setShowOverLockScreen(false).catch((err) => {
+    console.warn('[RootLayout] Falha ao deixar de mostrar o app sobre o bloqueio', err);
+  });
+}
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -310,9 +289,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
     if (this.state.hasError) {
       return (
         <View className="flex-1 items-center justify-center bg-background px-6">
-          <Text className="text-center text-foreground">
-            Algo deu errado. Feche e abra o app novamente.
-          </Text>
+          <Text className="text-center text-foreground">{i18n.t('common.crashed')}</Text>
         </View>
       );
     }
@@ -320,9 +297,6 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
-// Reads the resolved light/dark mode from our own ThemeProvider (system scheme or the
-// user's manual override in Perfil > Aparência) so react-navigation's chrome colors stay
-// in sync with the rest of the app instead of only following the raw system scheme.
 function RootStack() {
   const { mode } = useTheme();
 
@@ -331,6 +305,7 @@ function RootStack() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="terms" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(object)" />
         <Stack.Screen name="(scheduler)" />

@@ -8,12 +8,10 @@ import notifee, {
 } from '@notifee/react-native';
 
 import { schedulerApi } from '@/api/scheduler';
+import { i18n } from '@/i18n';
 import { schedulerMapper } from '@/mappers/schedulerMapper';
 import { Scheduler } from '@/types/domain/Scheduler';
-
-// ============================================================================
-// NATIVE HELPER FUNCTIONS
-// ============================================================================
+import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
 
 const ALL_WEEK_DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
@@ -27,7 +25,6 @@ const JS_DAY_TO_STRING: Record<number, string> = {
   6: 'saturday',
 };
 
-/** Next one-off timestamp for schedulers with no weekDays selected (fires once). */
 export function calculateNextOneOffTrigger(startTime: string): number {
   const [targetHours, targetMinutes] = startTime.split(':').map(Number);
   const now = new Date();
@@ -40,17 +37,10 @@ export function calculateNextOneOffTrigger(startTime: string): number {
   return triggerDate.getTime();
 }
 
-/** Next timestamp (today or up to 7 days out) that lands on the given weekday. */
 export function calculateNextTriggerForDay(startTime: string, day: string): number {
   const [targetHours, targetMinutes] = startTime.split(':').map(Number);
   const now = new Date();
 
-  // Must go up to i=7 (a full 8-iteration span), not just i<7: when the only selected day is
-  // today and today's target time has already passed, i=0..6 never finds a valid future match
-  // (today fails the >now check, and no other day-of-name recurs within 6 more days) — i=7
-  // lands back on the same weekday, now safely in the future. Without this, syncing (e.g. on
-  // every edit) fell through to a `now + 7 days` fallback that used the CURRENT time-of-day
-  // instead of the alarm's actual HH:MM, silently shifting when the alarm would ring.
   for (let i = 0; i <= 7; i++) {
     const candidateDate = new Date();
     candidateDate.setDate(now.getDate() + i);
@@ -61,28 +51,13 @@ export function calculateNextTriggerForDay(startTime: string, day: string): numb
     }
   }
 
-  // Truly unreachable now (i=7 always lands back on `day` with the correct time, which is
-  // always > now), kept only so the function has a total return type.
   return now.getTime() + 7 * 24 * 60 * 60 * 1000;
 }
 
-/**
- * A single TimestampTrigger only ever fires once (or repeats on a fixed cadence from that
- * one timestamp) — it can't represent "every Monday AND every Tuesday" on its own. So a
- * multi-weekday alarm is modeled as one WEEKLY-repeating trigger notification per selected
- * day, each with its own id, instead of a single trigger for whichever day comes first.
- */
 function dayNotificationId(schedulerId: string, day: string): string {
   return `${schedulerId}__${day}`;
 }
 
-/**
- * Cancels every notification id this scheduler could possibly have scheduled — the one-off
- * id plus all 7 per-weekday ids — regardless of which ones actually exist. Canceling a
- * nonexistent id is a safe no-op, so this is the simplest way to guarantee no stale trigger
- * survives an edit (e.g. unchecking a weekday, or disabling the alarm) without having to
- * track which ids were previously created.
- */
 async function cancelAllForScheduler(schedulerId: string): Promise<void> {
   try {
     await Promise.all([
@@ -94,7 +69,44 @@ async function cancelAllForScheduler(schedulerId: string): Promise<void> {
   }
 }
 
-/** Communicates with Android to schedule or cancel the notification */
+function alarmSettingsOf(scheduler: Scheduler): AlarmSettings {
+  return {
+    schedulerId: scheduler.id,
+    name: scheduler.name,
+    alarmSound: scheduler.alarmSound,
+    vibration: scheduler.vibration,
+    soundEnabled: scheduler.soundEnabled,
+  };
+}
+
+async function prepareAlarmNotification(settings: AlarmSettings) {
+  const soundName = settings.alarmSound ? settings.alarmSound.toLowerCase().replace(/\s+/g, '_') : 'default';
+
+  const channelId = `alarm_${settings.schedulerId}_${soundName}_${settings.vibration ? 'vib' : 'novib'}`;
+
+  await notifee.createChannel({
+    id: channelId,
+    name: i18n.t('notification.channel', { name: settings.name }),
+    importance: AndroidImportance.HIGH,
+    sound: soundName,
+    vibration: settings.vibration,
+  });
+
+  return {
+    title: '⏰ ' + (settings.name || i18n.t('notification.defaultTitle')),
+    body: i18n.t('notification.body'),
+    android: {
+      channelId,
+      category: AndroidCategory.ALARM,
+      autoCancel: true,
+      ongoing: false,
+      loopSound: true,
+      fullScreenAction: { id: 'default', launchActivity: 'default' },
+      pressAction: { id: 'default', launchActivity: 'default' },
+    },
+  };
+}
+
 async function syncWithAndroid(scheduler: Scheduler) {
   console.log(`[Scheduler][native] Sincronizando "${scheduler.name}" (${scheduler.id})`, {
     enabled: scheduler.enabled,
@@ -102,9 +114,6 @@ async function syncWithAndroid(scheduler: Scheduler) {
     startTime: scheduler.startTime,
   });
 
-  // Always clear every id this scheduler could own first — otherwise editing weekdays
-  // (e.g. removing Tuesday) leaves the old Tuesday trigger scheduled forever, and it'll
-  // still go off next Tuesday even though the alarm no longer says Tuesday.
   await cancelAllForScheduler(scheduler.id);
 
   if (!scheduler.enabled) {
@@ -115,53 +124,18 @@ async function syncWithAndroid(scheduler: Scheduler) {
   const permission = await notifee.requestPermission();
   console.log('[Scheduler][native] Permissão de notificação', permission);
 
-  // Sound name must be lowercase, no spaces, matching the raw resource filename.
-  const soundName = scheduler.alarmSound ? scheduler.alarmSound.toLowerCase().replace(/\s+/g, '_') : 'default';
-
-  // Baking sound + vibration into the channel id forces Android to create a fresh
-  // channel whenever either setting changes (channel settings are otherwise immutable —
-  // toggling `scheduler.vibration` later would silently do nothing without this).
-  const channelId = `alarm_${scheduler.id}_${soundName}_${scheduler.vibration ? 'vib' : 'novib'}`;
-
-  await notifee.createChannel({
-    id: channelId,
-    name: `Canal: ${scheduler.name}`,
-    importance: AndroidImportance.HIGH,
-    sound: soundName,
-    vibration: scheduler.vibration,
+  const settings = alarmSettingsOf(scheduler);
+  await alarmSettingsStorage.save(settings).catch((err) => {
+    console.warn(`[Scheduler][native] Falha ao guardar os ajustes do alarme "${scheduler.name}"`, err);
   });
-
-  const baseNotification = {
-    title: '⏰ ' + (scheduler.name || 'Agendador'),
-    body: 'Seu agendador está tocando. Toque para abrir.',
-    android: {
-      channelId,
-      category: AndroidCategory.ALARM,
-      autoCancel: true,
-      ongoing: false,
-      loopSound: true,
-      // launchActivity precisa estar aqui, igual na tela cheia do próprio firing.tsx --
-      // sem ele, o Android pode simplesmente não lançar a activity automaticamente com a
-      // tela bloqueada e cair de volta pra uma notificação comum (vibra + aparece, mas não
-      // abre nada sozinho). Todo agendador é um alarme de verdade (acorda a tela), sem
-      // opção de virar só lembrete/notificação.
-      fullScreenAction: { id: 'default', launchActivity: 'default' },
-      pressAction: { id: 'default', launchActivity: 'default' },
-    },
-  };
+  const baseNotification = await prepareAlarmNotification(settings);
 
   try {
     if (!scheduler.weekDays || scheduler.weekDays.length === 0) {
-      // No days selected: a plain one-time alarm, same as before.
       const timestamp = calculateNextOneOffTrigger(scheduler.startTime);
       const trigger: TimestampTrigger = {
         type: TriggerType.TIMESTAMP,
         timestamp,
-        // SET_ALARM_CLOCK (não só `alarmManager: true`, que cai no AlarmType.SET_EXACT genérico)
-        // é a mesma API que apps de despertador "de verdade" (Google Clock, Samsung Clock) usam
-        // — Android isenta automaticamente esse tipo de alarme de restrições de bateria/Doze e
-        // mostra o ícone de despertador na barra de status, sem depender do usuário ajustar
-        // permissões manualmente.
         alarmManager: { type: AlarmType.SET_ALARM_CLOCK },
       };
 
@@ -177,8 +151,6 @@ async function syncWithAndroid(scheduler: Scheduler) {
       return;
     }
 
-    // One weekly-repeating trigger PER selected day, so "segunda e terça" actually means
-    // "every Monday AND every Tuesday", not just whichever of the two comes first.
     await Promise.all(
       scheduler.weekDays.map((day) => {
         const timestamp = calculateNextTriggerForDay(scheduler.startTime, day);
@@ -186,11 +158,6 @@ async function syncWithAndroid(scheduler: Scheduler) {
           type: TriggerType.TIMESTAMP,
           timestamp,
           repeatFrequency: RepeatFrequency.WEEKLY,
-          // SET_ALARM_CLOCK (não só `alarmManager: true`, que cai no AlarmType.SET_EXACT genérico)
-        // é a mesma API que apps de despertador "de verdade" (Google Clock, Samsung Clock) usam
-        // — Android isenta automaticamente esse tipo de alarme de restrições de bateria/Doze e
-        // mostra o ícone de despertador na barra de status, sem depender do usuário ajustar
-        // permissões manualmente.
         alarmManager: { type: AlarmType.SET_ALARM_CLOCK },
         };
 
@@ -211,10 +178,6 @@ async function syncWithAndroid(scheduler: Scheduler) {
     throw err;
   }
 }
-
-// ============================================================================
-// MAIN SCHEDULER SERVICE
-// ============================================================================
 
 export const schedulerService = {
   async getAll(): Promise<Scheduler[]> {
@@ -261,14 +224,14 @@ export const schedulerService = {
     console.log(`[Scheduler] Excluindo "${id}"`);
     await schedulerApi.remove(id);
     await cancelAllForScheduler(id);
+    await alarmSettingsStorage.remove(id).catch(() => undefined);
   },
 
-  /**
-   * Reconciles this device's native alarms with the backend's truth. Needed after login
-   * (a fresh install/re-login has no native triggers yet even though the backend already
-   * has enabled schedulers) and is safe to call anytime — syncWithAndroid always starts by
-   * wiping this scheduler's old ids before recreating them.
-   */
+  async showRingingAlarm(settings: AlarmSettings, notificationId: string): Promise<void> {
+    const notification = await prepareAlarmNotification(settings);
+    await notifee.displayNotification({ ...notification, id: notificationId, data: { schedulerId: settings.schedulerId } });
+  },
+
   async resyncAll(): Promise<void> {
     console.log('[Scheduler] Resincronizando todos os alarmes nativos com o backend...');
     const schedulers = await schedulerService.getAll();
@@ -278,12 +241,6 @@ export const schedulerService = {
     console.log('[Scheduler] Resincronização concluída');
   },
 
-  /**
-   * Wipes every alarm this app has scheduled at the OS level. Notification channels/trigger
-   * schedules live outside the backend's per-user auth — logging out does NOT make them
-   * disappear on their own, so without this, alarms created by the previous account would
-   * keep firing for whoever uses the device next.
-   */
   async cancelAllNativeAlarms(): Promise<void> {
     console.log('[Scheduler] Cancelando todos os alarmes nativos (logout)');
     await notifee.cancelAllNotifications();

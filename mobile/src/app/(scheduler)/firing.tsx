@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Pressable, Platform, ActivityIndicator, BackHandler, Vibration, ScrollView } from 'react-native';
+import { View, Pressable, ActivityIndicator, BackHandler, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
-import notifee from '@notifee/react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
-import { useAudioPlayer } from 'expo-audio';
-import * as Application from 'expo-application';
 
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
@@ -16,6 +13,7 @@ import { MultipleChoiceChallenge } from '@/components/challenges/MultipleChoiceC
 import { DiscoveryChallenge } from '@/components/challenges/DiscoveryChallenge';
 import { TrueFalseChallenge } from '@/components/challenges/TrueFalseChallenge';
 import { ChoiceReview, DiscoveryReview } from '@/components/challenges/ChallengeReview';
+import { AlarmCompletion } from '@/components/challenges/AlarmCompletion';
 import { ChallengeItem, RAG } from '@/types/domain/RAG';
 import { User } from '@/types/domain/User';
 import { LANGUAGE_FLAGS } from '@/types/domain/Scheduler';
@@ -23,13 +21,52 @@ import { ChallengeResult, ReviewOption } from '@/types/domain/History';
 import { useRagQuery } from '@/hooks/useFiring';
 import { useMeQuery } from '@/hooks/useUser';
 import { queryKeys } from '@/lib/queryKeys';
+import { todayLocalDate } from '@/lib/localDate';
+import { displayedStreak } from '@/lib/streak';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { historyService } from '@/services/historyService';
 import { useInvalidateHistory } from '@/hooks/useHistory';
 import { getColorForId } from '@/lib/hashColor';
+import { activeFiring } from '@/lib/activeFiring';
+import { RingingAlarm, useRingingAlarm } from '@/hooks/useRingingAlarm';
+import { AlarmSettings, alarmSettingsStorage } from '@/storage/alarmSettingsStorage';
+import { alarmNavStorage } from '@/storage/alarmNavStorage';
+import { alarmScreen } from '../../../modules/alarm-screen';
+import { i18n } from '@/i18n';
+import { errorMessage } from '@/i18n/errors';
 
-// Extrai os campos específicos de cada tipo de desafio pro registro no histórico --
-// centralizado aqui pra manter o TypeScript estreitando `answered.data` corretamente por tipo.
+function MuteButton({ alarm }: { alarm: RingingAlarm }) {
+  return (
+    <View className="absolute top-14 left-6 z-10 items-start gap-2">
+      <Pressable
+        testID="mute-sound-button"
+        onPress={alarm.mute}
+        className="flex-row items-center bg-black/20 px-3 py-2 rounded-full"
+      >
+        <Ionicons name={alarm.muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
+        {alarm.muteCountdown > 0 && <Text className="text-white font-bold ml-2">{alarm.muteCountdown}s</Text>}
+      </Pressable>
+
+      {alarm.canPauseVibration && (
+        <Pressable
+          testID="pause-vibration-button"
+          onPress={alarm.pauseVibration}
+          className="flex-row items-center bg-black/20 px-3 py-2 rounded-full"
+        >
+          <MaterialCommunityIcons
+            name={alarm.vibrationPauseCountdown > 0 ? 'vibrate-off' : 'vibrate'}
+            size={24}
+            color="white"
+          />
+          {alarm.vibrationPauseCountdown > 0 && (
+            <Text className="text-white font-bold ml-2">{alarm.vibrationPauseCountdown}s</Text>
+          )}
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
   switch (answered.type) {
     case 'MULTIPLE_CHOICE':
@@ -47,8 +84,8 @@ function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
         promptText: answered.data.statement,
         explanationText: answered.data.explanation as string | null,
         options: [
-          { id: 'TRUE', text: 'Verdadeiro', correct: answered.data.answer === true },
-          { id: 'FALSE', text: 'Falso', correct: answered.data.answer === false },
+          { id: 'TRUE', text: i18n.t('challenges.trueFalse.true'), correct: answered.data.answer === true },
+          { id: 'FALSE', text: i18n.t('challenges.trueFalse.false'), correct: answered.data.answer === false },
         ] as ReviewOption[],
         isCorrect: result.wrongAttempts === 0,
         sourceChunks: answered.data.sourceChunks,
@@ -58,106 +95,72 @@ function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
         promptText: answered.data.title || answered.data.content,
         explanationText: answered.data.content as string | null,
         options: null,
-        // Só apresenta conteúdo: não tem certo ou errado.
         isCorrect: null,
         sourceChunks: answered.data.sourceChunks,
       };
   }
 }
 
-// ==========================================
-// COMPONENTE DE CONTEÚDO
-// ==========================================
 function FiringScreenContent({
   ragData,
   schedulerId,
   notificationId,
+  alarm,
 }: {
   ragData: RAG;
   schedulerId: string;
   notificationId: string;
+  alarm: RingingAlarm;
 }) {
   const router = useRouter();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
-  // Até onde o usuário já avançou de verdade -- só cresce. currentChallengeIndex pode
-  // ficar menor que isso quando o usuário usa o pager pra revisar um desafio já
-  // respondido (modo leitura, ver render abaixo).
   const [maxReachedIndex, setMaxReachedIndex] = useState(0);
   const [answeredResults, setAnsweredResults] = useState<Record<number, ChallengeResult>>({});
   const [currentTime, setCurrentTime] = useState('');
-  const [muteCountdown, setMuteCountdown] = useState(0);
 
   const { data: user } = useMeQuery();
   const invalidateHistory = useInvalidateHistory();
   const queryClient = useQueryClient();
   const historySessionIdRef = useRef<string | null>(null);
+  const [finished, setFinished] = useState(false);
 
-  // A floslo-rag já registrou o dia de estudo ao gerar este disparo (a data local vai no
-  // próprio pedido, ver firingService) e devolveu a sequência atualizada, que entra direto no
-  // cache do usuário, sem outra chamada à nuvem.
+  const [previousStreak] = useState(() => {
+    const cached = queryClient.getQueryData<User>(queryKeys.user.me);
+    return cached ? displayedStreak(cached.currentStreak, cached.lastActiveDate) : undefined;
+  });
+
   const currentStreak = ragData.currentStreak;
   useEffect(() => {
     if (currentStreak === undefined) return;
-    queryClient.setQueryData<User>(queryKeys.user.me, (cached) => (cached ? { ...cached, currentStreak } : cached));
+    queryClient.setQueryData<User>(queryKeys.user.me, (cached) =>
+      cached ? { ...cached, currentStreak, lastActiveDate: todayLocalDate() } : cached
+    );
   }, [queryClient, currentStreak]);
 
-  // O backend devolve sucesso com challenges=[] quando o agendador ficou sem nenhum objeto
-  // vinculado (o último foi excluído) -- ver RAGService.RetrieveAndGenerate. O alarme já
-  // tocando não sabia disso de antemão, então em vez de tentar renderizar um desafio que não
-  // existe, a tela mostra um aviso e deixa só desligar o alarme.
   const hasNoChallenges = ragData.challenges.length === 0;
 
-  // Uma sessão de histórico por disparo de alarme -- criada assim que sabemos quantos
-  // desafios existem, pra cada resposta (handleChallengeSuccess) já ter uma sessão pra
-  // referenciar. Guardado em ref (não state) porque não precisa disparar re-render. Sem
-  // desafio nenhum não há o que responder, então nem cria a sessão.
   useEffect(() => {
     if (!user || historySessionIdRef.current || hasNoChallenges) return;
     historySessionIdRef.current = historyService.startSession({
       userId: user.id,
       schedulerId: ragData.scheduler.id,
-      schedulerName: ragData.scheduler.name || 'Agendador sem nome',
+      schedulerName: ragData.scheduler.name || t('firing.unnamedScheduler'),
       totalChallenges: ragData.challenges.length,
     });
-  }, [user, ragData, hasNoChallenges]);
-
-  // Quanto tempo o usuário passou no desafio atual, pro histórico -- medido aqui (não
-  // dentro de cada componente de desafio) porque esses componentes rodam callbacks de
-  // gesto/pressable registrados durante o render, e Date.now() ali esbarra na regra de
-  // pureza dos hooks; handleChallengeSuccess é um callback comum, sem essa restrição.
-  const challengeStartedAtRef = useRef(0);
-  useEffect(() => {
-    challengeStartedAtRef.current = Date.now();
-  }, [currentChallengeIndex]);
-
-  const vibrationEnabled = ragData.scheduler.vibration;
-  const soundEnabled = ragData.scheduler.soundEnabled;
-  const soundName = ragData.scheduler.alarmSound || 'chic_pop';
-  const packageName = Application.applicationId;
-  const audioUri = Platform.OS === 'android' ? `android.resource://${packageName}/raw/${soundName}` : '';
-
-  // A tela reage ao relógio (atualizado a cada segundo, ver efeito abaixo) e re-renderiza
-  // com bastante frequência -- um objeto `{ uri }` literal recriado a cada render faz o
-  // useAudioPlayer recarregar/reiniciar a fonte de áudio o tempo todo, o que na prática
-  // pode nunca deixar o som terminar de carregar pra realmente tocar. Memoizado pra só
-  // recriar quando a URI muda de verdade (suspeita levantada como causa raiz de "às vezes
-  // parece que a música não toca" -- validar em dispositivo físico depois desse fix).
-  const audioSource = useMemo(() => ({ uri: audioUri }), [audioUri]);
-  const player = useAudioPlayer(audioSource);
+  }, [user, ragData, hasNoChallenges, t]);
 
   const stopAlarm = useCallback(() => {
     console.log('[Firing] Desligando alarme', { schedulerId, notificationId });
-    player.pause();
-    Vibration.cancel();
+    alarm.stop();
     if (router.canGoBack()) {
       router.back();
     } else {
       router.replace('/(tabs)');
     }
-  }, [player, router, schedulerId, notificationId]);
+  }, [alarm, router, schedulerId, notificationId]);
 
-  // Relógio
   useEffect(() => {
     function updateClock() {
       const now = new Date();
@@ -169,62 +172,6 @@ function FiringScreenContent({
     const intervalId = setInterval(updateClock, 1000);
     return () => clearInterval(intervalId);
   }, []);
-
-  // ==========================================
-  // BARREIRA 1: BLOQUEAR BOTÃO VOLTAR
-  // ==========================================
-  // Não existe mais atalho pra desligar o alarme sem responder o desafio, nem no modo
-  // normal — então o botão voltar nunca deve desligar, só ser engolido.
-  useEffect(() => {
-    const onBackPress = () => true;
-
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => backHandler.remove();
-  }, []);
-
-  // Assumir o controle do Alarme
-  useEffect(() => {
-    async function takeoverAlarm() {
-      try {
-        if (notificationId) {
-          await notifee.cancelNotification(notificationId);
-        }
-        if (Platform.OS === 'android' && soundEnabled) {
-          player.loop = true;
-          player.play();
-          console.log('[Firing] Alarme assumido pela tela de firing, tocando som', { schedulerId, notificationId });
-        }
-      } catch (err) {
-        console.error('[Firing] Falha ao assumir o alarme (cancelar notificação / tocar som)', err);
-      }
-    }
-    takeoverAlarm();
-  }, [player, notificationId, schedulerId, soundEnabled]);
-
-  // Vibração contínua enquanto o alarme toca (mesmo espírito do loop de som acima)
-  useEffect(() => {
-    if (vibrationEnabled && Platform.OS === 'android') {
-      Vibration.vibrate([500, 1000, 500], true);
-    }
-    return () => Vibration.cancel();
-  }, [vibrationEnabled]);
-
-  // Lógica de Silenciar (Mute)
-  useEffect(() => {
-    if (muteCountdown > 0) {
-      const timer = setInterval(() => setMuteCountdown((prev) => prev - 1), 1000);
-      return () => clearInterval(timer);
-    } else if (muteCountdown === 0 && !player.playing && soundEnabled && Platform.OS === 'android') {
-      player.play();
-    }
-  }, [muteCountdown, player, soundEnabled]);
-
-  function handleMute() {
-    if (muteCountdown > 0) return;
-    console.log('[Firing] Silenciando por 10s');
-    setMuteCountdown(10);
-    player.pause();
-  }
 
   function handleChallengeSuccess(result: ChallengeResult) {
     console.log(`[Firing] Desafio ${currentChallengeIndex + 1}/${ragData.challenges.length} concluído`);
@@ -246,7 +193,6 @@ function FiringScreenContent({
         options: fields.options,
         isCorrect: fields.isCorrect,
         wrongAttempts: result.wrongAttempts,
-        timeSpentMs: Date.now() - challengeStartedAtRef.current,
         sourceObjectKey: primarySource?.objectKey ?? null,
         sourcePage: primarySource?.page ?? null,
       });
@@ -260,12 +206,11 @@ function FiringScreenContent({
     } else {
       if (sessionId) historyService.completeSession(sessionId);
       invalidateHistory();
-      stopAlarm();
+      alarm.stop();
+      setFinished(true);
     }
   }
 
-  // Navegação livre entre qualquer desafio já respondido (modo leitura, sem poder
-  // responder de novo -- ver render abaixo) -- nunca além da fronteira alcançada.
   function handleGoBack() {
     setCurrentChallengeIndex((prev) => Math.max(0, prev - 1));
   }
@@ -281,28 +226,50 @@ function FiringScreenContent({
   const canGoBack = currentChallengeIndex > 0;
   const canGoForward = currentChallengeIndex < maxReachedIndex;
 
+  const completionScore = ragData.challenges.reduce(
+    (score, challenge, index) => {
+      const result = answeredResults[index];
+      if (!result) return score;
+      const graded = challenge.type !== 'DISCOVERY';
+      return {
+        answeredCount: score.answeredCount + 1,
+        gradedCount: score.gradedCount + (graded ? 1 : 0),
+        correctCount: score.correctCount + (graded && result.wrongAttempts === 0 ? 1 : 0),
+      };
+    },
+    { answeredCount: 0, gradedCount: 0, correctCount: 0 },
+  );
+
+  if (finished) {
+    return (
+      <LinearGradient colors={[getColorForId(ragData.scheduler.id), colors.brand]} style={{ flex: 1 }}>
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
+        <AlarmCompletion
+          streak={currentStreak}
+          previousStreak={previousStreak}
+          answeredCount={completionScore.answeredCount}
+          gradedCount={completionScore.gradedCount}
+          correctCount={completionScore.correctCount}
+          onFinish={stopAlarm}
+        />
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient
       colors={[getColorForId(ragData.scheduler.id), colors.brand]}
       style={{ flex: 1, position: 'relative' }}
     >
-      {/* BARREIRA 3: Bloqueia arrastar para voltar ou gestos do Expo Router */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
-      <Pressable
-        onPress={handleMute}
-        className="absolute top-14 left-6 z-10 flex-row items-center bg-black/20 px-3 py-2 rounded-full"
-      >
-        <Ionicons name={muteCountdown > 0 ? 'volume-mute' : 'volume-high'} size={24} color="white" />
-        {muteCountdown > 0 && <Text className="text-white font-bold ml-2">{muteCountdown}s</Text>}
-      </Pressable>
+      <MuteButton alarm={alarm} />
 
-      {/* Cabeçalho compacto: só a hora, nome do alarme e progresso (quando houver mais de 1 desafio) */}
       <View className="items-center pt-14 pb-3 px-5">
         <Text className="text-5xl font-bold text-white tracking-widest">{currentTime}</Text>
         <View className="flex-row items-center gap-1.5 mt-1">
           <Text className="text-sm text-white/75 font-medium text-center" numberOfLines={1}>
-            {ragData.scheduler.name || 'Seu agendador está tocando'}
+            {ragData.scheduler.name || t('firing.ringing')}
           </Text>
           <View className="flex-row items-center bg-white/15 rounded-full px-2 py-0.5">
             <Text style={{ fontSize: 12 }}>{LANGUAGE_FLAGS[ragData.scheduler.language]}</Text>
@@ -312,9 +279,9 @@ function FiringScreenContent({
         {total > 1 && (
           <View className="w-full max-w-sm mt-3">
             <View className="flex-row justify-between mb-1">
-              <Text className="text-white/75 font-medium text-xs">Progresso do Desafio</Text>
+              <Text className="text-white/75 font-medium text-xs">{t('firing.progress')}</Text>
               <Text className="text-white/75 font-bold text-xs">
-                {currentChallengeIndex} de {total}
+                {t('firing.progressCount', { current: currentChallengeIndex, total })}
               </Text>
             </View>
             <View className="w-full h-1.5 bg-white/25 rounded-full overflow-hidden">
@@ -323,9 +290,6 @@ function FiringScreenContent({
           </View>
         )}
 
-        {/* Pager: navega entre qualquer desafio já respondido, sempre em modo leitura --
-            nunca ultrapassa a fronteira (maxReachedIndex), então nunca reabre um desafio
-            futuro ainda não respondido. */}
         {(canGoBack || canGoForward) && (
           <View className="w-full max-w-sm flex-row items-center justify-between mt-3">
             <Pressable
@@ -335,10 +299,10 @@ function FiringScreenContent({
               style={{ opacity: canGoBack ? 1 : 0 }}
             >
               <Ionicons name="chevron-back" size={16} color="white" />
-              <Text className="text-white text-xs font-semibold">Anterior</Text>
+              <Text className="text-white text-xs font-semibold">{t('firing.previous')}</Text>
             </Pressable>
 
-            {isReviewing && <Text className="text-white/75 text-xs font-medium">Revisão</Text>}
+            {isReviewing && <Text className="text-white/75 text-xs font-medium">{t('firing.review')}</Text>}
 
             <Pressable
               onPress={handleGoForward}
@@ -346,27 +310,23 @@ function FiringScreenContent({
               className="flex-row items-center gap-1 bg-white/15 rounded-full px-3 py-1.5"
               style={{ opacity: canGoForward ? 1 : 0 }}
             >
-              <Text className="text-white text-xs font-semibold">Próximo</Text>
+              <Text className="text-white text-xs font-semibold">{t('firing.next')}</Text>
               <Ionicons name="chevron-forward" size={16} color="white" />
             </Pressable>
           </View>
         )}
       </View>
 
-      {/* Área do desafio: ocupa o resto da tela até as bordas, sem padding lateral/inferior */}
       <View className="flex-1 px-1">
         {hasNoChallenges ? (
           <View className="flex-1 items-center justify-center gap-4 px-8">
             <View className="h-20 w-20 items-center justify-center rounded-full bg-white/15">
               <Ionicons name="document-outline" size={36} color="white" />
             </View>
-            <Text className="text-white text-center text-lg font-bold">Nenhum objeto configurado</Text>
-            <Text className="text-white/75 text-center">
-              Os materiais deste agendador foram excluídos, então não há conteúdo para gerar desafios.
-              Vincule um objeto a ele para voltar a tocar normalmente.
-            </Text>
-            <Button onPress={stopAlarm} className="mt-2 rounded-3xl bg-white/15 px-6 py-3">
-              <Text className="font-semibold text-white">Dispensar alarme</Text>
+            <Text className="text-white text-center text-lg font-bold">{t('firing.noObjects.title')}</Text>
+            <Text className="text-white/75 text-center">{t('firing.noObjects.description')}</Text>
+            <Button onPress={stopAlarm} className="mt-2 h-12 rounded-3xl bg-white/15 px-6">
+              <Text className="font-semibold text-white">{t('firing.dismiss')}</Text>
             </Button>
           </View>
         ) : isReviewing && currentChallenge ? (
@@ -408,9 +368,6 @@ function FiringScreenContent({
   );
 }
 
-// Reaproveita buildHistoryFields (já mapeia cada tipo de desafio pro shape de revisão)
-// pra mostrar, em modo leitura, um desafio já respondido dentro da própria sessão de
-// firing -- sem duplicar essa lógica de mapeamento.
 function ChallengeReviewPane({
   challenge,
   result,
@@ -446,28 +403,77 @@ function ChallengeReviewPane({
   );
 }
 
-// ==========================================
-// 2. TELA PRINCIPAL (Busca os dados e gerencia o Loading)
-// ==========================================
 export default function FiringScreen() {
   const { schedulerId, notificationId } = useLocalSearchParams<{ schedulerId: string; notificationId?: string }>();
+  const ringingNotificationId = notificationId || schedulerId;
+  const { t } = useTranslation();
+  const router = useRouter();
   const { data: ragData, isPending, isError, error, refetch } = useRagQuery(schedulerId);
 
-  // Sem isso, uma falha aqui (rede fora do ar, backend fora do ar, etc.) prendia o usuário
-  // pra sempre na tela de "Preparando desafio..." sem nenhuma indicação do que houve — o
-  // queryCache global (queryClient.ts) já loga o erro, isso só dá uma saída pro usuário.
+  const [storedSettings, setStoredSettings] = useState<AlarmSettings | null>(null);
+  useEffect(() => {
+    alarmSettingsStorage.get(schedulerId).then(setStoredSettings).catch(() => undefined);
+  }, [schedulerId]);
+
+  const settings = useMemo<AlarmSettings>(() => {
+    if (ragData) {
+      return {
+        schedulerId: ragData.scheduler.id,
+        name: ragData.scheduler.name,
+        alarmSound: ragData.scheduler.alarmSound,
+        vibration: ragData.scheduler.vibration,
+        soundEnabled: ragData.scheduler.soundEnabled,
+      };
+    }
+    return storedSettings ?? { schedulerId, name: '', alarmSound: 'chic_pop', vibration: true, soundEnabled: true };
+  }, [ragData, storedSettings, schedulerId]);
+
+  const alarm = useRingingAlarm(settings, ringingNotificationId);
+
+  useEffect(() => {
+    activeFiring.start(schedulerId);
+    alarmNavStorage.clearPendingAlarmNav().catch((err) => {
+      console.warn('[FiringScreen] Falha ao descartar o toque pendente do alarme', err);
+    });
+    return () => {
+      activeFiring.finish(schedulerId);
+      alarmScreen.setShowOverLockScreen(false).catch((err) => {
+        console.warn('[FiringScreen] Falha ao deixar de mostrar o app sobre o bloqueio', err);
+      });
+    };
+  }, [schedulerId]);
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => backHandler.remove();
+  }, []);
+
   if (isError) {
     console.error('[FiringScreen] Falha ao carregar o desafio do alarme', { schedulerId, error });
     return (
       <View className="flex-1 justify-center items-center gap-4 bg-brand-100 px-8">
-        <Text className="text-white text-center font-medium">
-          Não foi possível carregar o desafio deste alarme.
-        </Text>
-        <Text className="text-white/75 text-center text-sm">
-          {error instanceof Error ? error.message : 'Erro desconhecido.'}
-        </Text>
-        <Button onPress={() => refetch()} className="bg-white/15 rounded-3xl px-6 py-3">
-          <Text className="font-semibold text-white">Tentar novamente</Text>
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
+        <MuteButton alarm={alarm} />
+        <Text className="text-white text-center font-medium">{t('firing.loadFailed')}</Text>
+        <Text className="text-white/75 text-center text-sm">{errorMessage(error, 'firing.unknownError')}</Text>
+        <Button onPress={() => refetch()} className="h-12 bg-white/15 rounded-3xl px-6">
+          <Text className="font-semibold text-white">{t('common.retry')}</Text>
+        </Button>
+        <Button
+          testID="firing-error-dismiss"
+          variant="ghost"
+          onPress={() => {
+            console.log('[FiringScreen] Alarme dispensado na tela de erro', { schedulerId });
+            alarm.stop();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)');
+            }
+          }}
+          className="h-12 rounded-3xl px-6"
+        >
+          <Text className="font-semibold text-white/75">{t('firing.dismiss')}</Text>
         </Button>
       </View>
     );
@@ -476,13 +482,15 @@ export default function FiringScreen() {
   if (isPending || !ragData) {
     return (
       <View className="flex-1 justify-center items-center bg-brand-100">
+        <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
+        <MuteButton alarm={alarm} />
         <ActivityIndicator size="large" color="#ffffff" />
-        <Text className="text-white mt-4 font-medium">Preparando desafio...</Text>
+        <Text className="text-white mt-4 font-medium">{t('firing.preparing')}</Text>
       </View>
     );
   }
 
   return (
-    <FiringScreenContent ragData={ragData} schedulerId={schedulerId} notificationId={notificationId || schedulerId} />
+    <FiringScreenContent ragData={ragData} schedulerId={schedulerId} notificationId={ringingNotificationId} alarm={alarm} />
   );
 }

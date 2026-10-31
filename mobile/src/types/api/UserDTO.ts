@@ -3,14 +3,13 @@ export interface UserDTO {
   username: string;
   email: string;
   current_streak: number;
+  last_active_date?: string;
   created_at: string;
   updated_at: string;
 }
 
-// E-mail não é editável (decisão de produto) -- só apelido e senha.
 export interface UpdateUserRequestDTO {
   username?: string;
   password?: string;
   current_password?: string;
 }
-

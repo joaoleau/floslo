@@ -27,10 +27,6 @@ type GenerateResponseContent struct {
 	Text string `json:"text"`
 }
 
-// Os itens gerados trazem Tag e SourceChunks, que não vêm do modelo: quem monta os slots é o
-// backend, e o item i da resposta é ligado ao slot i por posição. A tag é a da busca que
-// encontrou o chunk principal do slot, e a fonte são os chunks do slot.
-
 type GeneratedMultipleChoice struct {
 	Question     string                      `json:"question"`
 	Alternatives []MultipleChoiceAlternative `json:"alternatives"`
@@ -45,7 +41,6 @@ type MultipleChoiceAlternative struct {
 	Correct bool   `json:"correct"`
 }
 
-// GeneratedDiscovery só apresenta um conteúdo ("você sabia?"), sem pergunta e sem nota.
 type GeneratedDiscovery struct {
 	Title        string           `json:"title"`
 	Content      string           `json:"content"`
@@ -55,7 +50,7 @@ type GeneratedDiscovery struct {
 
 type GeneratedTrueFalse struct {
 	Statement    string           `json:"statement"`
-	Answer       bool             `json:"answer"` // true = the statement is factually correct
+	Answer       bool             `json:"answer"`
 	Explanation  string           `json:"explanation"`
 	Tag          string           `json:"tag"`
 	SourceChunks []RetrievedChunk `json:"source_chunks"`
@@ -73,8 +68,6 @@ func NewGenerationService(modelClient *bedrockruntime.Client, modelId string) *G
 	}
 }
 
-// GenerationSlot é uma vaga do prompt: a passagem principal (o chunk foco), a tag cuja busca a
-// encontrou e, se houver, uma passagem de apoio só para dar contexto.
 type GenerationSlot struct {
 	Main    RetrievedChunk
 	Tag     string
@@ -107,7 +100,10 @@ CRITICAL LANGUAGE REQUIREMENT: you must write EVERY piece of output text below i
 material provided further down may be written in a completely different language -- that is
 expected and does NOT change this requirement. Treat this as a translation task: read the
 material in whatever language it is in, then produce your entire answer in %s. Never fall
-back to the material's language.
+back to the material's language. Translate the prose, but keep technical terms, product and
+service names, commands, code identifiers and established technical jargon exactly as they
+appear in the material: for example, a Kubernetes "Job" or "Pod" stays "Job" or "Pod" and is
+never translated literally.
 `, name, name)
 }
 
@@ -119,8 +115,6 @@ func languageReminderInstruction(language string) string {
 	return fmt.Sprintf("\nReminder: write the entire output (every piece of text) in %s, regardless of what language the material below is in. Do not default to the material's language.\n", name)
 }
 
-// slotsPromptText monta o bloco SLOTS do prompt. Os rótulos são só posições ("SLOT 1"): o
-// modelo nunca vê nem devolve ids de chunk.
 func slotsPromptText(slots []GenerationSlot) string {
 	var text strings.Builder
 	for i, slot := range slots {
@@ -133,7 +127,6 @@ func slotsPromptText(slots []GenerationSlot) string {
 	return text.String()
 }
 
-// maxOutputTokens é o teto de tokens de saída por chamada.
 const maxOutputTokens = 4000
 
 func tokenBudget(base int, perItem int, count int) int {
@@ -220,7 +213,6 @@ func truncateForLog(text string) string {
 	return text[:maxLen] + "...(truncated)"
 }
 
-// slotItem é o que um item gerado precisa oferecer para ser validado e ligado ao slot.
 type slotItem interface {
 	isUsable() bool
 	bindSlot(slot GenerationSlot)
@@ -239,7 +231,6 @@ func (q *GeneratedMultipleChoice) isUsable() bool {
 			correct++
 		}
 	}
-	// Sem exatamente uma alternativa correta o usuário não conseguiria concluir o desafio.
 	return correct == 1
 }
 
@@ -263,11 +254,6 @@ func (t *GeneratedTrueFalse) bindSlot(slot GenerationSlot) {
 	t.Tag, t.SourceChunks = slot.Tag, slot.chunks()
 }
 
-// itemsFromResponse converte a resposta do modelo em itens ligados aos slots. O item i
-// corresponde ao slot i, decisão do backend: o modelo não devolve ids. Se a quantidade
-// devolvida for diferente da pedida, não há como saber de qual slot saiu cada item, então
-// nenhum item do tipo é aproveitado. Com a quantidade certa, cada item utilizável recebe a
-// tag e os chunks do seu slot, e os inutilizáveis são descartados.
 func itemsFromResponse[T any, P interface {
 	*T
 	slotItem
@@ -315,6 +301,9 @@ QUESTION rules:
 - One clear, specific question with a single well-defined correct answer.
 - It must make sense on its own: never write "according to the text", "in the passage",
   "the author" or anything that assumes the learner has the material at hand.
+- Name the specific subject the fact belongs to (the technology, system, concept, process,
+  event or person the passage is about), so the learner knows what is being asked without the
+  material. Never refer to it vaguely, as in "this tool", "the process" or "it".
 
 ALTERNATIVES rules:
 - Exactly 4 alternatives, with ids "A", "B", "C", "D" in that order.
@@ -370,6 +359,9 @@ material; never add outside knowledge.
 STATEMENT rules:
 - It must make sense on its own: never write "according to the text", "in the passage",
   "the author" or anything that assumes the learner has the material at hand.
+- Name the specific subject the fact belongs to (the technology, system, concept, process,
+  event or person the passage is about), so the learner knows what is being asked without the
+  material. Never refer to it vaguely, as in "this tool", "the process" or "it".
 - Across the whole set, about half of the statements should be true and half false.
 - A false statement must be plausible: build it by changing one key element of a real fact
   from the passage, not by simply adding a negation.
@@ -413,6 +405,9 @@ passages only to make it clear and self-contained; never add outside knowledge):
   actually teach something: give context, cause, consequence, a concrete example or a
   surprising detail. Every sentence must add real information; do not pad with filler or
   repeat the title in different words.
+- Both parts name the specific subject the idea belongs to (the technology, system, concept,
+  process, event or person the passage is about), never a vague reference such as "this
+  tool", "the process" or "it".
 
 This is NOT a question-and-answer pair: there is no separate question and no separate
 answer, just a hook plus its own explanation. The reader should understand the idea after

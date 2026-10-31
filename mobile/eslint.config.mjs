@@ -36,20 +36,15 @@ export default defineConfig([
     },
 
     rules: {
-      // React moderno
       'react/react-in-jsx-scope': 'off',
       'react/jsx-uses-react': 'off',
 
-      // Hooks
       ...reactHooks.configs.recommended.rules,
 
-      // Permitir require() em arquivos .js de configuração
       '@typescript-eslint/no-require-imports': 'off',
 
-      // Permitir any durante o desenvolvimento
       '@typescript-eslint/no-explicit-any': 'warn',
 
-      // Variáveis não utilizadas
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {

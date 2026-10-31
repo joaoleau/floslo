@@ -1,6 +1,11 @@
 import { screen, fireEvent } from '@testing-library/react-native';
 import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { SchedulerCard } from './SchedulerCard';
+import { getColorForId } from '@/lib/hashColor';
+
+function surface() {
+  return screen.getByTestId('scheduler-card-surface').props;
+}
 import { Scheduler } from '@/types/domain/Scheduler';
 
 const scheduler: Scheduler = {
@@ -105,13 +110,15 @@ describe('SchedulerCard', () => {
     expect(screen.queryByText('Múltipla escolha')).toBeNull();
   });
 
-  it('dims a disabled scheduler outside of selection mode, but not while selecting', async () => {
-    const { rerender } = await renderWithProviders(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
-    expect(screen.getByTestId('scheduler-card').props.style).toEqual({ opacity: 0.45 });
+  it('shows a disabled scheduler with only the outline, also while selecting', async () => {
+    const { rerender } = await renderWithProviders(<SchedulerCard scheduler={scheduler} />);
+    expect(surface().style.backgroundColor).toBe(getColorForId(scheduler.id));
 
-    // Being dimmed as "off" would be confusing feedback while the user is mid-selection --
-    // the selection-mode dimming (on the inner View) takes over instead.
+    await rerender(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} />);
+    expect(surface().style.backgroundColor).toBeUndefined();
+    expect(surface().className).toContain('border border-border bg-card');
+
     await rerender(<SchedulerCard scheduler={{ ...scheduler, enabled: false }} selectionMode />);
-    expect(screen.getByTestId('scheduler-card').props.style).toBeUndefined();
+    expect(surface().style.backgroundColor).toBeUndefined();
   });
 });

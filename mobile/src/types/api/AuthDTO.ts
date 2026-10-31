@@ -2,6 +2,7 @@ export interface RegisterRequestDTO {
   username: string;
   email: string;
   password: string;
+  accepted_terms_version: string;
 }
 
 export interface RegisterResponseDTO {

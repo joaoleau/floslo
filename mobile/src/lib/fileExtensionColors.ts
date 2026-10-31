@@ -1,7 +1,3 @@
-// Cor semântica por tipo de arquivo (convenção comum de ícone de documento), usada na
-// badge de extensão do ObjectCard -- independente da cor de fundo do card (essa vem do
-// hash do id, ver hashColor.ts), então o mesmo tipo de arquivo sempre tem a mesma cor,
-// não importa em qual objeto apareça.
 const EXTENSION_COLORS: Record<string, string> = {
   pdf: '#EF4444',
   doc: '#2563EB',

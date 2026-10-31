@@ -1,18 +1,43 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { objectService } from '@/services/objectService';
+import { ObjectType } from '@/types/domain/Object';
 
-// Polls only while at least one object is still "processing" (e.g. right after an
-// upload), so the list picks up the "active"/"failed" transition without the user
-// having to pull-to-refresh. Stops as soon as nothing is pending.
 const PROCESSING_POLL_INTERVAL_MS = 5000;
+
+const UPLOAD_APPEARANCE_TIMEOUT_MS = 2 * 60 * 1000;
+
+interface PendingUpload {
+  knownIds: Set<string>;
+  sentAt: number;
+}
+
+let pendingUploads: PendingUpload[] = [];
+
+export function trackUpload(currentObjects: ObjectType[] | undefined, now: number = Date.now()): void {
+  pendingUploads.push({ knownIds: new Set((currentObjects ?? []).map((object) => object.id)), sentAt: now });
+}
+
+export function isWaitingForUpload(objects: ObjectType[] | undefined, now: number = Date.now()): boolean {
+  const ids = (objects ?? []).map((object) => object.id);
+  pendingUploads = pendingUploads.filter(
+    (upload) => now - upload.sentAt < UPLOAD_APPEARANCE_TIMEOUT_MS && !ids.some((id) => !upload.knownIds.has(id))
+  );
+  return pendingUploads.length > 0;
+}
+
+export function resetPendingUploads(): void {
+  pendingUploads = [];
+}
 
 export function useObjectsQuery() {
   return useQuery({
     queryKey: queryKeys.objects.all,
     queryFn: objectService.getAll,
     refetchInterval: (query) =>
-      query.state.data?.some((object) => object.status === 'processing') ? PROCESSING_POLL_INTERVAL_MS : false,
+      query.state.data?.some((object) => object.status === 'processing') || isWaitingForUpload(query.state.data)
+        ? PROCESSING_POLL_INTERVAL_MS
+        : false,
   });
 }
 
@@ -62,6 +87,9 @@ export function useUploadObjectMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (file: { uri: string; name: string; mimeType?: string }) => objectService.upload(file),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.objects.all }),
+    onSuccess: () => {
+      trackUpload(qc.getQueryData<ObjectType[]>(queryKeys.objects.all));
+      return qc.invalidateQueries({ queryKey: queryKeys.objects.all });
+    },
   });
 }

@@ -1,5 +1,3 @@
-// src/types/domain/RAG.ts
-
 import { Scheduler, SupportedLanguage } from './Scheduler';
 
 export interface MultipleChoiceAlternative {
@@ -25,7 +23,6 @@ export interface MultipleChoice {
   sourceChunks: SourceChunk[];
 }
 
-// Só apresenta o conteúdo ("você sabia?"), sem pergunta e sem nota.
 export interface Discovery {
   title: string;
   content: string;
@@ -41,11 +38,6 @@ export interface TrueFalseItem {
   sourceChunks: SourceChunk[];
 }
 
-// Each generated challenge is flattened, at the mapper boundary, into individually playable
-// items in firing order -- this is what lets firing.tsx keep its existing per-item
-// currentChallengeIndex paging logic almost unchanged. `language` is carried over from the
-// parent ChallengeResultDTO (lost otherwise once flattened) so firing.tsx can show which
-// language the content was generated in.
 export type ChallengeItem =
   | { type: 'MULTIPLE_CHOICE'; language: SupportedLanguage; data: MultipleChoice }
   | { type: 'TRUE_FALSE'; language: SupportedLanguage; data: TrueFalseItem }
@@ -54,7 +46,5 @@ export type ChallengeItem =
 export interface RAG {
   scheduler: Scheduler;
   challenges: ChallengeItem[];
-  // Sequência de dias de estudo já com o dia deste disparo; ausente quando o dia não foi
-  // registrado.
   currentStreak?: number;
 }

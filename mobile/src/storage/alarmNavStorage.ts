@@ -9,18 +9,13 @@ interface PendingAlarmNav {
   challengeType?: string;
 }
 
-/**
- * A notification tap while the app is merely backgrounded (not killed) is delivered to
- * notifee's onBackgroundEvent, which runs headless with no router mounted — it can't
- * navigate directly. Worse, non-strict alarms use autoCancel:true, so by the time the app
- * resumes to foreground and polls getDisplayedNotifications(), Android has often already
- * removed the notification, losing the schedulerId. This durable handoff lets the
- * background handler stash the press before that race, so the foreground side can still
- * pick it up on the next AppState-active check.
- */
 export const alarmNavStorage = {
   async savePendingAlarmNav(data: PendingAlarmNav): Promise<void> {
     await AsyncStorage.setItem(PENDING_ALARM_NAV_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
+  },
+
+  async clearPendingAlarmNav(): Promise<void> {
+    await AsyncStorage.removeItem(PENDING_ALARM_NAV_KEY);
   },
 
   async takePendingAlarmNav(): Promise<PendingAlarmNav | null> {

@@ -1,9 +1,5 @@
 const { withProjectBuildGradle } = require('@expo/config-plugins');
 
-// @notifee/react-native ships its native sound/vibration assets as a local Maven repo
-// instead of publishing to a public one. It has no Expo config plugin of its own, so
-// without this, `expo prebuild --clean` regenerates android/build.gradle from scratch
-// and silently drops this line, breaking the native Android build.
 const NOTIFEE_MAVEN_LINE =
   'maven { url "$rootDir/../node_modules/@notifee/react-native/android/libs" }';
 

@@ -1,5 +1,3 @@
-// src/db/migrations.ts
-
 import { SQLiteDatabase } from 'expo-sqlite';
 
 interface Migration {
@@ -7,9 +5,6 @@ interface Migration {
   up: (db: SQLiteDatabase) => void;
 }
 
-// Enquanto o app está em desenvolvimento, o esquema pode mudar direto aqui e o banco local é
-// recriado reinstalando o app. Depois de publicado, as migrações passam a ser só aditivas:
-// o histórico local não tem fallback de servidor, e uma migração malfeita perde dado de vez.
 const migrations: Migration[] = [
   {
     version: 1,
@@ -37,7 +32,6 @@ const migrations: Migration[] = [
           is_correct INTEGER,
           wrong_attempts INTEGER NOT NULL DEFAULT 0,
           answered_at INTEGER NOT NULL,
-          time_spent_ms INTEGER,
           source_object_key TEXT,
           source_page INTEGER
         );
@@ -52,9 +46,6 @@ const migrations: Migration[] = [
   {
     version: 2,
     up: (db) => {
-      // Guarda as alternativas (Múltipla escolha) / opções fixas Verdadeiro-Falso como JSON, pra tela
-      // de revisão de sessão poder mostrar o desafio original de novo (com a correta
-      // destacada), não só o texto da pergunta.
       db.execSync('ALTER TABLE attempts ADD COLUMN options_json TEXT');
     },
   },

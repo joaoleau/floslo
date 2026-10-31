@@ -7,10 +7,6 @@ import { Text } from '@/components/ui/text';
 import { alertService, AppAlertButton, AppAlertOptions } from '@/services/alertService';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-// Montado uma vez em app/_layout.tsx, escuta o alertService e desenha o popup no lugar
-// do Alert.alert nativo -- mesmo Card arredondado/cores do resto do app, em vez do
-// diálogo cinza do sistema. Ícone e cor mudam conforme tem botão destrutivo entre os
-// passados ou não, pra dar um sinal visual do tipo de aviso antes mesmo de ler o texto.
 export function AppAlert() {
   const colors = useThemeColors();
   const [options, setOptions] = useState<AppAlertOptions | null>(null);

@@ -1,6 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { TagStat } from '@/types/domain/History';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { useTheme } from '@/lib/ThemeProvider';
@@ -20,13 +21,10 @@ function accuracyColor(accuracy: number, colors: ReturnType<typeof useThemeColor
 
 export function TagAccuracyRow({ stat, onPress }: TagAccuracyRowProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { mode } = useTheme();
   const percent = stat.accuracy !== null ? Math.round(stat.accuracy * 100) : null;
   const barColor = stat.accuracy !== null ? accuracyColor(stat.accuracy, colors) : colors.brandSoft;
-  // Cor própria por assunto (mesma paleta vibrante usada em Agendadores/Objetos), fixa
-  // pelo id do tag -- diferente da cor da barra/porcentagem, que continua semântica
-  // (verde/âmbar/vermelho por acerto). Sem isso, todo assunto sem dado suficiente pra
-  // ter uma taxa de acerto ainda (o caso mais comum) caía no mesmo cinza neutro.
   const identityColor = getColorForId(stat.tag);
 
   return (
@@ -51,7 +49,7 @@ export function TagAccuracyRow({ stat, onPress }: TagAccuracyRowProps) {
             {stat.tag}
           </Text>
           <Text className="text-xs text-muted-foreground" style={{ flexShrink: 0 }}>
-            {stat.total} {stat.total === 1 ? 'resposta' : 'respostas'}
+            {t('history.tag.answers', { count: stat.total })}
           </Text>
         </View>
 
@@ -64,7 +62,7 @@ export function TagAccuracyRow({ stat, onPress }: TagAccuracyRowProps) {
           </View>
         ) : (
           <Text className="text-xs text-muted-foreground">
-            {stat.hasEnoughData ? 'Sem desafios com certo/errado nesse assunto' : 'Ainda pouco dado pra um insight'}
+            {stat.hasEnoughData ? t('history.tag.noGraded') : t('history.tag.notEnoughDataShort')}
           </Text>
         )}
       </View>

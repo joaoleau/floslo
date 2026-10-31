@@ -6,15 +6,10 @@ from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
-# Teto de tokens da resposta. O refinador recebe as candidatas do documento inteiro numa chamada
-# só; o teto limita o custo quando o modelo entra em laço repetindo variações da mesma tag.
-# Resposta cortada não é perda total, as tags completas que chegaram são aproveitadas.
 MAX_NEW_TOKENS = 1500
 
-# Padrão de TAG_REFINER_MAX_TAGS: o máximo de tags que o refinador devolve.
 DEFAULT_MAX_TAGS = 200
 
-# Nomes dos idiomas que o TagService detecta, para dizer ao LLM em que idioma escrever as tags.
 LANGUAGE_NAMES = {
     "pt": "Portuguese",
     "en": "English",
@@ -29,15 +24,12 @@ _QUOTED_STRING = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 @dataclass(slots=True)
 class DocumentContext:
-    """O que o refinador sabe do documento além das candidatas: serve só para ele entender do que
-    o material trata."""
 
     language: str | None = None
     filename: str | None = None
 
 
 class TagRefinerClient(Protocol):
-    # None quer dizer que a chamada falhou; uma lista (mesmo vazia) é uma resposta boa.
     def refine(self, candidates: list[str], context: DocumentContext | None = None) -> list[str] | None: ...
 
 
@@ -48,32 +40,12 @@ class TagRefinerData:
 
 
 class NoopTagRefinerClient:
-    """Pass-through client. Used when the refiner is disabled."""
 
     def refine(self, candidates: list[str], context: DocumentContext | None = None) -> list[str] | None:
         return candidates
 
 
 class BedrockTagRefinerClient:
-    """Uses Bedrock (Nova Lite, same model already provisioned for RAG
-    generation) over YAKE's candidates. Given every candidate and the file
-    name, asks the model to keep the ones that are real concepts, rewrite
-    them as clean tags (no verbs, fixed spelling) and drop noise such as
-    sentence fragments, names and copyright text.
-
-    The document's own excerpts used to be sent too, but they biased the
-    model into treating whatever those few pages happened to cover as the
-    whole subject of the document -- removed in favor of just the file name,
-    which hints at the topic without narrowing it.
-
-    Returns None when the call fails (throttling, malformed JSON, timeout,
-    empty answer). Deciding what to do with that is up to TagRefinerService,
-    which falls back to the raw YAKE candidates. A refiner hiccup must never
-    fail document ingestion or leave a document with zero tags.
-
-    A response cut off by max_tokens is not a failure: the complete tags that
-    arrived before the cut are kept.
-    """
 
     def __init__(self, bedrock_runtime_client: Any, model_id: str):
         self.bedrock_runtime_client = bedrock_runtime_client
@@ -131,8 +103,6 @@ class BedrockTagRefinerClient:
             return refined
 
         except Exception:
-            # Falha aberta de propósito, mas nunca em silêncio: o motivo e o começo/fim da
-            # resposta (uma resposta cortada em max_tokens vira JSON inválido) ficam no log.
             logger.exception(
                 f"Tag refiner call failed. "
                 f"stopReason={stop_reason} response_head={raw_text[:200]!r} response_tail={raw_text[-200:]!r}"
@@ -140,8 +110,6 @@ class BedrockTagRefinerClient:
             return None
 
     def _log_suggestions(self, tags: list[str], candidates: list[str]) -> None:
-        """Só informa: o modelo, além de selecionar, costuma sugerir conceitos que não estão na lista
-        de candidatas (ex.: "árvores", "grafos"). Eles são mantidos, e o log diz quais foram."""
         known = {candidate.strip().lower() for candidate in candidates}
         suggested = [tag for tag in tags if tag.strip().lower() not in known]
         if suggested:
@@ -170,8 +138,6 @@ class BedrockTagRefinerClient:
         return tags if isinstance(tags, list) else []
 
     def _salvage_tags(self, text: str) -> list[str]:
-        """Recupera as tags completas de um JSON cortado no meio (resposta interrompida
-        por max_tokens). Uma string sem aspa de fechamento, a última, nunca casa e some."""
         start = text.find("[")
         if start == -1:
             return []
@@ -213,7 +179,6 @@ Respond ONLY with valid JSON in this exact format:
 """
 
     def _build_context_section(self, context: DocumentContext) -> str:
-        """A seção do documento: só o nome do arquivo."""
         if not context.filename:
             return ""
 
@@ -237,8 +202,6 @@ class TagRefinerService:
         self.client = client or NoopTagRefinerClient()
 
     def refine(self, candidates: list[str], context: DocumentContext | None = None) -> list[str]:
-        """Refina as candidatas do documento inteiro numa chamada só. Se a chamada falhar, o
-        documento cai de volta nas candidatas cruas do YAKE."""
         if not self.enabled or not candidates:
             return candidates
 

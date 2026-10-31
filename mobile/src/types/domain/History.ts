@@ -1,11 +1,5 @@
-// src/types/domain/History.ts
-
 export type ChallengeType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'DISCOVERY';
 
-// Resultado que cada componente de desafio devolve ao concluir, pra firing.tsx gravar o
-// attempt correspondente no histórico. O tempo gasto é medido pelo firing.tsx (não aqui) --
-// ele não fica aninhado num worklet de gesto, então Date.now() ali não esbarra na regra de
-// pureza que pegou os componentes de desafio quando cada um tentava medir seu próprio tempo.
 export interface ChallengeResult {
   wrongAttempts: number;
 }
@@ -14,7 +8,7 @@ export interface TagStat {
   tag: string;
   total: number;
   accuracy: number | null;
-  hasEnoughData: boolean; // false quando total < MIN_ATTEMPTS_FOR_INSIGHT
+  hasEnoughData: boolean;
 }
 
 export interface MistakeEntry {
@@ -36,10 +30,9 @@ export interface SessionSummary {
   totalChallenges: number;
   correctCount: number;
   answeredCount: number;
+  gradedCount: number;
 }
 
-// Uma alternativa de Múltipla escolha, ou uma das duas opções fixas de Verdadeiro/Falso -- guardado
-// pra tela de revisão poder mostrar o desafio original de novo, com a correta destacada.
 export interface ReviewOption {
   id: string;
   text: string;
@@ -54,11 +47,10 @@ export interface AttemptEntry {
   language: string;
   promptText: string;
   explanationText: string | null;
-  options: ReviewOption[] | null; // null pra DISCOVERY (não tem alternativas)
+  options: ReviewOption[] | null;
   isCorrect: boolean | null;
   wrongAttempts: number;
   answeredAt: number;
-  timeSpentMs: number | null;
   sourceObjectKey: string | null;
   sourcePage: number | null;
 }
@@ -88,7 +80,6 @@ export interface RecordAttemptInput {
   options: ReviewOption[] | null;
   isCorrect: boolean | null;
   wrongAttempts: number;
-  timeSpentMs: number | null;
   sourceObjectKey: string | null;
   sourcePage: number | null;
 }

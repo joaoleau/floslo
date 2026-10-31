@@ -7,10 +7,6 @@ interface AnimatedChoiceProps extends PressableProps {
   isCorrect: boolean;
 }
 
-// Alternativa de Múltipla escolha/Verdadeiro-Falso com feedback de movimento: um "shake" horizontal
-// quando a resposta escolhida está errada, um leve "pulse" de escala quando é a certa --
-// sem isso a mudança de cor (vermelho/verde) era o único sinal, e passava despercebida
-// fácil no meio de um alarme tocando.
 export function AnimatedChoice({ isWrong, isCorrect, children, style, ...props }: AnimatedChoiceProps) {
   const shakeX = useSharedValue(0);
   const scale = useSharedValue(1);

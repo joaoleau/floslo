@@ -25,9 +25,6 @@ func NewSchedulerService(schedulerRepo *repository.SchedulerRepository, schedule
 	}
 }
 
-// MaxItemsPerScheduler is the total number of items (questions, cards, discoveries) a
-// scheduler can ask for in one firing, summed across all its challengers. Keep in sync with
-// the limit in mobile's SchedulerForm.
 const MaxItemsPerScheduler = 10
 
 func validateChallenger(c model.Challenger) error {
@@ -57,8 +54,6 @@ func validateChallenger(c model.Challenger) error {
 	return nil
 }
 
-// validateChallengers checks every challenger and the total number of items across all of
-// them. The backend enforces the total because it accepts any number of challengers.
 func validateChallengers(challengers []model.Challenger) error {
 	total := 0
 	for _, challenger := range challengers {

@@ -109,4 +109,12 @@ describe('SchedulerListFilters (component)', () => {
 
     jest.useRealTimers();
   });
+
+  it('keeps the counters neutral, with no color per filter', async () => {
+    await render(<SchedulerListFilters value="today" onChange={jest.fn()} schedulers={[]} />);
+
+    for (const filter of ['all', 'today', 'tomorrow', 'disabled']) {
+      expect(screen.getByTestId(`scheduler-filter-count-${filter}`).props.style).toEqual({ minWidth: 20, height: 20 });
+    }
+  });
 });

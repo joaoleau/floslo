@@ -1,5 +1,3 @@
-// src/services/historyService.ts
-
 import { db, generateId } from '@/db/client';
 import {
   AttemptDetail,
@@ -14,8 +12,6 @@ import {
   TagStat,
 } from '@/types/domain/History';
 
-// Tags com menos respostas que isso ficam separadas como "ainda pouco dado" -- uma tag
-// respondida 1 vez e errada mostraria 0% de acerto, o que é enganoso, não um insight real.
 const MIN_ATTEMPTS_FOR_INSIGHT = 3;
 
 interface AttemptRow {
@@ -30,7 +26,6 @@ interface AttemptRow {
   is_correct: number | null;
   wrong_attempts: number;
   answered_at: number;
-  time_spent_ms: number | null;
   source_object_key: string | null;
   source_page: number | null;
 }
@@ -58,7 +53,6 @@ function mapAttemptRow(row: AttemptRow): AttemptEntry {
     isCorrect: row.is_correct === null ? null : row.is_correct === 1,
     wrongAttempts: row.wrong_attempts,
     answeredAt: row.answered_at,
-    timeSpentMs: row.time_spent_ms,
     sourceObjectKey: row.source_object_key,
     sourcePage: row.source_page,
   };
@@ -89,8 +83,8 @@ export const historyService = {
       `INSERT INTO attempts (
          id, session_id, user_id, challenge_type, tag, language,
          prompt_text, explanation_text, options_json, is_correct, wrong_attempts, answered_at,
-         time_spent_ms, source_object_key, source_page
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         source_object_key, source_page
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         generateId(),
         input.sessionId,
@@ -104,7 +98,6 @@ export const historyService = {
         input.isCorrect === null ? null : input.isCorrect ? 1 : 0,
         input.wrongAttempts,
         Date.now(),
-        input.timeSpentMs,
         input.sourceObjectKey,
         input.sourcePage,
       ]
@@ -126,7 +119,7 @@ export const historyService = {
           tag: r.tag,
           total: r.total,
           accuracy: r.graded > 0 ? r.correct / r.graded : null,
-          hasEnoughData: r.total >= MIN_ATTEMPTS_FOR_INSIGHT,
+          hasEnoughData: r.graded >= MIN_ATTEMPTS_FOR_INSIGHT,
         })
       )
       .sort((a, b) => {
@@ -136,8 +129,6 @@ export const historyService = {
       });
   },
 
-  // "Erro" aqui é acertar só na segunda tentativa (ou depois) -- os componentes de desafio
-  // bloqueiam avanço até acertar, então nunca existe uma resposta final errada de fato.
   getRecentMistakes(userId: string, limit = 10): MistakeEntry[] {
     const rows = db.getAllSync<AttemptRow>(
       `SELECT * FROM attempts WHERE user_id = ? AND is_correct = 0
@@ -156,10 +147,6 @@ export const historyService = {
     }));
   },
 
-  // Uma linha por dia com pelo menos 1 resposta, últimos `days` dias -- base do heatmap de
-  // estudo no Histórico. 'localtime' na conversão pra não desalinhar o dia perto da
-  // meia-noite pro fuso do usuário (o mesmo raciocínio de todayLocalDate em firing.tsx,
-  // só que calculado no SQLite em vez do JS).
   getDailyActivity(userId: string, days: number): { date: string; count: number }[] {
     const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
     return db.getAllSync<{ date: string; count: number }>(
@@ -180,10 +167,12 @@ export const historyService = {
       completed_at: number | null;
       total_challenges: number;
       answered_count: number;
+      graded_count: number;
       correct_count: number;
     }>(
       `SELECT s.id, s.scheduler_id, s.scheduler_name, s.started_at, s.completed_at, s.total_challenges,
               COUNT(a.id) as answered_count,
+              SUM(CASE WHEN a.is_correct IS NOT NULL THEN 1 ELSE 0 END) as graded_count,
               SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) as correct_count
        FROM sessions s
        LEFT JOIN attempts a ON a.session_id = s.id
@@ -202,7 +191,8 @@ export const historyService = {
       completedAt: r.completed_at,
       totalChallenges: r.total_challenges,
       answeredCount: r.answered_count,
-      correctCount: r.correct_count,
+      gradedCount: r.graded_count ?? 0,
+      correctCount: r.correct_count ?? 0,
     }));
   },
 
@@ -232,14 +222,12 @@ export const historyService = {
       completedAt: session.completed_at,
       totalChallenges: session.total_challenges,
       answeredCount: attempts.length,
+      gradedCount: attempts.filter((a) => a.isCorrect !== null).length,
       correctCount: attempts.filter((a) => a.isCorrect === true).length,
       attempts,
     };
   },
 
-  // Pra tela de revisão (abrir um desafio já respondido de dentro da sessão ou do assunto)
-  // mostrar o desafio original de novo -- pergunta/alternativas/explicação -- em vez de só
-  // o texto solto.
   getAttemptDetail(attemptId: string): AttemptDetail | undefined {
     const row = db.getFirstSync<AttemptRow & { scheduler_name: string }>(
       `SELECT a.*, s.scheduler_name
@@ -269,7 +257,7 @@ export const historyService = {
       tag,
       total,
       accuracy: graded > 0 ? correct / graded : null,
-      hasEnoughData: total >= MIN_ATTEMPTS_FOR_INSIGHT,
+      hasEnoughData: graded >= MIN_ATTEMPTS_FOR_INSIGHT,
     };
 
     const recentRows = db.getAllSync<AttemptRow>(
@@ -284,8 +272,6 @@ export const historyService = {
     };
   },
 
-  // Não faz upload nenhum -- é só o gancho que deixa a porta aberta pra um backup em S3
-  // futuro, sem construir esse fluxo agora.
   exportAll(userId: string) {
     const sessions = db.getAllSync('SELECT * FROM sessions WHERE user_id = ?', [userId]);
     const attempts = db.getAllSync('SELECT * FROM attempts WHERE user_id = ?', [userId]);

@@ -3,10 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
+import { useTranslation } from 'react-i18next';
+import { i18n } from '@/i18n';
 import { WeekDays } from '@/components/scheduler/WeekDays';
 import { CHALLENGE_TYPE_META } from '@/constants/challengeType';
 import { Challenger, LANGUAGE_FLAGS, Scheduler } from '@/types/domain/Scheduler';
 import { getColorForId } from '@/lib/hashColor';
+import { cardSurface } from '@/lib/cardSurface';
+import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface SchedulerCardProps {
   scheduler: Scheduler;
@@ -21,21 +25,14 @@ interface SchedulerCardProps {
 function challengeConfigLabel(item: Challenger): string {
   switch (item.challengeType) {
     case 'MULTIPLE_CHOICE':
-      return `${item.challenge.questionCount} questões`;
+      return i18n.t('schedulers.card.questions', { count: item.challenge.questionCount });
     case 'TRUE_FALSE':
-      return `${item.challenge.questionCount} afirmações`;
+      return i18n.t('schedulers.card.statements', { count: item.challenge.questionCount });
     case 'DISCOVERY':
-      return `${item.challenge.discoveryCount} descobertas`;
+      return i18n.t('schedulers.card.discoveries', { count: item.challenge.discoveryCount });
   }
 }
 
-// Item da listagem de agendadores (um abaixo do outro): card cheio, colorido (cor
-// tirada do hash do próprio id -- ver getColorForId). A ideia continua sendo puxar
-// pra estética de "app de estudo" (tipo cursos/lições), não de relógio: hora em destaque,
-// weekdays ao lado da hora (aproveitando o espaço que sobrava à direita) e cada desafio
-// configurado listado em uma linha (tipo e quantidade). O idioma é do agendador, então
-// aparece uma vez só, no cabeçalho. Dimensões bem reduzidas (fonte do horário, ícones,
-// paddings) mantendo todos os mesmos detalhes.
 export function SchedulerCard({
   scheduler,
   onPress,
@@ -45,27 +42,24 @@ export function SchedulerCard({
   selectionMode = false,
   selected = false,
 }: SchedulerCardProps) {
+  const colors = useThemeColors();
+  useTranslation();
+  const outlined = !scheduler.enabled;
   const backgroundColor = getColorForId(scheduler.id);
+  const ink = outlined ? colors.primary : '#FFFFFF';
+  const chip = outlined ? 'bg-muted' : 'bg-white/20';
+  const text = outlined ? 'text-foreground' : 'text-white';
 
   return (
     <Pressable
       testID="scheduler-card"
       onPress={onPress}
       onLongPress={onLongPress}
-      // Um pouco menos vibrante que antes (0.55 -> 0.45) pra "desligado" ler mais claramente
-      // como desligado, sem virar um contorno vazio.
-      style={!scheduler.enabled && !selectionMode ? { opacity: 0.45 } : undefined}
     >
       <View
-        className="rounded-[28px] p-3.5 gap-1.5"
-        style={{
-          backgroundColor,
-          opacity: selectionMode && !selected ? 0.5 : 1,
-          borderWidth: selected ? 3 : 0,
-          borderColor: '#FFFFFF',
-          borderBottomWidth: 3,
-          borderBottomColor: selected ? '#FFFFFF' : 'rgba(0,0,0,0.18)',
-        }}
+        testID="scheduler-card-surface"
+        className={`rounded-[28px] p-3.5 gap-1.5 ${outlined ? 'border border-border bg-card' : ''}`}
+        style={cardSurface({ color: backgroundColor, outlined, selected, dimmed: selectionMode && !selected, ink })}
       >
         <View className="flex-row items-start justify-between gap-2">
           {selectionMode && (
@@ -75,19 +69,19 @@ export function SchedulerCard({
               style={{
                 width: 20,
                 height: 20,
-                backgroundColor: selected ? '#FFFFFF' : 'transparent',
+                backgroundColor: selected ? ink : 'transparent',
                 borderWidth: selected ? 0 : 2,
-                borderColor: '#FFFFFF',
+                borderColor: ink,
               }}
             >
-              {selected && <Ionicons name="checkmark" size={13} color={backgroundColor} />}
+              {selected && <Ionicons name="checkmark" size={13} color={outlined ? colors.primaryForeground : backgroundColor} />}
             </View>
           )}
 
-          <Text className="flex-1 text-sm font-semibold text-white">{scheduler.name}</Text>
+          <Text className={`flex-1 text-sm font-semibold ${text}`}>{scheduler.name}</Text>
 
           <View className="flex-row items-center gap-1.5">
-            <View testID="scheduler-card-language" className="items-center justify-center rounded-full bg-white/20 px-2 py-0.5">
+            <View testID="scheduler-card-language" className={`items-center justify-center rounded-full ${chip} px-2 py-0.5`}>
               <Text
                 style={{
                   fontSize: 13,
@@ -100,9 +94,9 @@ export function SchedulerCard({
               </Text>
             </View>
             {scheduler.objectIds.length > 0 && (
-              <View className="flex-row items-center gap-1 rounded-full bg-white/20 px-2 py-1">
-                <Ionicons name="document-text" size={13} color="#FFFFFF" />
-                <Text className="text-xs font-medium text-white">{scheduler.objectIds.length}</Text>
+              <View className={`flex-row items-center gap-1 rounded-full ${chip} px-2 py-1`}>
+                <Ionicons name="document-text" size={13} color={ink} />
+                <Text className={`text-xs font-medium ${text}`}>{scheduler.objectIds.length}</Text>
               </View>
             )}
             {!selectionMode && <Switch checked={scheduler.enabled} onCheckedChange={onToggle || (() => {})} />}
@@ -110,12 +104,12 @@ export function SchedulerCard({
         </View>
 
         <View className="flex-row items-center justify-between gap-2">
-          <Text className="text-3xl font-extrabold text-white">{scheduler.startTime}</Text>
+          <Text className={`text-3xl font-extrabold ${text}`}>{scheduler.startTime}</Text>
 
           <WeekDays
             weekDays={scheduler.weekDays}
             onToggleDay={onToggleDay}
-            variant="onColor"
+            variant={outlined ? 'default' : 'onColor'}
             dayClassName="w-4 h-6"
           />
         </View>
@@ -128,14 +122,14 @@ export function SchedulerCard({
               return (
                 <View
                   key={`${item.challengeType}-${index}`}
-                  className="flex-row items-center justify-between gap-2 rounded-xl bg-white/15 px-2.5 py-1.5"
+                  className={`flex-row items-center justify-between gap-2 rounded-xl ${outlined ? 'bg-muted' : 'bg-white/15'} px-2.5 py-1.5`}
                 >
                   <View className="flex-row items-center gap-1.5">
-                    <Ionicons name={meta.icon} size={14} color="#FFFFFF" />
-                    <Text className="text-xs font-medium text-white">{meta.label}</Text>
+                    <Ionicons name={meta.icon} size={14} color={ink} />
+                    <Text className={`text-xs font-medium ${text}`}>{meta.label}</Text>
                   </View>
 
-                  <Text className="text-xs text-white/80">{challengeConfigLabel(item)}</Text>
+                  <Text className={`text-xs ${outlined ? 'text-muted-foreground' : 'text-white/80'}`}>{challengeConfigLabel(item)}</Text>
                 </View>
               );
             })}

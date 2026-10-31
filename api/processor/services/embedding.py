@@ -27,12 +27,6 @@ class EmbeddingResponse:
 class EmbeddingServiceData:
     bedrock_runtime_client: Any
     model_id: str
-    # Character-based safety net against Titan Embed's real 8192-token input limit --
-    # not a token count itself (no public Titan tokenizer), just a conservative
-    # character ceiling comfortably below the ~24k chars that limit maps to in the
-    # worst-case (heavily accented) char/token ratio. Chunks should rarely get near
-    # this given ChunkServiceData.chunk_size; it only guards edge cases (e.g. a page
-    # with no natural split points).
     max_chunk_length: int = 8000
 
 

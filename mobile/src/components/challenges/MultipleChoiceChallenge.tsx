@@ -1,13 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { View, Pressable, ScrollView, Modal } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { AnimatedChoice } from '@/components/challenges/AnimatedChoice';
 import { MultipleChoice } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { SourceChunksSheet } from '@/components/challenges/SourceChunksSheet';
+import { alternativeLetter } from '@/lib/shuffle';
 import { ChallengeResult } from '@/types/domain/History';
 
 interface MultipleChoiceChallengeProps {
@@ -19,18 +21,18 @@ interface MultipleChoiceChallengeProps {
 
 export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSuccess }: MultipleChoiceChallengeProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [wrongAnswerId, setWrongAnswerId] = useState<string | null>(null);
   const [correctAnswerId, setCorrectAnswerId] = useState<string | null>(null);
   const [showSources, setShowSources] = useState(false);
   const wrongAttemptsRef = useRef(0);
 
   function handleSelectAlternative(alternativeId: string, isCorrect: boolean) {
-    // Se já acertou, bloqueia novos cliques enquanto lê a explicação
     if (correctAnswerId) return;
 
     if (isCorrect) {
       setWrongAnswerId(null);
-      setCorrectAnswerId(alternativeId); // Salva qual foi a correta para exibir a explicação
+      setCorrectAnswerId(alternativeId);
     } else {
       wrongAttemptsRef.current += 1;
       setWrongAnswerId(alternativeId);
@@ -42,19 +44,13 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
   }
 
   return (
-    // flex-1 + w-full: preenche praticamente toda a área disponível na tela de alarme
-    // (lateral e embaixo), não apenas uma caixinha centralizada. entering: desliza/aparece
-    // suave a cada novo desafio (remonta com key nova em firing.tsx a cada troca).
     <Animated.View entering={FadeInDown.duration(300)} className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={true}
-        // Usamos style inline para o padding do conteúdo para garantir compatibilidade no ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 32 }}
       >
         <View className="gap-6">
-          {/* HEADER: Tag e Contador — a tag trunca (flex-shrink), então o contador "1/5"
-              nunca fica coberto independente do tamanho da tag. */}
           <View className="flex-row justify-between items-center gap-2 border-b border-border pb-3">
             <View
               className="flex-row items-center gap-2"
@@ -75,12 +71,10 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
             </Text>
           </View>
 
-          {/* PERGUNTA */}
           <Text className="text-xl font-bold text-foreground leading-snug">{item.question}</Text>
 
-          {/* ALTERNATIVAS */}
           <View className="gap-3">
-            {item.alternatives.map((alt) => {
+            {item.alternatives.map((alt, index) => {
               const isWrong = wrongAnswerId === alt.id;
               const isCorrect = correctAnswerId === alt.id;
 
@@ -99,6 +93,11 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
                   }`}
                 >
                   <Text
+                    className={`mr-3 font-bold ${isWrong ? 'text-red-600' : isCorrect ? 'text-green-600' : 'text-muted-foreground'}`}
+                  >
+                    {alternativeLetter(index)}
+                  </Text>
+                  <Text
                     className={`flex-1 font-medium ${isWrong ? 'text-red-600' : isCorrect ? 'text-green-600' : 'text-foreground'}`}
                   >
                     {alt.text}
@@ -110,14 +109,13 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
             })}
           </View>
 
-          {/* EXPLICAÇÃO E BOTÃO CONTINUAR (Só aparece quando acerta) */}
           {correctAnswerId && (
             <Animated.View entering={FadeInDown.duration(250)} className="mt-2 gap-4">
               <View className="bg-muted p-4 rounded-xl border border-border">
                 <View className="flex-row items-center justify-between mb-2">
                   <View className="flex-row items-center gap-2">
                     <Ionicons name="bulb" size={18} color={colors.brand} />
-                    <Text className="font-bold text-foreground">Explicação</Text>
+                    <Text className="font-bold text-foreground">{t('challenges.explanation')}</Text>
                   </View>
 
                   {item.sourceChunks.length > 0 && (
@@ -127,10 +125,11 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
                   )}
                 </View>
                 <Text className="text-foreground leading-relaxed text-sm">{item.explanation}</Text>
+                <Text className="mt-3 text-xs text-muted-foreground">{t('terms.aiNotice')}</Text>
               </View>
 
               <Button onPress={handleContinue} className="bg-brand-100 rounded-3xl h-12 flex-row items-center justify-center">
-                <Text className="text-white font-bold text-lg">Continuar</Text>
+                <Text className="text-white font-bold text-lg">{t('challenges.continue')}</Text>
                 <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
               </Button>
             </Animated.View>
@@ -138,46 +137,7 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
         </View>
       </ScrollView>
 
-      {/* Detalhe de onde a pergunta veio: os trechos (chunks) do material que embasaram a
-          pergunta — documento de origem, página, posição do trecho e o quão relevante o
-          modelo considerou aquele trecho. */}
-      <Modal visible={showSources} transparent animationType="slide" onRequestClose={() => setShowSources(false)}>
-        <View className="flex-1 justify-end bg-black/40">
-          <Card className="max-h-[75%] rounded-t-3xl p-5 gap-4">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-foreground">Baseado em</Text>
-              <Pressable hitSlop={8} onPress={() => setShowSources(false)}>
-                <Ionicons name="close" size={24} color={colors.brand} />
-              </Pressable>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View className="gap-3 pb-4">
-                {item.sourceChunks.map((chunk, index) => (
-                  <View key={`${chunk.objectKey}-${chunk.chunkIndex}-${index}`} className="rounded-xl border border-border bg-muted p-3 gap-2">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center gap-1.5 flex-1 min-w-0">
-                        <Ionicons name="document-text-outline" size={14} color={colors.brandSoft} />
-                        <Text className="text-xs font-medium text-foreground flex-shrink overflow-hidden" numberOfLines={1}>
-                          {chunk.objectKey}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text className="text-xs text-muted-foreground">
-                      Página {chunk.page} • Trecho #{chunk.chunkIndex + 1}
-                    </Text>
-
-                    <Text className="text-sm text-foreground leading-relaxed" numberOfLines={5}>
-                      {chunk.content}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-          </Card>
-        </View>
-      </Modal>
+      <SourceChunksSheet visible={showSources} chunks={item.sourceChunks} onClose={() => setShowSources(false)} />
     </Animated.View>
   );
 }

@@ -48,7 +48,6 @@
       "expo-secure-store",
       "./plugins/withNotifeeGradleRepo.js",
       "./plugins/withAlarmSoundAssets.js",
-      "./plugins/withAlarmShowOverLockScreen.js",
       "expo-sqlite"
     ],
     "experiments": {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Pressable, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '@/types/domain/Scheduler';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -11,15 +12,15 @@ interface LanguagePickerProps {
   onChange: (language: SupportedLanguage) => void;
 }
 
-// Campo simples com o idioma escolhido; ao tocar abre uma folha inferior com a lista.
 export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const selected = SUPPORTED_LANGUAGES.find((option) => option.value === value) ?? SUPPORTED_LANGUAGES[0];
 
   return (
     <View className="gap-2">
-      <Text className="font-medium text-foreground">Idioma dos desafios</Text>
+      <Text className="font-medium text-foreground">{t('schedulers.form.challengeLanguage')}</Text>
 
       <Pressable
         testID="language-picker"
@@ -37,7 +38,7 @@ export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
         <View className="flex-1 justify-end bg-black/40">
           <Card className="rounded-t-3xl p-5 gap-1">
             <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-lg font-semibold text-foreground">Idioma dos desafios</Text>
+              <Text className="text-lg font-semibold text-foreground">{t('schedulers.form.challengeLanguage')}</Text>
               <Pressable hitSlop={8} onPress={() => setOpen(false)}>
                 <Ionicons name="close" size={24} color={colors.brand} />
               </Pressable>

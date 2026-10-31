@@ -1,10 +1,3 @@
-// src/services/fieldHelpService.ts
-//
-// Pop-up leve pro "?" ao lado de um rótulo de campo/seção (ex.: "Objetos", "Tags") --
-// separado do alertService/AppAlert de propósito: aquele é pensado pra confirmação
-// curta ("Tem certeza?"), ícone e título grandes, centralizados. Aqui o conteúdo é um
-// parágrafo explicando o campo, que pede um layout diferente (ver FieldHelpModal).
-
 export interface FieldHelpOptions {
   title: string;
   description: string;

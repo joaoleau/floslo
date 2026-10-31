@@ -5,9 +5,6 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTim
 
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-// Mesma paleta vibrante usada nos cards de Agendadores/Objetos (ver lib/hashColor.ts) --
-// as telas de auth reaproveitam essas cores num fundo de "blobs" ao invés de introduzir
-// uma cor nova só pra esse lugar.
 const BLOB_COLORS = ['#F59E0B', '#8B5CF6', '#14B8A6', '#EC4899', '#3B82F6'] as const;
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -63,15 +60,11 @@ function Blob({ config }: { config: BlobConfig }) {
   );
 }
 
-// Fundo compartilhado do fluxo de auth: alguns blobs coloridos (paleta já usada no resto
-// do app) flutuando bem devagar atrás do conteúdo -- dá vida à tela de entrada sem
-// precisar de um asset externo (GIF/imagem), que exigiria a Claude baixar/gerar um
-// arquivo de fora do projeto.
 export function AuthBackground({ children }: { children: React.ReactNode }) {
   const colors = useThemeColors();
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View testID="auth-background" style={{ flex: 1, backgroundColor: colors.background, overflow: 'hidden' }}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {BLOBS.map((blob, index) => (
           <Blob key={index} config={blob} />
