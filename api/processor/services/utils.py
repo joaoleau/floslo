@@ -1,15 +1,40 @@
 import logging
 import re
+import unicodedata
 import uuid
 from urllib.parse import unquote_plus
 
 logger = logging.getLogger(__name__)
 
-def normalize_text(text: str) -> str:   
-    text = text.replace("\x00", "")
-    text = text.strip()
-        
-    return text
+# Caracteres de controle e de formatação que o pypdf deixa passar (menos \n e \t, tratados
+# abaixo), inclusive o hífen discreto (­).
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f­​-‏﻿]")
+
+
+def normalize_text(text: str) -> str:
+    # O pypdf devolve uma quebra de linha por linha visual do PDF, e às vezes uma por palavra,
+    # com tabulações no lugar dos espaços. Sem limpar, o chunk chega ao embedding e à geração
+    # com frases picadas e palavras cortadas.
+    # NFKC desfaz ligaduras (ﬁ, ﬂ) e troca o espaço não separável por um espaço comum.
+    text = unicodedata.normalize("NFKC", text)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = _CONTROL_CHARS.sub("", text)
+    text = re.sub(r"[ \t\f\v]+", " ", text)
+    # Linha só com espaço ou tabulação é o vão entre palavras, e não um parágrafo: nos PDFs
+    # testados o pypdf nunca devolveu uma linha em branco de verdade, mas milhares dessas.
+    text = re.sub(r"\n(?: \n)+", "\n", text)
+    text = re.sub(r" *\n *", "\n", text)
+    # Palavra hifenizada na quebra de linha volta a ser uma só: "Gon-\nçalves" vira "Gonçalves".
+    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+    # Quebra simples depois de fim de frase fica (é o separador do splitter); as demais são só a
+    # linha visual do PDF e viram espaço. Linha em branco (parágrafo) fica.
+    text = re.sub(r"(?<![\n.!?:])\n(?!\n)", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Espaço antes de pontuação sobra quando a vírgula vinha sozinha numa linha.
+    text = re.sub(r" +([,.;:!?])", r"\1", text)
+    text = re.sub(r" {2,}", " ", text)
+
+    return text.strip()
 
 def build_id_with_prefix(prefix: str) -> str:
     return f"{prefix}_{str(uuid.uuid4())}"

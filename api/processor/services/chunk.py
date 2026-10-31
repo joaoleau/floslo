@@ -23,6 +23,9 @@ class Chunk:
 class ChunkServiceData:
     chunk_size: int = 2000
     chunk_overlap: int = 300
+    # Chunk menor que isso (uma página quase vazia, só um título como "Code generation") não
+    # vira vetor: tem pouco conteúdo para embasar um desafio e entra na busca como ruído.
+    min_chunk_length: int = 50
 
 
 class ChunkService:
@@ -36,6 +39,7 @@ class ChunkService:
     def __init__(self, config: ChunkServiceData):
         self.chunk_size = config.chunk_size
         self.chunk_overlap = config.chunk_overlap
+        self.min_chunk_length = config.min_chunk_length
 
     def chunk(self, text: str) -> Iterator[Chunk]:
         if not text or not text.strip():
@@ -44,13 +48,19 @@ class ChunkService:
 
         raw_chunks = self._split(text, _DEFAULT_SEPARATORS)
 
-        for index, raw_chunk in enumerate(raw_chunks):
+        # O índice conta só os chunks mantidos, sem buracos: a floslo-rag acha os vizinhos de
+        # um chunk pelo índice anterior e o seguinte.
+        index = 0
+        for raw_chunk in raw_chunks:
             chunk = normalize_text(raw_chunk)
 
-            if not chunk:
+            if len(chunk) < self.min_chunk_length:
+                if chunk:
+                    logger.debug(f"Skipping chunk shorter than {self.min_chunk_length} chars: {chunk!r}")
                 continue
 
             yield Chunk(index=index, text=chunk)
+            index += 1
 
     def _split(self, text: str, separators: list[str]) -> list[str]:
         separator = separators[-1]

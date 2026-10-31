@@ -16,6 +16,7 @@ class Config:
         self.max_file_size_mb = int(os.getenv("MAX_FILE_SIZE_MB", "50"))
         self.chunk_size = int(os.getenv("CHUNK_SIZE", "2000"))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "300"))
+        self.min_chunk_length = int(os.getenv("MIN_CHUNK_LENGTH", "50"))
         self.embedding_max_chunk_length = int(os.getenv("EMBEDDING_MAX_CHUNK_LENGTH", "8000"))
         self.tag_refiner_enabled = os.getenv("TAG_REFINER_ENABLED", "true").lower() in ("1", "true", "yes")
         self.tag_refiner_max_tags = int(os.getenv("TAG_REFINER_MAX_TAGS", "200"))

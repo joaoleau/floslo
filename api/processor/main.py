@@ -52,7 +52,11 @@ try:
     )
     vector_service = VectorService(vector_service_data)
 
-    chunk_service_data = ChunkServiceData(chunk_size=cfg.chunk_size, chunk_overlap=cfg.chunk_overlap)
+    chunk_service_data = ChunkServiceData(
+        chunk_size=cfg.chunk_size,
+        chunk_overlap=cfg.chunk_overlap,
+        min_chunk_length=cfg.min_chunk_length,
+    )
     chunk_service = ChunkService(chunk_service_data)
 
     dynamo_service_data = DynamoServiceData(dynamodb_table_name=cfg.dynamo_table_name, dynamodb_client=cfg.dynamo_client)

@@ -451,6 +451,7 @@ export default function FiringScreen() {
   const { schedulerId, notificationId } = useLocalSearchParams<{ schedulerId: string; notificationId?: string }>();
   const ringingNotificationId = notificationId || schedulerId;
   const { t } = useTranslation();
+  const router = useRouter();
   const { data: ragData, isPending, isError, error, refetch } = useRagQuery(schedulerId);
 
   // Som e vibração do alarme antes de os desafios chegarem: os ajustes guardados no aparelho
@@ -493,8 +494,9 @@ export default function FiringScreen() {
   // ==========================================
   // BARREIRA 1: BLOQUEAR BOTÃO VOLTAR
   // ==========================================
-  // Não existe atalho pra desligar o alarme sem responder os desafios, nem enquanto eles são
-  // preparados ou na tela de erro, então o botão voltar nunca sai do disparo, só é engolido.
+  // Não existe atalho pra desligar o alarme sem responder os desafios enquanto eles são
+  // preparados, então o botão voltar nunca sai do disparo, só é engolido. A tela de erro tem o
+  // próprio botão de dispensar.
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => backHandler.remove();
@@ -502,8 +504,9 @@ export default function FiringScreen() {
 
   // Sem isso, uma falha aqui (rede fora do ar, backend fora do ar, etc.) prendia o usuário
   // pra sempre na tela de "Preparando desafio..." sem nenhuma indicação do que houve — o
-  // queryCache global (queryClient.ts) já loga o erro, isso só dá uma saída pro usuário. O
-  // alarme continua tocando: o disparo só se encerra pelos desafios.
+  // queryCache global (queryClient.ts) já loga o erro, isso só dá uma saída pro usuário. Uma
+  // falha que se repete a cada tentativa (um objeto que não existe mais, por exemplo) prendia o
+  // usuário com o alarme tocando, então além de tentar de novo dá pra dispensar o alarme.
   if (isError) {
     console.error('[FiringScreen] Falha ao carregar o desafio do alarme', { schedulerId, error });
     return (
@@ -514,6 +517,22 @@ export default function FiringScreen() {
         <Text className="text-white/75 text-center text-sm">{errorMessage(error, 'firing.unknownError')}</Text>
         <Button onPress={() => refetch()} className="h-12 bg-white/15 rounded-3xl px-6">
           <Text className="font-semibold text-white">{t('common.retry')}</Text>
+        </Button>
+        <Button
+          testID="firing-error-dismiss"
+          variant="ghost"
+          onPress={() => {
+            console.log('[FiringScreen] Alarme dispensado na tela de erro', { schedulerId });
+            alarm.stop();
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)');
+            }
+          }}
+          className="h-12 rounded-3xl px-6"
+        >
+          <Text className="font-semibold text-white/75">{t('firing.dismiss')}</Text>
         </Button>
       </View>
     );
