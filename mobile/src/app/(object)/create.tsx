@@ -15,7 +15,6 @@ import { useUploadObjectMutation } from '@/hooks/useObjects';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { showAlert } from '@/services/alertService';
 
-// Só PDF: o processamento lê o documento página por página.
 const ALLOWED_EXTENSIONS = ['pdf'];
 const ALLOWED_MIME_TYPES = ['application/pdf'];
 

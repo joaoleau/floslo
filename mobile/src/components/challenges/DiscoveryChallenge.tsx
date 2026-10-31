@@ -17,11 +17,6 @@ interface DiscoveryChallengeProps {
   onSuccess: (result: ChallengeResult) => void;
 }
 
-// A descoberta não é pergunta e resposta: é um conteúdo já "mastigado" (um fato, uma
-// curiosidade, um conceito já explicado) para o usuário só ler. Não tem certo ou errado e não
-// gera nota, então a única interação é confirmar a leitura, no mesmo botão "Continuar" usado
-// por Múltipla escolha e V/F. Navegar entre desafios (inclusive voltar para revisar um já lido) é
-// responsabilidade do pager no firing.tsx, não deste componente.
 export function DiscoveryChallenge({ discovery, currentIndex, totalDiscoveries, onSuccess }: DiscoveryChallengeProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();

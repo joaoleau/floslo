@@ -28,12 +28,11 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
   const wrongAttemptsRef = useRef(0);
 
   function handleSelectAlternative(alternativeId: string, isCorrect: boolean) {
-    // Se já acertou, bloqueia novos cliques enquanto lê a explicação
     if (correctAnswerId) return;
 
     if (isCorrect) {
       setWrongAnswerId(null);
-      setCorrectAnswerId(alternativeId); // Salva qual foi a correta para exibir a explicação
+      setCorrectAnswerId(alternativeId);
     } else {
       wrongAttemptsRef.current += 1;
       setWrongAnswerId(alternativeId);
@@ -45,19 +44,13 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
   }
 
   return (
-    // flex-1 + w-full: preenche praticamente toda a área disponível na tela de alarme
-    // (lateral e embaixo), não apenas uma caixinha centralizada. entering: desliza/aparece
-    // suave a cada novo desafio (remonta com key nova em firing.tsx a cada troca).
     <Animated.View entering={FadeInDown.duration(300)} className="flex-1 w-full bg-card rounded-3xl shadow-lg overflow-hidden">
       <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={true}
-        // Usamos style inline para o padding do conteúdo para garantir compatibilidade no ScrollView
         contentContainerStyle={{ padding: 24, paddingBottom: 32 }}
       >
         <View className="gap-6">
-          {/* HEADER: Tag e Contador — a tag trunca (flex-shrink), então o contador "1/5"
-              nunca fica coberto independente do tamanho da tag. */}
           <View className="flex-row justify-between items-center gap-2 border-b border-border pb-3">
             <View
               className="flex-row items-center gap-2"
@@ -78,10 +71,8 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
             </Text>
           </View>
 
-          {/* PERGUNTA */}
           <Text className="text-xl font-bold text-foreground leading-snug">{item.question}</Text>
 
-          {/* ALTERNATIVAS */}
           <View className="gap-3">
             {item.alternatives.map((alt, index) => {
               const isWrong = wrongAnswerId === alt.id;
@@ -118,7 +109,6 @@ export function MultipleChoiceChallenge({ item, currentIndex, totalItems, onSucc
             })}
           </View>
 
-          {/* EXPLICAÇÃO E BOTÃO CONTINUAR (Só aparece quando acerta) */}
           {correctAnswerId && (
             <Animated.View entering={FadeInDown.duration(250)} className="mt-2 gap-4">
               <View className="bg-muted p-4 rounded-xl border border-border">

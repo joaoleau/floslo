@@ -7,13 +7,6 @@ interface WeekDaysProps {
   weekDays: string[];
   onToggleDay?: (day: string) => void;
 
-  /**
-   * 'default': contorno neutro do tema (form/detalhe, fundo neutro) -- comportamento
-   * original, inalterado.
-   * 'onColor': pensado pra ficar em cima do fundo colorido do SchedulerCard -- selecionado
-   * vira uma pílula branca sólida (com texto escuro), não selecionado fica só em
-   * outline branco (sem preenchimento).
-   */
   variant?: 'default' | 'onColor';
 
   className?: string;
@@ -21,7 +14,6 @@ interface WeekDaysProps {
   textClassName?: string;
 }
 
-// Domingo a sábado. As iniciais vêm do dicionário (history.week.weekdays), na mesma ordem.
 const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 export function WeekDays({

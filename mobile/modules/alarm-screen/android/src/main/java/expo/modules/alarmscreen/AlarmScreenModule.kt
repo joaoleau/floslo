@@ -14,10 +14,6 @@ class AlarmScreenModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("AlarmScreen")
 
-    // A partir do Android 14, a permissão de notificação em tela cheia não vem mais concedida
-    // a todo app e pode estar desativada; sem ela, o alarme só toca a notificação e a tela de
-    // disparo não abre sozinha com o celular bloqueado. Antes do Android 14 ela é concedida pela
-    // declaração no manifesto.
     Function("canUseFullScreenIntent") {
       if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return@Function true
       val context = appContext.reactContext ?: return@Function true
@@ -25,7 +21,6 @@ class AlarmScreenModule : Module() {
       notifications.canUseFullScreenIntent()
     }
 
-    // Abre a tela do Android em que o usuário ativa as notificações em tela cheia do app.
     Function("openFullScreenIntentSettings") {
       val context = appContext.reactContext ?: return@Function null
       val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -38,8 +33,6 @@ class AlarmScreenModule : Module() {
       null
     }
 
-    // Liga ou desliga a exibição sobre a tela de bloqueio. Ligada pelo listener quando o alarme
-    // abre o app com o celular bloqueado; desligada pela tela de disparo ao fechar.
     AsyncFunction("setShowOverLockScreen") { enabled: Boolean ->
       val activity = appContext.currentActivity ?: return@AsyncFunction null
       LockScreen.showOverLockScreen(activity, enabled)

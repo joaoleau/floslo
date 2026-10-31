@@ -1,5 +1,3 @@
-// src/services/historyService.ts
-
 import { db, generateId } from '@/db/client';
 import {
   AttemptDetail,
@@ -14,8 +12,6 @@ import {
   TagStat,
 } from '@/types/domain/History';
 
-// Tags com menos respostas que isso ficam separadas como "ainda pouco dado" -- uma tag
-// respondida 1 vez e errada mostraria 0% de acerto, o que é enganoso, não um insight real.
 const MIN_ATTEMPTS_FOR_INSIGHT = 3;
 
 interface AttemptRow {
@@ -123,7 +119,6 @@ export const historyService = {
           tag: r.tag,
           total: r.total,
           accuracy: r.graded > 0 ? r.correct / r.graded : null,
-          // A Descoberta não tem acerto: só as perguntas com certo ou errado contam para o insight.
           hasEnoughData: r.graded >= MIN_ATTEMPTS_FOR_INSIGHT,
         })
       )
@@ -134,8 +129,6 @@ export const historyService = {
       });
   },
 
-  // "Erro" aqui é acertar só na segunda tentativa (ou depois) -- os componentes de desafio
-  // bloqueiam avanço até acertar, então nunca existe uma resposta final errada de fato.
   getRecentMistakes(userId: string, limit = 10): MistakeEntry[] {
     const rows = db.getAllSync<AttemptRow>(
       `SELECT * FROM attempts WHERE user_id = ? AND is_correct = 0
@@ -154,10 +147,6 @@ export const historyService = {
     }));
   },
 
-  // Uma linha por dia com pelo menos 1 resposta, últimos `days` dias -- base do heatmap de
-  // estudo no Histórico. 'localtime' na conversão pra não desalinhar o dia perto da
-  // meia-noite pro fuso do usuário (o mesmo raciocínio de todayLocalDate em firing.tsx,
-  // só que calculado no SQLite em vez do JS).
   getDailyActivity(userId: string, days: number): { date: string; count: number }[] {
     const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
     return db.getAllSync<{ date: string; count: number }>(
@@ -239,9 +228,6 @@ export const historyService = {
     };
   },
 
-  // Pra tela de revisão (abrir um desafio já respondido de dentro da sessão ou do assunto)
-  // mostrar o desafio original de novo -- pergunta/alternativas/explicação -- em vez de só
-  // o texto solto.
   getAttemptDetail(attemptId: string): AttemptDetail | undefined {
     const row = db.getFirstSync<AttemptRow & { scheduler_name: string }>(
       `SELECT a.*, s.scheduler_name
@@ -286,8 +272,6 @@ export const historyService = {
     };
   },
 
-  // Não faz upload nenhum -- é só o gancho que deixa a porta aberta pra um backup em S3
-  // futuro, sem construir esse fluxo agora.
   exportAll(userId: string) {
     const sessions = db.getAllSync('SELECT * FROM sessions WHERE user_id = ?', [userId]);
     const attempts = db.getAllSync('SELECT * FROM attempts WHERE user_id = ?', [userId]);

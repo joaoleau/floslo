@@ -13,7 +13,6 @@ interface EmptyStateProps {
   actionLabel?: string;
   onAction?: () => void;
 
-  /** Cor do badge/botão -- cada tela usa a sua, pra não ficarem todas idênticas. */
   color?: string;
 }
 
@@ -22,10 +21,6 @@ export function EmptyState({ icon, title, description, actionLabel, onAction, co
   const accent = color ?? colors.brand;
 
   return (
-    // Top-anchored (not vertically centered): centering within whatever flex space is left
-    // below the floating header always lands lower than expected once that leftover space
-    // shrinks (a permission banner above it, etc.) — see the same issue fixed on the
-    // login/register screens.
     <View className="items-center gap-4 px-8 mt-10">
       <View className="h-28 w-28 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}1F` }}>
         <View className="h-20 w-20 items-center justify-center rounded-full" style={{ backgroundColor: accent }}>

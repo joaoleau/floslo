@@ -7,14 +7,11 @@ import * as Application from 'expo-application';
 import { schedulerService } from '@/services/schedulerService';
 import { AlarmSettings } from '@/storage/alarmSettingsStorage';
 
-// Quanto tempo o botão de silenciar deixa o alarme mudo antes de voltar a tocar, e o botão de
-// vibração deixa o aparelho parado antes de voltar a vibrar.
 export const MUTE_SECONDS = 60;
 export const VIBRATION_PAUSE_SECONDS = 60;
 
 const VIBRATION_PATTERN = [500, 1000, 500];
 
-// O expo-audio só aceita o modo em loop como propriedade do player, não como opção do hook.
 function playInLoop(player: AudioPlayer) {
   player.loop = true;
   player.play();
@@ -23,25 +20,12 @@ function playInLoop(player: AudioPlayer) {
 export interface RingingAlarm {
   muteCountdown: number;
   mute: () => void;
-  // Contagem da pausa da vibração; `canPauseVibration` é falso quando o agendador não vibra.
   vibrationPauseCountdown: number;
   canPauseVibration: boolean;
   pauseVibration: () => void;
   stop: () => void;
 }
 
-/**
- * Som e vibração do alarme enquanto a tela de disparo está aberta, do carregamento dos desafios
- * até o último ser respondido, inclusive na tela de erro. O disparo do alarme tem prioridade
- * sobre a formação dos desafios: o som não depende de os desafios terem chegado.
- *
- * - Ao abrir, a tela assume o alarme: tira a notificação da barra (só a exibida, para o gatilho
- *   semanal continuar agendado) e passa a tocar pelo próprio app, o que permite silenciar.
- * - Se o estudante sai do app com o alarme tocando (botão de início, apps recentes), a
- *   notificação volta a ser exibida e a tocar; tocada, ela reabre o disparo. Na volta, a tela
- *   assume o alarme de novo.
- * - `stop` encerra o alarme de vez, quando o último desafio é respondido.
- */
 export function useRingingAlarm(settings: AlarmSettings, notificationId: string): RingingAlarm {
   const [muteCountdown, setMuteCountdown] = useState(0);
   const [vibrationPauseCountdown, setVibrationPauseCountdown] = useState(0);
@@ -49,23 +33,18 @@ export function useRingingAlarm(settings: AlarmSettings, notificationId: string)
 
   const soundName = settings.alarmSound || 'chic_pop';
   const audioUri = Platform.OS === 'android' ? `android.resource://${Application.applicationId}/raw/${soundName}` : '';
-  // A tela re-renderiza com frequência (relógio): um `{ uri }` literal recriado a cada render faria
-  // o useAudioPlayer recarregar a fonte o tempo todo, e o som poderia nunca chegar a tocar.
   const audioSource = useMemo(() => ({ uri: audioUri }), [audioUri]);
   const player = useAudioPlayer(audioSource);
 
   const canPlay = settings.soundEnabled && Platform.OS === 'android';
   const vibrationEnabled = settings.vibration && Platform.OS === 'android';
 
-  // Assume o alarme que estava na notificação.
   useEffect(() => {
     notifee.cancelDisplayedNotification(notificationId).catch((err) => {
       console.error('[Firing] Falha ao tirar a notificação do alarme da barra', err);
     });
   }, [notificationId]);
 
-  // Toca, e volta a tocar quando a fonte muda (os ajustes do agendador chegaram) ou o
-  // silenciamento acaba.
   useEffect(() => {
     if (stoppedRef.current || muteCountdown > 0 || !canPlay) return;
     playInLoop(player);
@@ -83,7 +62,6 @@ export function useRingingAlarm(settings: AlarmSettings, notificationId: string)
     return () => clearInterval(timer);
   }, [vibrationPauseCountdown]);
 
-  // Vibra enquanto o alarme toca, menos durante a pausa da vibração.
   const shouldVibrate = vibrationEnabled && vibrationPauseCountdown <= 0;
   useEffect(() => {
     if (!shouldVibrate || stoppedRef.current) return;

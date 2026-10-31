@@ -1,7 +1,3 @@
-// src/types/api/SchedulerDTO.ts
-
-// Keep this set in sync with api/internal/model/scheduler.go's Language enum and
-// api/processor/services/tag.py's SUPPORTED_LANGUAGES -- no shared package between them.
 export type SupportedLanguage = 'pt' | 'en' | 'es' | 'fr' | 'de' | 'it';
 
 export interface MultipleChoiceChallengeConfigDTO {
@@ -24,14 +20,11 @@ export type ChallengerDTO =
 export interface SchedulerDTO {
   scheduler_id: string;
   name: string;
-  // Idioma de saída do agendador, aplicado a todos os desafios do disparo.
   language: SupportedLanguage;
   weekdays: string[];
   start_time: string;
   alarm_sound: string;
   vibration: boolean;
-  // Opcional: ausente em schedulers criados antes desse campo existir --
-  // mobile/src/mappers/schedulerMapper.ts aplica o fallback pro comportamento antigo.
   sound_enabled?: boolean;
   object_ids: string[];
   challengers: ChallengerDTO[];

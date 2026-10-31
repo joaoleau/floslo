@@ -33,9 +33,6 @@ export const objectService = {
 
   async deleteObject(id: string): Promise<void> {
     console.log(`[Object] Excluindo "${id}"`);
-    // Cascades server-side: S3 file, S3 Vectors embeddings, scheduler links and the
-    // DynamoDB record. Do not fall back to storageApi.deleteObject — that only
-    // removes the S3 file and leaves the rest orphaned.
     await objectsApi.remove(id);
   },
 

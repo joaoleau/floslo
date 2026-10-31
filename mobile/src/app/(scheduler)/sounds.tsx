@@ -12,10 +12,6 @@ import { SoundCard } from '@/components/scheduler/SoundCard';
 import { soundService } from '@/services/soundService';
 import { soundSelectionService } from '@/services/soundSelectionService';
 
-// expo-audio pode liberar o player nativo por baixo dos panos (desmontagem, troca de
-// fonte, fast refresh) sem expor nenhum jeito de checar isso antes de chamar um método
-// -- só lança "Cannot use shared object that was already released". Não tem nada de
-// errado pra nós nesse caso (não tem mais nada pra pausar/tocar mesmo).
 function safePlayerCall(fn: () => void) {
   try {
     fn();
@@ -34,9 +30,6 @@ export default function SoundScreen() {
     typeof currentSound === 'string' ? currentSound : sounds[0]?.name
   );
 
-  // Prévia: um único player, uma prévia por vez -- trocar de som pausa a anterior
-  // automaticamente porque a URI muda. Mesmo padrão de resolução de URI do firing.tsx
-  // (Android only; sem recurso equivalente pra iOS hoje).
   const [previewingSoundName, setPreviewingSoundName] = useState<string | null>(null);
   const packageName = Application.applicationId;
   const previewUri =
@@ -51,10 +44,6 @@ export default function SoundScreen() {
     }
   }, [previewingSoundName, previewPlayer]);
 
-  // O player nativo pode já ter sido liberado quando esse cleanup roda (troca rápida
-  // de som, navegação saindo da tela, fast refresh) -- expo-audio não expõe um jeito
-  // de checar isso antes de chamar, só lança "shared object that was already
-  // released". Não é um erro de verdade pra nós (não tem mais nada pra pausar mesmo).
   useEffect(() => {
     return () => {
       safePlayerCall(() => previewPlayer.pause());
@@ -73,7 +62,6 @@ export default function SoundScreen() {
   function handleSave() {
     const chosenSound = sounds.find((s) => s.name === selectedSoundName) || sounds[0];
 
-    // Envia o som direto para o serviço global e volta para a tela anterior (Create ou Edit)
     soundSelectionService.selectSound(chosenSound);
     router.back();
   }

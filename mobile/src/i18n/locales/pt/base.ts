@@ -1,4 +1,3 @@
-// Textos gerais, autenticação, permissões, perfil e manual de uso, em português.
 export const base = {
   common: {
     ok: 'OK',
@@ -77,7 +76,6 @@ export const base = {
     },
     verify: {
       title: 'Verificar código',
-      // Antes e depois do e-mail, que aparece em destaque entre as duas partes.
       instructionsBefore: 'Digite o código de {{length}} dígitos enviado para ',
       instructionsAfter: '.',
       resend: 'Não recebeu? Reenviar código',

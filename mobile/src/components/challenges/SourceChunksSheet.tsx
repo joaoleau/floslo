@@ -8,8 +8,6 @@ import { useTranslation } from 'react-i18next';
 import { SourceChunk } from '@/types/domain/RAG';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-// Quantas linhas um trecho mostra antes de ser aberto, e a partir de quantos caracteres ele
-// provavelmente passa disso (os chunks têm cerca de 2.000 caracteres).
 const COLLAPSED_LINES = 5;
 const LONG_CHUNK_CHARS = 280;
 
@@ -19,12 +17,6 @@ interface SourceChunksSheetProps {
   onClose: () => void;
 }
 
-/**
- * De onde o desafio veio: os chunks do material que o embasaram, com o documento, a página e a
- * posição de cada um. O primeiro é o chunk principal, de onde o desafio saiu; o seguinte, se
- * houver, é o vizinho que serviu de apoio. Cada trecho aparece recolhido e abre por completo ao
- * ser tocado.
- */
 export function SourceChunksSheet({ visible, chunks, onClose }: SourceChunksSheetProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();

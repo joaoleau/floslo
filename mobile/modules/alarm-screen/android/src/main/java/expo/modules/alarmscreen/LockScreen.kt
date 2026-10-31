@@ -6,9 +6,6 @@ import android.content.Context
 import android.os.Build
 import android.view.WindowManager
 
-// Mostrar a tela do app sobre o bloqueio (e acender a tela) só enquanto um alarme está aberto.
-// Antes isso era fixo no manifesto (android:showWhenLocked), o que deixava o app inteiro
-// acessível com o celular bloqueado.
 object LockScreen {
   fun isLocked(context: Context): Boolean {
     val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager

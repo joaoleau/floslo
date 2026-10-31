@@ -45,7 +45,6 @@ export function useDeleteSchedulerMutation() {
   });
 }
 
-// Optimistic toggle: flips the switch immediately, rolls back on failure.
 export function useToggleSchedulerMutation() {
   const qc = useQueryClient();
   return useMutation({

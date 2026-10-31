@@ -6,13 +6,10 @@ import { Scheduler } from '@/types/domain/Scheduler';
 
 export type SchedulerFilter = 'all' | 'today' | 'tomorrow' | 'disabled';
 
-// O rótulo de cada filtro fica no dicionário, em schedulers.filters.<value>.
 const FILTER_OPTIONS: SchedulerFilter[] = ['all', 'today', 'tomorrow', 'disabled'];
 
 const WEEKDAY_BY_INDEX = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-// weekDays vazio = alarme "todo dia" (ver calculateNextOneOffTrigger em
-// schedulerService.ts), então conta como "toca hoje" e "toca amanhã" também.
 function firesOn(scheduler: Scheduler, weekdayIndex: number): boolean {
   return scheduler.weekDays.length === 0 || scheduler.weekDays.includes(WEEKDAY_BY_INDEX[weekdayIndex]);
 }
@@ -37,12 +34,6 @@ interface SchedulerListFiltersProps {
   schedulers: Scheduler[];
 }
 
-// Mesmo padrão preto/branco usado em switch/weekdays: filtro selecionado vira pílula
-// preta com texto branco, os demais ficam em outline neutro. A contagem ao lado de cada
-// filtro é recalculada a cada render a partir da lista completa (matchesSchedulerFilter é
-// pura, então reaproveitá-la aqui não duplica a regra de cada filtro). O contador também é
-// neutro: com uma cor por filtro, ele parecia indicar os agendadores daquela cor, já que os
-// cards da lista são coloridos.
 export function SchedulerListFilters({ value, onChange, schedulers }: SchedulerListFiltersProps) {
   const { t } = useTranslation();
   return (

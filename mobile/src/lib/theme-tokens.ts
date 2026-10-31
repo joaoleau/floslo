@@ -19,21 +19,11 @@ interface ModeTokens {
   border: string;
   input: string;
   ring: string;
-  /** Cinza-chumbo neutro, não a cor de marca -- ver comentário acima de LIGHT/DARK. */
   brand: string;
   brandForeground: string;
   brandSoft: string;
 }
 
-// Minimalista, 100% neutro (branco/preto/cinza) -- nenhum hue de marca em lugar
-// nenhum, nem azul (original) nem laranja (tentativa anterior, rejeitada). `primary`
-// é "ink" -- quase-preto no light, quase-branco no dark, inverte com o tema (usado em
-// ícones estruturais/navegação). `brand` é um cinza-chumbo neutro que **não** inverte
-// com o tema (fica escuro nos dois modos, de propósito -- é usado como preenchimento
-// sólido com texto branco por cima: botões, indicador ativo do footer, o fundo cheio
-// da tela de alarme tocando; se invertesse pro claro no dark mode, esse texto branco
-// ficaria ilegível). `success`/`destructive` continuam as únicas cores "de verdade"
-// do app -- são semânticas (certo/errado), não decoração.
 export const LIGHT: ModeTokens = {
   background: '210 20% 98%',
   foreground: '222 20% 12%',
@@ -46,9 +36,6 @@ export const LIGHT: ModeTokens = {
   secondary: '210 20% 95%',
   secondaryForeground: '222 20% 20%',
   muted: '210 16% 93%',
-  // Era 45% de luminosidade (cinza médio, "lavado") -- escurecido pra ler como um
-  // preto-acinzentado, seguindo o padrão do resto do texto no modo light, mantendo só a
-  // diferença mínima de contraste (12% vs 32%) pra ainda comunicar hierarquia secundária.
   mutedForeground: '218 12% 32%',
   accent: '210 16% 94%',
   accentForeground: '222 20% 12%',
@@ -80,9 +67,6 @@ export const DARK: ModeTokens = {
   border: '222 12% 22%',
   input: '222 12% 22%',
   ring: '220 9% 60%',
-  // Um pouco mais claro que a versão light (mesma lógica de antes, só sem hue): fica
-  // visível contra o fundo bem escuro da página, mas ainda escuro o bastante pro
-  // texto branco por cima continuar legível.
   brand: '220 7% 36%',
   brandForeground: '0 0% 100%',
   brandSoft: '220 9% 65%',
@@ -93,8 +77,6 @@ export const FIXED_HEX = {
   destructive: '#EF4444',
 };
 
-// Hex mirrors of the tokens above, for native props that can't consume CSS
-// variables (e.g. `<Ionicons color="...">`). Keep these in sync with LIGHT/DARK.
 export const HEX = {
   light: {
     brand: '#3B3F45',
@@ -116,7 +98,6 @@ export const HEX = {
   },
 };
 
-/** Builds the NativeWind `vars()` style object for light or dark mode. */
 export function getThemeStyle(mode: 'light' | 'dark') {
   const tokens = mode === 'dark' ? DARK : LIGHT;
 

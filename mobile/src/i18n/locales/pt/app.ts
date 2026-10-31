@@ -1,4 +1,3 @@
-// Textos das áreas do app (agendadores, objetos, desafios, disparo e histórico), em português.
 export const app = {
   challengeTypes: {
     MULTIPLE_CHOICE: 'Múltipla escolha',

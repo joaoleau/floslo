@@ -23,15 +23,12 @@ import { errorMessage } from '@/i18n/errors';
 import { useLanguagePreference } from '@/hooks/useLanguagePreference';
 import { LanguagePreference } from '@/i18n';
 
-// O rótulo de cada opção fica no dicionário, em profile.theme.<value> e profile.language.<value>.
 const THEME_OPTIONS: { value: ThemePreference; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'light', icon: 'sunny-outline' },
   { value: 'dark', icon: 'moon-outline' },
   { value: 'system', icon: 'phone-portrait-outline' },
 ];
 
-// Os nomes dos idiomas ficam sempre no próprio idioma ("Português", "English"), para quem
-// abriu o app no idioma errado reconhecer o seu.
 const LANGUAGE_OPTIONS: { value: LanguagePreference; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'pt', icon: 'language-outline' },
   { value: 'en', icon: 'language-outline' },

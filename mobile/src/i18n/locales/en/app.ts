@@ -1,7 +1,6 @@
 import type { app as ptApp } from '../pt/app';
 import type { Translation } from '../types';
 
-// Texts of the app areas (schedulers, objects, challenges, firing and history), in English.
 export const app: Translation<typeof ptApp> = {
   challengeTypes: {
     MULTIPLE_CHOICE: 'Multiple choice',

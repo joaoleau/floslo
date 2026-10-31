@@ -8,15 +8,10 @@ import { Text } from '@/components/ui/text';
 import { TERMS_VERSION } from '@/constants/terms';
 import { dateLocale } from '@/i18n';
 
-// Ordem das seções do texto; o título e o corpo de cada uma ficam no dicionário, em
-// terms.sections.<key>.
 const SECTIONS = ['about', 'data', 'purpose', 'storage', 'ai', 'copyright', 'rights', 'security', 'changes'] as const;
 
-// Termos de uso e Política de privacidade. Aberta do cadastro (antes do aceite) e do Perfil,
-// por isso fica fora dos grupos que exigem login.
 export default function TermsScreen() {
   const { t } = useTranslation();
-  // Meio-dia, para a data não voltar um dia em fusos a oeste de UTC.
   const versionDate = new Date(`${TERMS_VERSION}T12:00:00`).toLocaleDateString(dateLocale());
 
   return (

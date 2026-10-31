@@ -9,12 +9,6 @@ import { Button } from '@/components/ui/button';
 import { fieldHelpService, FieldHelpOptions } from '@/services/fieldHelpService';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-// Montado uma vez em app/_layout.tsx, igual ao AppAlert -- mas com um ícone bem menor
-// (não o círculo grande do AppAlert, pensado pra um aviso/confirmação, não pra uma
-// explicação de campo). Mesmo padrão de centralização do AppAlert/EmptyState: título e
-// texto centralizados, não alinhados à esquerda (texto curto alinhado à esquerda dentro
-// de um card estreito sobra espaço vazio do lado direito, fica com cara de erro de
-// layout). O botão de fechar é o componente <Button> de verdade, o mesmo do resto do app.
 export function FieldHelpModal() {
   const colors = useThemeColors();
   const { t } = useTranslation();

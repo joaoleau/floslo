@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { alarmScreen } from '../../../modules/alarm-screen';
 
-// O título e a descrição de cada aviso ficam no dicionário, em permissions.<key>.
 interface MissingPermission {
   key: 'exactAlarm' | 'fullScreen';
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -30,14 +29,6 @@ const FULL_SCREEN: MissingPermission = {
   open: () => alarmScreen.openFullScreenIntentSettings(),
 };
 
-// As duas permissões de que o alarme depende no Android. "Alarmes e lembretes"
-// (SCHEDULE_EXACT_ALARM) faz o alarme disparar na hora certa, e o notifee expõe o estado dela.
-// "Notificações em tela cheia" (USE_FULL_SCREEN_INTENT) faz a tela do alarme abrir sozinha sobre
-// o bloqueio; desde o Android 14 ela pode vir desativada, e o estado vem do módulo nativo do
-// projeto (modules/alarm-screen). Cada uma que faltar ganha um aviso com o atalho para a
-// configuração. Reconferimos ao ganhar foco e ao voltar para o app (por exemplo, das
-// configurações do Android), em vez de guardar um dismiss permanente: o aviso some sozinho
-// quando a permissão é concedida.
 export function AlarmPermissionBanner() {
   const colors = useThemeColors();
   const { t } = useTranslation();

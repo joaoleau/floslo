@@ -18,13 +18,10 @@ function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimi
     >
       <SwitchPrimitives.Thumb
         className={cn(
-          // O thumb tem a mesma cor ligado e desligado (a do desligado); só o track muda de cor.
           'size-4 rounded-full bg-background dark:bg-foreground transition-transform',
           Platform.select({
             web: 'pointer-events-none block ring-0',
           }),
-          // Percurso = largura do track (36px) - tamanho do thumb (16px) = 20px exatos,
-          // sem borda no track pra não sobrar folga assimétrica -- ver switch.tsx no plano.
           props.checked ? 'translate-x-5' : 'translate-x-0',
         )}
       />

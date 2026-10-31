@@ -14,10 +14,6 @@ class AlarmScreenPackage : Package {
   }
 }
 
-// Com o celular bloqueado, a tela do app só é criada ou recebe um novo intent pela notificação
-// de alarme em tela cheia: abrir o app pelo menu exige desbloquear antes. Nesses dois momentos a
-// tela passa a aparecer sobre o bloqueio, antes de o JavaScript iniciar, para o alarme não ficar
-// atrás da tela de bloqueio. A tela de disparo desliga isso ao fechar (setShowOverLockScreen).
 class AlarmScreenActivityListener : ReactActivityLifecycleListener {
   private var activityRef: WeakReference<Activity>? = null
 

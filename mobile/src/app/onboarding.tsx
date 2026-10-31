@@ -10,19 +10,12 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { onboardingStorage } from '@/storage/onboardingStorage';
 
-// Só a aparência de cada passo fica aqui; o título e a descrição ficam no dicionário, em
-// onboarding.<key>.
 interface OnboardingStep {
   key: 'materials' | 'scheduler' | 'challenges' | 'alarm' | 'streak';
   icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
 }
 
-// Cor de cada passo casa com o acento que aquela peça do app já usa em outro lugar
-// (azul = objetos, âmbar = alarmes/agendadores, índigo = desafios, rosa = permissões, verde =
-// sequência/histórico), pra já ir familiarizando o usuário com a linguagem visual antes mesmo de
-// chegar nas telas de verdade. A ordem segue o uso: o agendador só pode ser criado depois que
-// existe um documento processado para vincular a ele.
 const STEPS: OnboardingStep[] = [
   { key: 'materials', icon: 'document-text-outline', color: '#3B82F6' },
   { key: 'scheduler', icon: 'alarm-outline', color: '#F59E0B' },

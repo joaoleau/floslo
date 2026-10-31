@@ -10,11 +10,6 @@ interface ObjectStatusBadgeProps {
   status: ObjectStatus;
 }
 
-// "active" is the steady state every object ends up in, so it renders nothing here —
-// only "processing"/"failed" are worth calling out to the user. Match each status
-// explicitly instead of falling through to "processing": an unrecognized/missing value
-// (e.g. an older API response without this field yet) must not read as a permanent
-// stuck-processing spinner.
 export function ObjectStatusBadge({ status }: ObjectStatusBadgeProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();

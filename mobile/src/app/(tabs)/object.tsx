@@ -30,9 +30,6 @@ export default function ObjectsScreen() {
   const { data: objects = [], isPending, isError, error, refetch } = useObjectsQuery();
   const deleteMutation = useDeleteObjectMutation();
 
-  // Belt-and-suspenders alongside the refetchInterval polling in useObjectsQuery:
-  // coming back to this tab (e.g. after uploading) always checks for fresh status,
-  // instead of relying solely on the interval timer surviving navigation/backgrounding.
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: queryKeys.objects.all });

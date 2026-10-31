@@ -10,7 +10,6 @@ export function useLoginMutation() {
 
 export function useRegisterMutation() {
   return useMutation({
-    // authService.register also logs in right after, so the screen only needs one call.
     mutationFn: (payload: RegisterRequestDTO) => authService.register(payload),
   });
 }

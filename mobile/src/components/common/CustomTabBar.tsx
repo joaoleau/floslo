@@ -45,10 +45,6 @@ function Icon({
   );
 }
 
-// Footer neutro (não mais azul sólido): o fundo acompanha o tema (superfície +
-// contorno ink, mesma linguagem do resto do app) e só o indicador do ícone ativo
-// carrega o acento laranja -- é o único lugar do app que ainda usa uma cor "de
-// marca" fixa, de propósito (indicador de estado, não decoração).
 export default function CustomTabBar(props: CustomTabBarProps) {
   const currentRoute = props.state.routes[props.state.index].name;
   const insets = useSafeAreaInsets();
@@ -79,9 +75,6 @@ export default function CustomTabBar(props: CustomTabBarProps) {
           ))}
         </View>
 
-        {/* Selo de sequência: único elemento do app fora dos cartões, "escapando" do
-            contorno do footer -- de propósito, pra ler como algo especial (uma
-            conquista), não mais um dado estatístico entre outros. */}
         {!!streak && streak > 0 && (
           <View
             className="absolute -top-3 -right-2 h-7 flex-row items-center gap-1 rounded-full border-2 border-background px-2"

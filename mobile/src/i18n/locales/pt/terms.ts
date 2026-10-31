@@ -1,11 +1,8 @@
-// Termos de uso e Política de privacidade, em português. Ao mudar o texto, suba TERMS_VERSION
-// (mobile/src/constants/terms.ts) e TermsVersion (api/internal/service/auth.go) juntas.
 export const terms = {
   terms: {
     title: 'Termos e privacidade',
     heading: 'Termos de uso e Política de privacidade',
     updatedAt: 'Versão de {{version}}',
-    // A frase do aceite no cadastro, em três partes: o trecho do meio é o link para os termos.
     acceptBefore: 'Li e aceito os ',
     acceptLink: 'Termos de uso e a Política de privacidade',
     acceptAfter: ', inclusive o armazenamento dos meus dados nos Estados Unidos.',

@@ -6,9 +6,6 @@ import { preferencesStorage } from '@/storage/preferencesStorage';
 import { pt } from './locales/pt';
 import { en } from './locales/en';
 
-// Idioma da interface do app (não confundir com o idioma dos desafios, escolhido por
-// agendador). "system" segue o idioma do celular: português abre em português, qualquer
-// outro idioma abre em inglês.
 export type AppLanguage = 'pt' | 'en';
 export type LanguagePreference = AppLanguage | 'system';
 
@@ -36,13 +33,10 @@ export function currentLanguage(): AppLanguage {
   return i18n.language === 'en' ? 'en' : 'pt';
 }
 
-// Locale das datas e horas exibidas (toLocaleDateString e afins).
 export function dateLocale(): string {
   return currentLanguage() === 'en' ? 'en-US' : 'pt-BR';
 }
 
-// Lê a preferência salva e aplica o idioma. Chamado na abertura do app, antes da primeira
-// tela, para não piscar no idioma do celular quando o usuário escolheu outro.
 export async function loadLanguagePreference(): Promise<LanguagePreference> {
   const saved = await preferencesStorage.getLanguage().catch(() => null);
   const preference = isLanguagePreference(saved) ? saved : 'system';

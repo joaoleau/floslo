@@ -7,11 +7,6 @@ import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { alternativeLetter } from '@/lib/shuffle';
 
-// Modo leitura de um desafio já respondido (Múltipla escolha/V-F) -- usado tanto na revisão do
-// histórico (mobile/src/app/(history)/attempt/[id].tsx) quanto pra voltar/revisar um
-// desafio já respondido dentro da própria sessão de firing (mobile/src/app/(scheduler)/
-// firing.tsx). Não marca qual alternativa errada específica foi escolhida (só a
-// contagem de erros), já que essa granularidade não é guardada.
 export function ChoiceReview({
   promptText,
   explanationText,
@@ -26,14 +21,11 @@ export function ChoiceReview({
   colors: ReturnType<typeof useThemeColors>;
 }) {
   const { t } = useTranslation();
-  // As opções de Verdadeiro ou Falso ficam gravadas no histórico com o texto do idioma em que
-  // foram respondidas; pelo id, elas aparecem no idioma atual do app.
   function optionText(option: { id: string; text: string }) {
     if (option.id === 'TRUE') return t('challenges.trueFalse.true');
     if (option.id === 'FALSE') return t('challenges.trueFalse.false');
     return option.text;
   }
-  // Só as alternativas de Múltipla escolha levam letra; Verdadeiro ou Falso fica sem.
   const isTrueFalse = options.some((option) => option.id === 'TRUE' || option.id === 'FALSE');
 
   return (
@@ -78,7 +70,6 @@ export function ChoiceReview({
   );
 }
 
-// Modo leitura da Descoberta: o título em destaque e, abaixo, o conteúdo.
 export function DiscoveryReview({ promptText, explanationText }: { promptText: string; explanationText: string | null }) {
   const showTitle = !!explanationText && promptText !== explanationText;
 

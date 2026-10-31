@@ -5,9 +5,6 @@ import { Text } from '@/components/ui/text';
 import { AuthBackground } from '@/components/auth/AuthBackground';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-// A marca (ícone + "Floslo") que antes ficava fixa na tela de login agora só aparece
-// aqui, no intervalo curto de entrar/cadastrar -- um momento de marca, não decoração
-// permanente da tela de formulário.
 export function AuthLoadingScreen() {
   const colors = useThemeColors();
 

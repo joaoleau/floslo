@@ -33,13 +33,6 @@ function challengeConfigLabel(item: Challenger): string {
   }
 }
 
-// Item da listagem de agendadores (um abaixo do outro): card cheio, colorido (cor
-// tirada do hash do próprio id -- ver getColorForId). A ideia continua sendo puxar
-// pra estética de "app de estudo" (tipo cursos/lições), não de relógio: hora em destaque,
-// weekdays ao lado da hora (aproveitando o espaço que sobrava à direita) e cada desafio
-// configurado listado em uma linha (tipo e quantidade). O idioma é do agendador, então
-// aparece uma vez só, no cabeçalho. Dimensões bem reduzidas (fonte do horário, ícones,
-// paddings) mantendo todos os mesmos detalhes.
 export function SchedulerCard({
   scheduler,
   onPress,
@@ -50,11 +43,7 @@ export function SchedulerCard({
   selected = false,
 }: SchedulerCardProps) {
   const colors = useThemeColors();
-  // Os textos do card vêm do i18n fora do render (rótulos dos tipos e quantidades); assinar o
-  // idioma aqui redesenha o card quando ele muda, já que a FlatList não redesenha os itens sozinha.
   useTranslation();
-  // Desligado, o card fica só com o contorno, sem fundo colorido, como os filtros não
-  // selecionados; o documento que ainda não gera desafios segue a mesma regra.
   const outlined = !scheduler.enabled;
   const backgroundColor = getColorForId(scheduler.id);
   const ink = outlined ? colors.primary : '#FFFFFF';

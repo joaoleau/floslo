@@ -11,8 +11,6 @@ interface ObjectTagItemProps {
   onPressTag?: (tag: string) => void;
   onRemoveTag?: (tag: string) => void;
 
-  /** 'onColor': mesmo fundo translúcido branco usado pelos chips de desafio do
-   * SchedulerCard, pra ficar em cima do fundo colorido do ObjectCard. */
   variant?: 'default' | 'onColor';
 }
 

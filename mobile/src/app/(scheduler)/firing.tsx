@@ -35,8 +35,6 @@ import { alarmScreen } from '../../../modules/alarm-screen';
 import { i18n } from '@/i18n';
 import { errorMessage } from '@/i18n/errors';
 
-// Botões de silenciar o som e de parar a vibração, um embaixo do outro, os mesmos no
-// carregamento, na tela de erro e nos desafios. O de vibração só aparece quando o agendador vibra.
 function MuteButton({ alarm }: { alarm: RingingAlarm }) {
   return (
     <View className="absolute top-14 left-6 z-10 items-start gap-2">
@@ -69,8 +67,6 @@ function MuteButton({ alarm }: { alarm: RingingAlarm }) {
   );
 }
 
-// Extrai os campos específicos de cada tipo de desafio pro registro no histórico --
-// centralizado aqui pra manter o TypeScript estreitando `answered.data` corretamente por tipo.
 function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
   switch (answered.type) {
     case 'MULTIPLE_CHOICE':
@@ -99,16 +95,12 @@ function buildHistoryFields(answered: ChallengeItem, result: ChallengeResult) {
         promptText: answered.data.title || answered.data.content,
         explanationText: answered.data.content as string | null,
         options: null,
-        // Só apresenta conteúdo: não tem certo ou errado.
         isCorrect: null,
         sourceChunks: answered.data.sourceChunks,
       };
   }
 }
 
-// ==========================================
-// COMPONENTE DE CONTEÚDO
-// ==========================================
 function FiringScreenContent({
   ragData,
   schedulerId,
@@ -124,9 +116,6 @@ function FiringScreenContent({
   const colors = useThemeColors();
   const { t } = useTranslation();
   const [currentChallengeIndex, setCurrentChallengeIndex] = useState(0);
-  // Até onde o usuário já avançou de verdade -- só cresce. currentChallengeIndex pode
-  // ficar menor que isso quando o usuário usa o pager pra revisar um desafio já
-  // respondido (modo leitura, ver render abaixo).
   const [maxReachedIndex, setMaxReachedIndex] = useState(0);
   const [answeredResults, setAnsweredResults] = useState<Record<number, ChallengeResult>>({});
   const [currentTime, setCurrentTime] = useState('');
@@ -135,20 +124,13 @@ function FiringScreenContent({
   const invalidateHistory = useInvalidateHistory();
   const queryClient = useQueryClient();
   const historySessionIdRef = useRef<string | null>(null);
-  // Respondido o último desafio, o alarme silencia e a tela mostra a recompensa (AlarmCompletion)
-  // até o usuário concluir.
   const [finished, setFinished] = useState(false);
 
-  // A sequência que o app mostrava antes deste disparo, lida uma vez, antes de o efeito abaixo
-  // gravar a nova no cache: é dela que a tela de conclusão parte para mostrar a sequência subindo.
   const [previousStreak] = useState(() => {
     const cached = queryClient.getQueryData<User>(queryKeys.user.me);
     return cached ? displayedStreak(cached.currentStreak, cached.lastActiveDate) : undefined;
   });
 
-  // A floslo-rag já registrou o dia de estudo ao gerar este disparo (a data local vai no
-  // próprio pedido, ver firingService) e devolveu a sequência atualizada, que entra direto no
-  // cache do usuário, sem outra chamada à nuvem. Hoje passa a ser o último dia de estudo.
   const currentStreak = ragData.currentStreak;
   useEffect(() => {
     if (currentStreak === undefined) return;
@@ -157,16 +139,8 @@ function FiringScreenContent({
     );
   }, [queryClient, currentStreak]);
 
-  // O backend devolve sucesso com challenges=[] quando o agendador ficou sem nenhum objeto
-  // vinculado (o último foi excluído) -- ver RAGService.RetrieveAndGenerate. O alarme já
-  // tocando não sabia disso de antemão, então em vez de tentar renderizar um desafio que não
-  // existe, a tela mostra um aviso e deixa só desligar o alarme.
   const hasNoChallenges = ragData.challenges.length === 0;
 
-  // Uma sessão de histórico por disparo de alarme -- criada assim que sabemos quantos
-  // desafios existem, pra cada resposta (handleChallengeSuccess) já ter uma sessão pra
-  // referenciar. Guardado em ref (não state) porque não precisa disparar re-render. Sem
-  // desafio nenhum não há o que responder, então nem cria a sessão.
   useEffect(() => {
     if (!user || historySessionIdRef.current || hasNoChallenges) return;
     historySessionIdRef.current = historyService.startSession({
@@ -187,7 +161,6 @@ function FiringScreenContent({
     }
   }, [alarm, router, schedulerId, notificationId]);
 
-  // Relógio
   useEffect(() => {
     function updateClock() {
       const now = new Date();
@@ -238,8 +211,6 @@ function FiringScreenContent({
     }
   }
 
-  // Navegação livre entre qualquer desafio já respondido (modo leitura, sem poder
-  // responder de novo -- ver render abaixo) -- nunca além da fronteira alcançada.
   function handleGoBack() {
     setCurrentChallengeIndex((prev) => Math.max(0, prev - 1));
   }
@@ -255,8 +226,6 @@ function FiringScreenContent({
   const canGoBack = currentChallengeIndex > 0;
   const canGoForward = currentChallengeIndex < maxReachedIndex;
 
-  // Pontuação da sessão para a tela de conclusão, com a mesma regra do Histórico: só Múltipla
-  // escolha e Verdadeiro ou Falso têm acerto; Descoberta conta à parte.
   const completionScore = ragData.challenges.reduce(
     (score, challenge, index) => {
       const result = answeredResults[index];
@@ -271,7 +240,6 @@ function FiringScreenContent({
     { answeredCount: 0, gradedCount: 0, correctCount: 0 },
   );
 
-  // Alarme concluído: em silêncio, a tela mostra a recompensa até o usuário tocar em Concluir.
   if (finished) {
     return (
       <LinearGradient colors={[getColorForId(ragData.scheduler.id), colors.brand]} style={{ flex: 1 }}>
@@ -293,12 +261,10 @@ function FiringScreenContent({
       colors={[getColorForId(ragData.scheduler.id), colors.brand]}
       style={{ flex: 1, position: 'relative' }}
     >
-      {/* BARREIRA 3: Bloqueia arrastar para voltar ou gestos do Expo Router */}
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
 
       <MuteButton alarm={alarm} />
 
-      {/* Cabeçalho compacto: só a hora, nome do alarme e progresso (quando houver mais de 1 desafio) */}
       <View className="items-center pt-14 pb-3 px-5">
         <Text className="text-5xl font-bold text-white tracking-widest">{currentTime}</Text>
         <View className="flex-row items-center gap-1.5 mt-1">
@@ -324,9 +290,6 @@ function FiringScreenContent({
           </View>
         )}
 
-        {/* Pager: navega entre qualquer desafio já respondido, sempre em modo leitura --
-            nunca ultrapassa a fronteira (maxReachedIndex), então nunca reabre um desafio
-            futuro ainda não respondido. */}
         {(canGoBack || canGoForward) && (
           <View className="w-full max-w-sm flex-row items-center justify-between mt-3">
             <Pressable
@@ -354,7 +317,6 @@ function FiringScreenContent({
         )}
       </View>
 
-      {/* Área do desafio: ocupa o resto da tela até as bordas, sem padding lateral/inferior */}
       <View className="flex-1 px-1">
         {hasNoChallenges ? (
           <View className="flex-1 items-center justify-center gap-4 px-8">
@@ -406,9 +368,6 @@ function FiringScreenContent({
   );
 }
 
-// Reaproveita buildHistoryFields (já mapeia cada tipo de desafio pro shape de revisão)
-// pra mostrar, em modo leitura, um desafio já respondido dentro da própria sessão de
-// firing -- sem duplicar essa lógica de mapeamento.
 function ChallengeReviewPane({
   challenge,
   result,
@@ -444,9 +403,6 @@ function ChallengeReviewPane({
   );
 }
 
-// ==========================================
-// 2. TELA PRINCIPAL (Busca os dados e gerencia o Loading)
-// ==========================================
 export default function FiringScreen() {
   const { schedulerId, notificationId } = useLocalSearchParams<{ schedulerId: string; notificationId?: string }>();
   const ringingNotificationId = notificationId || schedulerId;
@@ -454,8 +410,6 @@ export default function FiringScreen() {
   const router = useRouter();
   const { data: ragData, isPending, isError, error, refetch } = useRagQuery(schedulerId);
 
-  // Som e vibração do alarme antes de os desafios chegarem: os ajustes guardados no aparelho
-  // quando o alarme foi agendado (ver alarmSettingsStorage), ou um padrão se não houver.
   const [storedSettings, setStoredSettings] = useState<AlarmSettings | null>(null);
   useEffect(() => {
     alarmSettingsStorage.get(schedulerId).then(setStoredSettings).catch(() => undefined);
@@ -483,30 +437,17 @@ export default function FiringScreen() {
     });
     return () => {
       activeFiring.finish(schedulerId);
-      // O app só aparece sobre a tela de bloqueio enquanto o alarme está aberto (ver
-      // modules/alarm-screen): ao fechar o disparo, volta a exigir o desbloqueio.
       alarmScreen.setShowOverLockScreen(false).catch((err) => {
         console.warn('[FiringScreen] Falha ao deixar de mostrar o app sobre o bloqueio', err);
       });
     };
   }, [schedulerId]);
 
-  // ==========================================
-  // BARREIRA 1: BLOQUEAR BOTÃO VOLTAR
-  // ==========================================
-  // Não existe atalho pra desligar o alarme sem responder os desafios enquanto eles são
-  // preparados, então o botão voltar nunca sai do disparo, só é engolido. A tela de erro tem o
-  // próprio botão de dispensar.
   useEffect(() => {
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => backHandler.remove();
   }, []);
 
-  // Sem isso, uma falha aqui (rede fora do ar, backend fora do ar, etc.) prendia o usuário
-  // pra sempre na tela de "Preparando desafio..." sem nenhuma indicação do que houve — o
-  // queryCache global (queryClient.ts) já loga o erro, isso só dá uma saída pro usuário. Uma
-  // falha que se repete a cada tentativa (um objeto que não existe mais, por exemplo) prendia o
-  // usuário com o alarme tocando, então além de tentar de novo dá pra dispensar o alarme.
   if (isError) {
     console.error('[FiringScreen] Falha ao carregar o desafio do alarme', { schedulerId, error });
     return (

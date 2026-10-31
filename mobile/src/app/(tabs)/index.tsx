@@ -45,8 +45,6 @@ export default function Home() {
 
   const visibleSchedulers = schedulers.filter((scheduler) => matchesSchedulerFilter(scheduler, filter));
 
-  // Elemento (não componente) de propósito: um componente declarado aqui dentro seria
-  // recriado a cada render de Home e remontaria a AlarmPermissionBanner sem necessidade.
   const listHeader = (
     <View className="gap-4">
       <AlarmPermissionBanner />
@@ -54,8 +52,6 @@ export default function Home() {
     </View>
   );
 
-  // Force a refresh whenever we come back from create/edit, matching the
-  // previous useFocusEffect-based refetch behavior.
   useFocusEffect(
     useCallback(() => {
       queryClient.invalidateQueries({ queryKey: queryKeys.schedulers.all });

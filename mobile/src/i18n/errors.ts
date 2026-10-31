@@ -1,9 +1,6 @@
 import { ApiError } from '@/api/http/errors';
 import { i18n } from './index';
 
-// A API responde os erros em inglês e em texto livre (campo "error"). O app não mostra esse
-// texto direto: os erros conhecidos viram uma mensagem no idioma do app, e os demais caem na
-// mensagem genérica da ação que falhou.
 const KNOWN_API_ERRORS: Record<string, string> = {
   'invalid credentials': 'errors.api.invalidCredentials',
   'terms of use must be accepted': 'terms.acceptRequired',
@@ -30,15 +27,10 @@ const KNOWN_API_ERRORS: Record<string, string> = {
   'scheduler not found': 'errors.api.schedulerNotFound',
 };
 
-// fetch rejeita com TypeError ("Network request failed") quando não há conexão.
 function isNetworkError(err: unknown): boolean {
   return err instanceof TypeError && /network/i.test(err.message);
 }
 
-/**
- * Mensagem de erro para mostrar ao usuário, no idioma do app. `fallbackKey` é a mensagem
- * genérica da ação (por exemplo, 'auth.login.failed'), usada quando o erro não é conhecido.
- */
 export function errorMessage(err: unknown, fallbackKey: string): string {
   if (isNetworkError(err)) return i18n.t('errors.network');
   if (err instanceof ApiError) {

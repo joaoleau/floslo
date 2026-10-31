@@ -2,7 +2,6 @@ export interface RegisterRequestDTO {
   username: string;
   email: string;
   password: string;
-  /** Versão dos termos aceita na tela de cadastro (TERMS_VERSION). */
   accepted_terms_version: string;
 }
 

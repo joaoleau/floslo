@@ -1,7 +1,6 @@
 import type { base as ptBase } from '../pt/base';
 import type { Translation } from '../types';
 
-// General texts, authentication, permissions, profile and onboarding, in English.
 export const base: Translation<typeof ptBase> = {
   common: {
     ok: 'OK',

@@ -31,10 +31,6 @@ export default function HistoryScreen() {
   const { t } = useTranslation();
   const colors = useThemeColors();
   const { mode } = useTheme();
-  // ScrollView.indicatorStyle só aceita 'black'/'white'/'default' -- o 'default' (cinza
-  // claro do sistema) ficava quase invisível em cima do fundo claro do app no modo light,
-  // parecendo que a seção não rolava. persistentScrollbar (Android) mantém a barra
-  // sempre visível em vez de só durante o toque.
   const scrollIndicatorStyle = mode === 'dark' ? 'white' : 'black';
 
   const tagsQuery = useTagBreakdownQuery();
@@ -90,9 +86,6 @@ export default function HistoryScreen() {
           {tagsQuery.data && tagsQuery.data.length > 0 && (
             <Card className="rounded-3xl p-5 gap-4">
               <Text className="text-lg font-semibold text-foreground">{t('history.bySubject')}</Text>
-              {/* Altura fixa com scroll próprio -- sem isso, uma lista longa de assuntos
-                  empurrava as seções seguintes pra baixo da tela toda, virando uma rolagem
-                  só, sem fim, difícil de navegar entre seções. */}
               <ScrollView style={{ maxHeight: 280 }} nestedScrollEnabled showsVerticalScrollIndicator indicatorStyle={scrollIndicatorStyle} persistentScrollbar>
                 <View className="gap-2">
                   {tagsQuery.data.map((stat) => (

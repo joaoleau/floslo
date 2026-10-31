@@ -2,13 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChallengeType } from '@/types/domain/History';
 import { i18n } from '@/i18n';
 
-// Mesma paleta usada nas badges de histórico/estatísticas, pra manter a associação
-// visual tipo-de-desafio -> cor consistente em todo o app. Tons
-// "joia" (mais escuros/profundos) de propósito -- se diferenciam da paleta vibrante dos
-// cards (hashColor.ts) pela saturação/luminosidade, não só pelo matiz, já que só existem
-// 3 tipos de desafio contra 8 cores de card (evitar sobreposição de matiz seria
-// praticamente impossível). O rótulo é lido do dicionário na hora do acesso (getter), para
-// acompanhar o idioma do app.
 export const CHALLENGE_TYPE_META: Record<
   ChallengeType,
   { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; label: string }

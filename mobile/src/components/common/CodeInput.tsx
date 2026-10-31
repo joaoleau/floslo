@@ -11,10 +11,6 @@ interface CodeInputProps {
   autoFocus?: boolean;
 }
 
-// Grade de "quadrados" pra digitar o código de verificação -- por baixo é um único
-// TextInput invisível cobrindo toda a área (technique padrão pra OTP em RN), então o
-// teclado numérico e o comportamento de digitar/apagar continuam nativos; só a
-// aparência é substituída pelos quadrados, que refletem o valor caractere a caractere.
 export function CodeInput({ length = 6, value, onChangeText, editable = true, autoFocus = true }: CodeInputProps) {
   const inputRef = useRef<TextInput>(null);
   const digits = Array.from({ length }, (_, i) => value[i] ?? '');

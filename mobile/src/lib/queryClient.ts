@@ -1,8 +1,5 @@
 import { QueryCache, MutationCache, QueryClient } from '@tanstack/react-query';
 
-// Centralized net for every query/mutation failure in the app — including ones whose
-// screen-level catch block only shows an Alert without logging anything. Without this,
-// a failure deep in a hook (e.g. a background refetch) can happen with zero terminal output.
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

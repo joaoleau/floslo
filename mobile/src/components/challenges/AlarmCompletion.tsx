@@ -8,13 +8,10 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { sessionScoreLabel } from '@/lib/sessionScore';
 
-// Quanto tempo o número antigo da sequência fica na tela antes de subir para o novo.
 const STREAK_STEP_DELAY_MS = 700;
 
 export interface AlarmCompletionProps {
-  /** Sequência depois deste disparo (current_streak devolvido pela floslo-rag), se veio. */
   streak: number | undefined;
-  /** Sequência que o app mostrava antes do disparo; menor que `streak` quando hoje é um dia novo. */
   previousStreak: number | undefined;
   answeredCount: number;
   gradedCount: number;
@@ -24,8 +21,6 @@ export interface AlarmCompletionProps {
 
 export type CompletionMessage = 'perfect' | 'streakUp' | 'done';
 
-// A frase de incentivo: acertar tudo de primeira pesa mais que a sequência, e a sequência
-// subindo pesa mais que só ter concluído.
 export function completionMessage({
   streak,
   previousStreak,
@@ -37,11 +32,6 @@ export function completionMessage({
   return 'done';
 }
 
-/**
- * Recompensa ao fim do alarme: a sequência de dias (subindo, quando hoje é um dia novo), a
- * pontuação da sessão e uma frase de incentivo. O alarme já está em silêncio aqui; o botão
- * fecha a tela de disparo.
- */
 export function AlarmCompletion(props: AlarmCompletionProps) {
   const { streak, previousStreak, onFinish } = props;
   const { t } = useTranslation();

@@ -1,7 +1,6 @@
 import type { terms as ptTerms } from '../pt/terms';
 import type { Translation } from '../types';
 
-// Terms of use and Privacy policy, in English.
 export const terms: Translation<typeof ptTerms> = {
   terms: {
     title: 'Terms and privacy',

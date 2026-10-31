@@ -7,22 +7,12 @@ import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 interface StudyWeekStripProps {
-  /** Uma linha por dia com pelo menos 1 resposta (ver historyService.getDailyActivity). */
   activity: { date: string; count: number }[];
-  /** Quantas semanas pra trás dá pra navegar -- deve bater com os `days` pedidos na
-   * query e com HISTORY_RETENTION_DAYS (histórico local só guarda os últimos 30 dias,
-   * então um calendário de meses inteiros só mostraria buracos vazios sem sentido). */
   weeksBack?: number;
 }
 
-// Iniciais dos dias (domingo a sábado) e nomes curtos dos meses vêm do dicionário, em
-// history.week.
-
 const LEVEL_THRESHOLDS = [1, 3, 6, 10];
-// Verde, no espírito do gráfico de contribuições do GitHub -- as 4 tonalidades clássicas.
 const LEVEL_COLORS = ['#9BE9A8', '#40C463', '#30A14E', '#216E39'];
-// Os dois primeiros níveis são claros demais pra texto branco -- índices 0 e 1 usam
-// texto escuro, só os dois mais saturados (2 e 3) usam branco.
 const LEVEL_TEXT_IS_LIGHT = [false, false, true, true];
 
 function levelIndex(count: number): number {
@@ -47,8 +37,6 @@ function startOfWeek(date: Date): Date {
   return start;
 }
 
-// Uma semana por vez (domingo-sábado), navegável -- não um calendário do ano inteiro,
-// que só faria sentido se o histórico local não fosse podado depois de 30 dias.
 export function StudyWeekStrip({ activity, weeksBack = 4 }: StudyWeekStripProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();
@@ -60,7 +48,6 @@ export function StudyWeekStrip({ activity, weeksBack = 4 }: StudyWeekStripProps)
   today.setHours(0, 0, 0, 0);
   const currentWeekStart = startOfWeek(today);
 
-  // 0 = semana atual, negativo = semanas anteriores.
   const [weekOffset, setWeekOffset] = useState(0);
   const canGoNext = weekOffset < 0;
   const canGoPrev = weekOffset > -weeksBack;

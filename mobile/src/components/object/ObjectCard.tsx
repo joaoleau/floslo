@@ -20,17 +20,9 @@ interface ObjectCardProps {
   selected?: boolean;
 }
 
-// Mesmo esquema de cor por hash do SchedulerCard (ver getColorForId), pra manter a mesma
-// linguagem visual entre as duas listagens. A badge de extensão usa uma cor própria e
-// fixa por tipo de arquivo (getExtensionColor) -- independente da cor do card -- pra
-// continuar reconhecível item a item.
 export function ObjectCard({ object, onPress, onLongPress, selectionMode = false, selected = false }: ObjectCardProps) {
   const colors = useThemeColors();
-  // Assina o idioma para o card se redesenhar quando ele muda (a FlatList não redesenha os itens).
   useTranslation();
-  // Em processamento ou com falha, o documento ainda não gera desafios: o card fica só com o
-  // contorno, sem fundo colorido, como o agendador desligado, e o selo continua dizendo qual dos
-  // dois é, para o estado não depender só da cor.
   const outlined = object.status !== 'active';
   const backgroundColor = getColorForId(object.id);
   const ink = outlined ? colors.primary : '#FFFFFF';

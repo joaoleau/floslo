@@ -11,7 +11,6 @@ interface ItemCountStepperProps {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   color: string;
   value: number;
-  // Maior valor que este contador aceita agora: o que já tem mais o saldo que sobra nos outros tipos.
   cap: number;
   onChange: (value: number) => void;
 }
@@ -43,9 +42,6 @@ function StepButton({ testID, icon, color, label, disabled, onPress }: StepButto
   );
 }
 
-// Quantidade de itens de um tipo de desafio: o número no meio, com um botão de menos de um lado e
-// um de mais do outro. O mais para no `cap`, porque o limite de itens é compartilhado entre todos
-// os tipos do agendador; o menos para no zero, que tira o tipo do agendador.
 export function ItemCountStepper({ testID, label, description, icon, color, value, cap, onChange }: ItemCountStepperProps) {
   const { t } = useTranslation();
   return (

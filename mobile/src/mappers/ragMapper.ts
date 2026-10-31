@@ -1,5 +1,3 @@
-// src/mappers/ragMapper.ts
-
 import {
   ChallengeResultDTO,
   DiscoveryDTO,
@@ -29,8 +27,6 @@ function multipleChoiceToDomain(raw: MultipleChoiceDTO): MultipleChoice {
     question: raw.question,
     explanation: raw.explanation,
     tag: raw.tag,
-    // O modelo tende a escrever a alternativa certa primeiro; embaralhar aqui (uma vez por
-    // disparo, já que a consulta do disparo não é refeita) tira esse padrão.
     alternatives: shuffle(
       raw.alternatives.map((alt) => ({
         id: alt.id,
@@ -75,9 +71,6 @@ function challengeResultToItems(raw: ChallengeResultDTO): ChallengeItem[] {
   }
 }
 
-// Ordem dos tipos no disparo: a descoberta primeiro, para apresentar o conteúdo antes de
-// cobrá-lo, depois múltipla escolha e verdadeiro ou falso. Vale para qualquer agendador, inclusive
-// os salvos antes, porque a ordem gravada no agendador é a do formulário.
 export const FIRING_TYPE_ORDER: ChallengeItem['type'][] = ['DISCOVERY', 'MULTIPLE_CHOICE', 'TRUE_FALSE'];
 
 function firingRank(type: string): number {

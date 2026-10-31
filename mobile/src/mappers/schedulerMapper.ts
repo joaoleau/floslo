@@ -6,9 +6,6 @@ import {
 } from '@/types/api/SchedulerDTO';
 import { Challenger, Scheduler } from '@/types/domain/Scheduler';
 
-// The UI (WeekDays component) and the native alarm-scheduling logic
-// (schedulerService's calculateNextTrigger) both use lowercase full day
-// names, but the backend's Weekday enum expects 3-letter uppercase codes.
 const DOMAIN_TO_API_WEEKDAY: Record<string, string> = {
   sunday: 'SUN',
   monday: 'MON',
@@ -102,8 +99,6 @@ export const schedulerMapper = {
       challengers: challengersToDomain(raw.challengers),
       enabled: raw.enabled,
       vibration: raw.vibration,
-      // Schedulers criados antes desse campo existir não o têm no Dynamo -- som
-      // sempre tocava por padrão.
       soundEnabled: raw.sound_enabled ?? true,
       createdAt: new Date(raw.created_at),
       updatedAt: new Date(raw.updated_at),

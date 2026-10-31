@@ -25,10 +25,6 @@ export function TagAccuracyRow({ stat, onPress }: TagAccuracyRowProps) {
   const { mode } = useTheme();
   const percent = stat.accuracy !== null ? Math.round(stat.accuracy * 100) : null;
   const barColor = stat.accuracy !== null ? accuracyColor(stat.accuracy, colors) : colors.brandSoft;
-  // Cor própria por assunto (mesma paleta vibrante usada em Agendadores/Objetos), fixa
-  // pelo id do tag -- diferente da cor da barra/porcentagem, que continua semântica
-  // (verde/âmbar/vermelho por acerto). Sem isso, todo assunto sem dado suficiente pra
-  // ter uma taxa de acerto ainda (o caso mais comum) caía no mesmo cinza neutro.
   const identityColor = getColorForId(stat.tag);
 
   return (

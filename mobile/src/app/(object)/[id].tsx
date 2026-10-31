@@ -71,8 +71,6 @@ export default function ObjectDetails() {
     }
   }
 
-  // Reset local tag state when a (new) object finishes loading, without a
-  // setState-in-effect cascade — see https://react.dev/learn/you-might-not-need-an-effect
   if (object && object.id !== loadedObjectId) {
     setLoadedObjectId(object.id);
     setTags(object.tags);
@@ -94,7 +92,6 @@ export default function ObjectDetails() {
 
   async function handleSave() {
     if (!object) return;
-    // Os desafios saem da busca pelas tags: sem nenhuma, o documento não fornece conteúdo.
     if (tags.length === 0) {
       showAlert(t('objects.detail.tagRequiredTitle'), t('objects.detail.tagRequired'));
       return;
@@ -156,9 +153,6 @@ export default function ObjectDetails() {
   }
 
   const isEditable = object.status === 'active';
-  // Mesma cor por hash do id usada no card da listagem, esmaecendo pro fundo padrão do
-  // app -- só um toque de cor no topo da tela. A badge de extensão usa a mesma cor
-  // semântica por tipo de arquivo do ObjectCard.
   const accentColor = getColorForId(object.id);
   const extensionColor = getExtensionColor(object.extension);
 

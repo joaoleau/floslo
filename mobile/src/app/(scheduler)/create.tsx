@@ -26,7 +26,6 @@ export default function CreateScheduler() {
   const { data: availableObjects = [], isPending, isError, error, refetch } = useObjectsQuery();
   const createMutation = useCreateSchedulerMutation();
 
-  // Calcula a hora inicial (atual) e monta o objeto base do alarme
   const initialScheduler = useMemo<Scheduler>(() => {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
@@ -47,7 +46,6 @@ export default function CreateScheduler() {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    // Só o valor inicial: o nome padrão não muda se o idioma for trocado com a tela aberta.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

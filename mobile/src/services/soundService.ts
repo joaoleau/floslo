@@ -1,7 +1,5 @@
 import { Sound } from '@/types/domain/Scheduler';
 
-// Static, bundled alarm-sound catalog — there's no backend endpoint for
-// sounds (they ship as Android raw resources), so this isn't a query.
 const AVAILABLE_SOUNDS: Sound[] = [
   { name: 'twinkling_holiday_cheer' },
   { name: 'dark_horror_scary' },
@@ -17,8 +15,6 @@ export const soundService = {
   },
 };
 
-// Os nomes dos sons são slugs de arquivo ("chic_pop") -- formata pra exibição
-// ("Chic Pop") nos lugares onde o usuário vê o som já escolhido/selecionado.
 export function formatSoundLabel(name: string): string {
   return name
     .split('_')

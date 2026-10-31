@@ -3,12 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  /*
-   * Fallback values only — the light theme. The real, active values are set at
-   * runtime by ThemeProvider (src/lib/ThemeProvider.tsx) via NativeWind's vars(),
-   * based on the user's light/dark preference (src/lib/theme-tokens.ts) and the
-   * system color scheme. These just cover anything rendered before that wrapper mounts.
-   */
   :root {
     --background: 210 20% 98%;
     --foreground: 222 20% 12%;

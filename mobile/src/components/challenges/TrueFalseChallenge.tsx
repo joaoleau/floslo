@@ -18,7 +18,6 @@ interface TrueFalseChallengeProps {
   onSuccess: (result: ChallengeResult) => void;
 }
 
-// O texto de cada opção fica no dicionário, em challenges.trueFalse.true e .false.
 const OPTIONS = [
   { id: 'TRUE', key: 'true', value: true },
   { id: 'FALSE', key: 'false', value: false },

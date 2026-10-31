@@ -1,9 +1,5 @@
-// src/types/domain/History.ts
-
 export type ChallengeType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'DISCOVERY';
 
-// Resultado que cada componente de desafio devolve ao concluir, pra firing.tsx gravar o
-// attempt correspondente no histórico.
 export interface ChallengeResult {
   wrongAttempts: number;
 }
@@ -12,7 +8,7 @@ export interface TagStat {
   tag: string;
   total: number;
   accuracy: number | null;
-  hasEnoughData: boolean; // false quando as respostas com certo ou errado < MIN_ATTEMPTS_FOR_INSIGHT
+  hasEnoughData: boolean;
 }
 
 export interface MistakeEntry {
@@ -34,13 +30,9 @@ export interface SessionSummary {
   totalChallenges: number;
   correctCount: number;
   answeredCount: number;
-  // Respostas que têm certo ou errado (Múltipla escolha e Verdadeiro ou Falso). A Descoberta
-  // não tem acerto, então fica fora do placar "x/y de primeira".
   gradedCount: number;
 }
 
-// Uma alternativa de Múltipla escolha, ou uma das duas opções fixas de Verdadeiro/Falso -- guardado
-// pra tela de revisão poder mostrar o desafio original de novo, com a correta destacada.
 export interface ReviewOption {
   id: string;
   text: string;
@@ -55,7 +47,7 @@ export interface AttemptEntry {
   language: string;
   promptText: string;
   explanationText: string | null;
-  options: ReviewOption[] | null; // null pra DISCOVERY (não tem alternativas)
+  options: ReviewOption[] | null;
   isCorrect: boolean | null;
   wrongAttempts: number;
   answeredAt: number;

@@ -12,7 +12,6 @@ interface LanguagePickerProps {
   onChange: (language: SupportedLanguage) => void;
 }
 
-// Campo simples com o idioma escolhido; ao tocar abre uma folha inferior com a lista.
 export function LanguagePicker({ value, onChange }: LanguagePickerProps) {
   const colors = useThemeColors();
   const { t } = useTranslation();

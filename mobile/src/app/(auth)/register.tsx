@@ -93,11 +93,6 @@ export default function RegisterScreen() {
                 </View>
               )}
 
-              {/* O aceite é o consentimento da LGPD, inclusive para a transferência dos dados aos
-                  Estados Unidos: fica desmarcado até o usuário marcar, e o cadastro exige. A caixa e
-                  o texto marcam o aceite; o trecho sublinhado abre os termos. O texto não fica dentro
-                  de um Pressable: ali o toque no trecho sublinhado ia para o Pressable e só marcava a
-                  caixa, sem abrir os termos. */}
               <View className="flex-row items-start gap-2 py-1">
                 <Pressable
                   testID="accept-terms"
@@ -112,8 +107,6 @@ export default function RegisterScreen() {
                     color={acceptedTerms ? colors.brand : colors.mutedForeground}
                   />
                 </Pressable>
-                {/* Cor e sublinhado do link no style (e não no className) para valerem no trecho
-                    aninhado do texto. */}
                 <Text className="flex-1 text-sm text-muted-foreground" onPress={() => setAcceptedTerms((prev) => !prev)}>
                   {t('terms.acceptBefore')}
                   <Text

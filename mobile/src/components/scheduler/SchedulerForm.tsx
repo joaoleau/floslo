@@ -59,11 +59,8 @@ const DEFAULT_SCHEDULER: Scheduler = {
   challengers: [],
 };
 
-// Linha de ajuste com switch (Vibração, Som): mesma altura mínima e mesmo recuo dos dois lados.
 const SETTING_ROW = 'min-h-14 flex-row items-center gap-3 rounded-md border border-border px-4 py-2.5';
 
-// Barra empilhada do total: um segmento por item, colorido pelo tipo a que pertence, e os que
-// ainda sobram em cinza.
 function TotalBar({ counts }: { counts: Record<ChallengeTypeName, number> }) {
   const colors = CHALLENGE_TYPE_ORDER.flatMap((type) =>
     Array.from({ length: counts[type] }, () => CHALLENGE_TYPE_META[type].color),
@@ -89,7 +86,6 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
 
     const [scheduler, setScheduler] = useState<Scheduler>(initialValues ?? DEFAULT_SCHEDULER);
 
-    // Limite de itens somado entre todos os tipos do agendador.
     const usedItems = totalItemCount(scheduler.challengers);
     const remainingItems = MAX_ITEMS_PER_SCHEDULER - usedItems;
     const counts = Object.fromEntries(
@@ -133,8 +129,6 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
       );
     }
 
-    // Muda a quantidade de um tipo respeitando o saldo compartilhado: um contador nunca passa do
-    // que ele já tem mais o que sobra nos outros tipos.
     function setTypeCount(type: ChallengeTypeName, count: number) {
       setScheduler((previous) => {
         const current = challengerCount(previous.challengers, type);
@@ -176,9 +170,6 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 placeholder={t('schedulers.form.namePlaceholder')}
               />
 
-              {/* Vibração e Som seguem o mesmo formato de linha (SETTING_ROW): ícone, rótulo com o
-                  estado embaixo e o switch à direita, com a mesma altura e o mesmo recuo, para os
-                  dois switches ficarem alinhados. */}
               <View testID="vibration-row" className={SETTING_ROW}>
                 <View className="flex-1 flex-row items-center gap-3">
                   <MaterialCommunityIcons name="vibrate" size={20} color={colors.brand} />
@@ -193,9 +184,6 @@ export const SchedulerForm = forwardRef<SchedulerFormRef, SchedulerFormProps>(
                 />
               </View>
 
-              {/* Uma coisa só (label + nome do som escolhido + switch), não dois campos
-                  separados -- toque em qualquer lugar do bloco (menos o switch) abre o
-                  seletor, o switch liga/desliga o som. Sem seta: o próprio toque já é óbvio. */}
               <View testID="sound-row" className={SETTING_ROW}>
                 <Pressable
                   onPress={() => scheduler.soundEnabled && router.push('/(scheduler)/sounds')}
