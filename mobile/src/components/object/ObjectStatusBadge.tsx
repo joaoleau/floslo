@@ -1,0 +1,35 @@
+import { ActivityIndicator } from 'react-native';
+
+import { Badge } from '@/components/ui/badge';
+import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
+import { ObjectStatus } from '@/types/domain/Object';
+import { useThemeColors } from '@/hooks/useThemeColors';
+
+interface ObjectStatusBadgeProps {
+  status: ObjectStatus;
+}
+
+export function ObjectStatusBadge({ status }: ObjectStatusBadgeProps) {
+  const colors = useThemeColors();
+  const { t } = useTranslation();
+
+  if (status === 'failed') {
+    return (
+      <Badge variant="destructive" className="flex-row items-center gap-1 rounded-full px-3">
+        <Text className="text-xs font-medium uppercase text-white">{t('objects.status.failed')}</Text>
+      </Badge>
+    );
+  }
+
+  if (status === 'processing') {
+    return (
+      <Badge className="flex-row items-center gap-1.5 rounded-full bg-muted px-3">
+        <ActivityIndicator size="small" color={colors.brand} />
+        <Text className="text-xs font-medium uppercase text-brand-100">{t('objects.status.processing')}</Text>
+      </Badge>
+    );
+  }
+
+  return null;
+}

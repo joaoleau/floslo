@@ -1,0 +1,44 @@
+import { useEffect, useState } from 'react';
+import { Modal, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+import { Card } from '@/components/ui/card';
+import { Text } from '@/components/ui/text';
+import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
+import { fieldHelpService, FieldHelpOptions } from '@/services/fieldHelpService';
+import { useThemeColors } from '@/hooks/useThemeColors';
+
+export function FieldHelpModal() {
+  const colors = useThemeColors();
+  const { t } = useTranslation();
+  const [options, setOptions] = useState<FieldHelpOptions | null>(null);
+
+  useEffect(() => fieldHelpService.subscribe(setOptions), []);
+
+  if (!options) return null;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={() => setOptions(null)}>
+      <View className="flex-1 items-center justify-center bg-black/50 px-6">
+        <Card className="w-full gap-4 rounded-3xl p-5" style={{ maxWidth: 340 }}>
+          <View className="items-center gap-2.5">
+            <View
+              className="h-8 w-8 items-center justify-center rounded-full"
+              style={{ backgroundColor: `${colors.brand}1F` }}
+            >
+              <Ionicons name="help" size={16} color={colors.brand} />
+            </View>
+            <Text className="text-center text-base font-semibold text-foreground">{options.title}</Text>
+          </View>
+
+          <Text className="text-center text-sm leading-5 text-muted-foreground">{options.description}</Text>
+
+          <Button onPress={() => setOptions(null)} className="rounded-3xl bg-brand-100">
+            <Text className="font-semibold text-white">{t('common.understood')}</Text>
+          </Button>
+        </Card>
+      </View>
+    </Modal>
+  );
+}

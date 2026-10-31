@@ -1,0 +1,35 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PENDING_ALARM_NAV_KEY = 'floslo_pending_alarm_nav';
+const MAX_AGE_MS = 5 * 60 * 1000;
+
+interface PendingAlarmNav {
+  schedulerId: string;
+  notificationId: string;
+  challengeType?: string;
+}
+
+export const alarmNavStorage = {
+  async savePendingAlarmNav(data: PendingAlarmNav): Promise<void> {
+    await AsyncStorage.setItem(PENDING_ALARM_NAV_KEY, JSON.stringify({ ...data, savedAt: Date.now() }));
+  },
+
+  async clearPendingAlarmNav(): Promise<void> {
+    await AsyncStorage.removeItem(PENDING_ALARM_NAV_KEY);
+  },
+
+  async takePendingAlarmNav(): Promise<PendingAlarmNav | null> {
+    const raw = await AsyncStorage.getItem(PENDING_ALARM_NAV_KEY);
+    if (!raw) return null;
+    await AsyncStorage.removeItem(PENDING_ALARM_NAV_KEY);
+
+    try {
+      const parsed = JSON.parse(raw) as PendingAlarmNav & { savedAt: number };
+      if (Date.now() - parsed.savedAt > MAX_AGE_MS) return null;
+      return { schedulerId: parsed.schedulerId, notificationId: parsed.notificationId, challengeType: parsed.challengeType };
+    } catch (err) {
+      console.warn('[alarmNavStorage] Falha ao ler navegação pendente, descartando', err);
+      return null;
+    }
+  },
+};

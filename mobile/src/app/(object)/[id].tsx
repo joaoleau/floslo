@@ -1,0 +1,288 @@
+import { useState } from 'react';
+import {
+  View,
+  ScrollView,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { Screen } from '@/components/common/Screen';
+import { Header } from '@/components/common/Header';
+import { HeaderAction } from '@/components/common/HeaderAction';
+
+import { Text } from '@/components/ui/text';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
+import { ObjectTagsList } from '@/components/object/ObjectTagsList';
+import { ObjectStatusBadge } from '@/components/object/ObjectStatusBadge';
+import {
+  useObjectQuery,
+  useUpdateObjectTagsMutation,
+  useRenameObjectMutation,
+  useDeleteObjectMutation,
+} from '@/hooks/useObjects';
+import { useThemeColors } from '@/hooks/useThemeColors';
+import { getColorForId } from '@/lib/hashColor';
+import { getExtensionColor } from '@/lib/fileExtensionColors';
+import { showAlert } from '@/services/alertService';
+import { showFieldHelp } from '@/services/fieldHelpService';
+import { objectFailureMessage } from '@/i18n/objectFailure';
+
+export default function ObjectDetails() {
+  const router = useRouter();
+  const { t } = useTranslation();
+  const colors = useThemeColors();
+  const { id } = useLocalSearchParams<{ id: string }>();
+
+  const { data: object, isPending, isError } = useObjectQuery(id);
+  const updateTagsMutation = useUpdateObjectTagsMutation();
+  const renameMutation = useRenameObjectMutation();
+  const deleteMutation = useDeleteObjectMutation();
+
+  const [tags, setTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
+  const [loadedObjectId, setLoadedObjectId] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [editedName, setEditedName] = useState('');
+
+  async function handleRename() {
+    const trimmed = editedName.trim();
+    if (!object || !trimmed || trimmed === object.name) {
+      setIsRenaming(false);
+      return;
+    }
+
+    try {
+      await renameMutation.mutateAsync({ id: object.id, name: trimmed });
+      setIsRenaming(false);
+    } catch (err) {
+      console.error(`[ObjectDetails] Falha ao renomear objeto "${object.id}"`, err);
+      showAlert(t('common.error'), t('objects.detail.renameFailed'));
+    }
+  }
+
+  if (object && object.id !== loadedObjectId) {
+    setLoadedObjectId(object.id);
+    setTags(object.tags);
+  }
+
+  const TAG_MAX_LENGTH = 32;
+
+  function addTag() {
+    const tag = newTag.trim().slice(0, TAG_MAX_LENGTH);
+    if (!tag || tags.includes(tag)) return;
+
+    setTags([...tags, tag]);
+    setNewTag('');
+  }
+
+  function removeTag(tag: string) {
+    setTags(tags.filter((item) => item !== tag));
+  }
+
+  async function handleSave() {
+    if (!object) return;
+    if (tags.length === 0) {
+      showAlert(t('objects.detail.tagRequiredTitle'), t('objects.detail.tagRequired'));
+      return;
+    }
+    try {
+      await updateTagsMutation.mutateAsync({ id: object.id, tags });
+      router.back();
+    } catch (err) {
+      console.error(`[ObjectDetails] Falha ao salvar tags do objeto "${object.id}"`, err);
+      showAlert(t('common.error'), t('objects.detail.saveFailed'));
+    }
+  }
+
+  function handleDelete() {
+    if (!object) return;
+
+    showAlert(
+      t('objects.detail.deleteTitle'),
+      t('objects.detail.deleteConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('common.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteMutation.mutateAsync(object.id);
+              router.back();
+            } catch (err) {
+              console.error(`[ObjectDetails] Falha ao excluir objeto "${object.id}"`, err);
+              showAlert(t('common.error'), t('objects.detail.deleteFailed'));
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  if (isPending) {
+    return (
+      <Screen>
+        <Header title={t('objects.detail.title')} />
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color={colors.brand} />
+        </View>
+      </Screen>
+    );
+  }
+
+  if (isError || !object) {
+    return (
+      <Screen>
+        <Header title={t('common.error')} />
+        <View className="flex-1 justify-center items-center">
+          <Text>{t('errors.api.objectNotFound')}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const isEditable = object.status === 'active';
+  const accentColor = getColorForId(object.id);
+  const extensionColor = getExtensionColor(object.extension);
+
+  return (
+    <Screen edges={['top', 'left', 'right', 'bottom']}>
+      <Header
+        title={t('objects.detail.title')}
+        rightAction={
+          updateTagsMutation.isPending ? (
+            <ActivityIndicator color={colors.brand} />
+          ) : (
+            <HeaderAction icon="checkmark" onPress={handleSave} disabled={!isEditable} />
+          )
+        }
+      />
+
+      <LinearGradient colors={[accentColor, colors.background]} style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          className="flex-1"
+        >
+          <View className="flex-1 gap-4 p-4">
+            <Card className="flex-1 rounded-3xl p-5 gap-4">
+              <View className="flex-row items-center justify-between">
+                {isRenaming ? (
+                  <View className="flex-1 flex-row items-center gap-2" style={{ marginRight: 12 }}>
+                    <Input
+                      autoFocus
+                      value={editedName}
+                      onChangeText={setEditedName}
+                      onSubmitEditing={handleRename}
+                      maxLength={150}
+                      className="flex-1 text-lg"
+                    />
+                    <Pressable hitSlop={8} onPress={handleRename} disabled={renameMutation.isPending}>
+                      <Ionicons name="checkmark-circle" size={26} color={colors.brand} />
+                    </Pressable>
+                    <Pressable hitSlop={8} onPress={() => setIsRenaming(false)}>
+                      <Ionicons name="close-circle" size={26} color={colors.mutedForeground} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    className="flex-row items-center"
+                    style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, marginRight: 12 }}
+                    disabled={!isEditable}
+                    onPress={() => {
+                      setEditedName(object.name);
+                      setIsRenaming(true);
+                    }}
+                  >
+                    <Text
+                      className="text-lg font-semibold text-foreground"
+                      style={{ flexShrink: 1, overflow: 'hidden' }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {object.name}
+                    </Text>
+                    {isEditable && (
+                      <Ionicons name="pencil" size={16} color={colors.mutedForeground} style={{ marginLeft: 8 }} />
+                    )}
+                  </Pressable>
+                )}
+                <Badge
+                  className="rounded-full px-3 border-transparent"
+                  style={{ flexShrink: 0, backgroundColor: extensionColor }}
+                >
+                  <Text className="uppercase text-white">{object.extension}</Text>
+                </Badge>
+              </View>
+
+              {!isEditable && (
+                <View className="flex-row items-center justify-between">
+                  <ObjectStatusBadge status={object.status} />
+                  {object.status === 'failed' && (
+                    <Text className="flex-1 text-right text-sm text-muted-foreground">
+                      {objectFailureMessage(object.errorMessage)}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              <Separator />
+
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-lg font-semibold text-foreground">{t('objects.detail.tags')}</Text>
+                <Pressable onPress={() => showFieldHelp(t('objects.detail.tags'), t('objects.detail.tagsHelp'))} hitSlop={8}>
+                  <Ionicons name="help-circle-outline" size={18} color={colors.brandSoft} />
+                </Pressable>
+              </View>
+
+              <View className="flex-row gap-2">
+                <Input
+                  className="flex-1"
+                  value={newTag}
+                  onChangeText={setNewTag}
+                  placeholder={
+                    isEditable ? t('objects.detail.newTag') : t('objects.detail.availableAfterProcessing')
+                  }
+                  onSubmitEditing={addTag}
+                  editable={isEditable}
+                  maxLength={TAG_MAX_LENGTH}
+                />
+                <Button onPress={addTag} className="rounded-3xl bg-brand-100" disabled={!isEditable}>
+                  <Ionicons name="add" size={18} color="white" />
+                </Button>
+              </View>
+
+              <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                <ObjectTagsList tags={tags} onRemoveTag={isEditable ? removeTag : undefined} />
+                {isEditable && tags.length === 0 && (
+                  <Text className="text-sm text-muted-foreground">
+                    {t('objects.detail.noTags')}
+                  </Text>
+                )}
+              </ScrollView>
+            </Card>
+
+            <Button
+              onPress={handleDelete}
+              disabled={deleteMutation.isPending}
+              className="flex-row items-center justify-center rounded-3xl bg-red-600 py-2"
+            >
+              <Ionicons name="trash-outline" size={20} color="white" />
+              <Text className="ml-2 font-semibold text-white">{t('objects.detail.delete')}</Text>
+            </Button>
+          </View>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </Screen>
+  );
+}
