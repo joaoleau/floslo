@@ -15,20 +15,16 @@ import (
 
 const deleteVectorsBatchSize = 500
 
-// getVectorsBatchSize é o limite de chaves por requisição do GetVectors.
 const getVectorsBatchSize = 100
 
 type RetrievedChunk struct {
-	// Key é o id determinístico do vetor (vec_<objectId>_<page>_<chunkIndex>), que também
-	// serve para achar os vizinhos de apoio.
 	Key        string
 	Content    string
 	Score      float64
 	ObjectKey  string
 	Page       int
 	ChunkIndex int
-	// Language só identifica o idioma detectado do chunk; nenhuma busca filtra por ele.
-	Language string
+	Language   string
 }
 
 type VectorService struct {
@@ -38,10 +34,6 @@ type VectorService struct {
 	VectorIndex      string
 }
 
-// Metadados gravados pelo processor em cada vetor (VectorMetadata em
-// api/processor/services/vector.py). UnmarshalSmithyDocument lê a tag `document`, não a `json`:
-// sem ela, o nome do campo é comparado sem diferenciar maiúsculas, e os nomes com sublinhado
-// (object_key, chunk_index) nunca batiam, chegando sempre vazios ("" e 0).
 type VectorMetadata struct {
 	User       string `document:"user" json:"user"`
 	ObjectKey  string `document:"object_key" json:"object_key"`
@@ -75,8 +67,6 @@ func (s *VectorService) RetrieveRelevantChunks(ctx context.Context, userId strin
 	return s.sortAndBuildChunks(vectors)
 }
 
-// GetChunksByKeys busca chunks diretamente pelo id do vetor, sem consulta de similaridade.
-// Chaves que não existem no índice simplesmente não aparecem no resultado.
 func (s *VectorService) GetChunksByKeys(ctx context.Context, keys []string) (map[string]RetrievedChunk, error) {
 	chunks := make(map[string]RetrievedChunk, len(keys))
 

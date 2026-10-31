@@ -18,7 +18,6 @@ type RegisterRequestDTO struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
-	// Versão dos termos que o usuário aceitou na tela de cadastro (TERMS_VERSION no app).
 	AcceptedTermsVersion string `json:"accepted_terms_version"`
 }
 
@@ -58,4 +57,3 @@ type VerifyResetCodeRequestDTO struct {
 	Email string `json:"email"`
 	Code  string `json:"code"`
 }
-

@@ -13,8 +13,6 @@ from services import (
     DynamoService, DynamoServiceData
 )
 
-# Nível de log pelo ambiente (LOG_LEVEL=DEBUG para investigar). O padrão é INFO: no DEBUG
-# o botocore imprime cada requisição e o YAKE cada palavra, e os logs úteis se perdem.
 logger = logging.getLogger()
 logger.setLevel(os.getenv("LOG_LEVEL", "INFO").upper())
 for noisy in ("boto3", "botocore", "s3transfer", "urllib3"):

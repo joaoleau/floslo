@@ -59,11 +59,8 @@ func NewAuthService(
 	}
 }
 
-// Versão vigente dos Termos de uso e da Política de privacidade. Mantenha em sincronia com
-// TERMS_VERSION em mobile/src/constants/terms.ts: quando o texto mudar, as duas sobem juntas.
 const TermsVersion = "2026-10-26"
 
-// ValidateTermsAcceptance exige que o cadastro traga o aceite da versão vigente dos termos.
 func ValidateTermsAcceptance(version string) error {
 	if version != TermsVersion {
 		return fmt.Errorf("terms of use must be accepted")

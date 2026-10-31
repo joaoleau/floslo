@@ -10,16 +10,11 @@ from .utils import normalize_text
 
 logger = logging.getLogger(__name__)
 
-# Só PDF: a página é a unidade da extração de texto, da fonte de cada desafio e do id do vetor.
 SUPPORTED_EXTENSIONS = {"pdf"}
 
 
 class PdfOcrRequiredError(Exception):
-    """Raised when a PDF has at least one page but pypdf couldn't extract text
-    from any of them -- almost always a scanned/image-only PDF, which we don't
-    run OCR on. Caught upstream so the resulting "failed" record carries a
-    specific, human-readable error_message instead of a generic one.
-    """
+    pass
 
 
 @dataclass(slots=True)
@@ -38,16 +33,6 @@ class S3ServiceData:
 
 
 class S3Service:
-    """Reads each PDF into an in-memory buffer and extracts its text page by
-    page with pypdf -- no filesystem tempfile, no LangChain document loaders.
-
-    This used to go through LangChain's community document loaders (which
-    need a local file path, hence a download to Lambda's /tmp first). That
-    was reverted after langchain-community's transitive dependencies pushed
-    the Lambda's deployment package past the 250MB unzipped code+layers
-    limit. pypdf was already the library doing the actual work underneath
-    those loaders, and it reads a file-like object directly.
-    """
 
     def __init__(self, config: S3ServiceData):
         self.s3_client = config.s3_client

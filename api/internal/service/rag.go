@@ -20,8 +20,6 @@ type GeneratedChallengeResult struct {
 	Discoveries     []*GeneratedDiscovery      `json:"discoveries,omitempty"`
 }
 
-// CurrentStreak é a sequência de dias de estudo depois de registrar o dia do disparo; fica
-// nil quando o dia não pôde ser registrado (sem data local ou falha ao gravar).
 type RetrieveAndGenerateResponse struct {
 	Scheduler     *model.Scheduler            `json:"scheduler"`
 	Challenges    []*GeneratedChallengeResult `json:"challenges"`
@@ -53,27 +51,16 @@ func NewRAGService(
 }
 
 const (
-	// perTagTopK é quantos chunks cada tag traz; o chunk principal de cada vaga é sorteado entre eles.
-	perTagTopK = 6
-	// maxSearchTags limita as tags sorteadas por firing. Cada tag custa um embedding e uma
-	// consulta, e tags diferentes mantêm assuntos diferentes no mesmo disparo.
+	perTagTopK    = 6
 	maxSearchTags = 4
 )
 
-// RetrieveAndGenerate monta um firing: escolhe uma vez os chunks foco de todos os desafios
-// do agendador pela busca por tags, busca um chunk de apoio para cada um (o vizinho), e gera
-// os itens de cada desafio em uma chamada ao modelo, com o item i ligado ao slot i. Depois
-// de uma geração bem-sucedida, registra localDate como dia de estudo.
 func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, schedulerId string, localDate string) (*RetrieveAndGenerateResponse, error) {
 	scheduler, err := s.SchedulerRepository.GetSchedulerById(ctx, userId, schedulerId)
 	if err != nil {
 		return nil, err
 	}
 	if len(scheduler.ObjectIds) == 0 {
-		// Objeto excluído depois do agendador ter sido criado: ObjectService.DeleteObject já
-		// desabilita o agendador quando isso o deixa sem nenhum objeto, mas o alarme que o
-		// aparelho já tinha agendado dispara mesmo assim até o próximo sync do app. Devolve
-		// sem desafios em vez de erro, pra a tela de firing mostrar um aviso, não uma falha.
 		logger.Log.Info("scheduler has no objects, returning without challenges: ", logger.String("scheduler_id", scheduler.Id))
 		return &RetrieveAndGenerateResponse{Scheduler: scheduler, Challenges: nil}, nil
 	}
@@ -144,8 +131,6 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 			err = fmt.Errorf("unsupported challenge type: %s", challenger.ChallengeType)
 		}
 		if err != nil {
-			// Sem itens ligados com certeza aos seus chunks, o tipo fica fora deste disparo; os
-			// outros tipos seguem valendo.
 			logger.Log.Error("failed generating a challenge type, leaving it out of the firing: ", logger.String("challenge_type", string(challenger.ChallengeType)), logger.Any("error", err))
 			continue
 		}
@@ -164,9 +149,6 @@ func (s *RAGService) RetrieveAndGenerate(ctx context.Context, userId string, sch
 	}, nil
 }
 
-// recordStudyDay registra o dia de estudo do disparo e devolve a sequência atualizada, que vai
-// na própria resposta para o app não precisar consultar a floslo-api. Uma falha só vai para o
-// log: o estudante já tem os desafios, e a sequência não deve derrubar o disparo.
 func (s *RAGService) recordStudyDay(ctx context.Context, userId string, localDate string) *int {
 	if s.StreakService == nil || localDate == "" {
 		return nil
@@ -179,14 +161,11 @@ func (s *RAGService) recordStudyDay(ctx context.Context, userId string, localDat
 	return &streak
 }
 
-// foundChunk é um chunk foco junto com a tag cuja busca o encontrou.
 type foundChunk struct {
 	chunk RetrievedChunk
 	tag   string
 }
 
-// findNewChunks busca os chunks foco do firing: uma busca por tag sorteada, com a tag pura
-// como consulta, alternando entre os objetos. Devolve os chunks e as tags usadas.
 func (s *RAGService) findNewChunks(ctx context.Context, userId string, objects []*model.Object, needed int) ([]foundChunk, []string, error) {
 	search := func(ctx context.Context, object *model.Object, tag string) ([]RetrievedChunk, error) {
 		return s.VectorService.RetrieveRelevantChunks(ctx, userId, object.Key, tag, perTagTopK)
@@ -203,18 +182,13 @@ func (s *RAGService) findNewChunks(ctx context.Context, userId string, objects [
 	return chunks, tags, err
 }
 
-// newChunkSearch busca, dentro do objeto, os chunks mais parecidos com uma tag.
 type newChunkSearch func(ctx context.Context, object *model.Object, tag string) ([]RetrievedChunk, error)
 
-// tagSearch é uma busca planejada: o objeto e a tag consultada nele.
 type tagSearch struct {
 	object *model.Object
 	tag    string
 }
 
-// planTagSearches sorteia as tags de um firing: as tags de cada objeto ativo em ordem
-// sorteada, alternando entre os objetos (uma do primeiro, uma do segundo...) para um objeto
-// com muitas tags não ocupar todas as buscas.
 func planTagSearches(objects []*model.Object, count int) []tagSearch {
 	type objectTags struct {
 		object *model.Object
@@ -258,10 +232,6 @@ func planTagSearches(objects []*model.Object, count int) []tagSearch {
 	return searches
 }
 
-// gatherNewChunks junta os chunks foco do firing. Faz uma busca por tag sorteada, até
-// maxSearchTags, e preenche as vagas em rodízio entre as tags (ver pickSpread), para o firing
-// cobrir assuntos diferentes. Chunks repetidos ou sem texto útil são descartados. Só devolve
-// erro se nada foi encontrado e toda busca falhou.
 func gatherNewChunks(ctx context.Context, objects []*model.Object, needed int, search newChunkSearch) ([]foundChunk, []string, error) {
 	searches := planTagSearches(objects, min(needed, maxSearchTags))
 	if len(searches) == 0 {
@@ -302,18 +272,11 @@ func gatherNewChunks(ctx context.Context, objects []*model.Object, needed int, s
 	return found, usedTags, nil
 }
 
-// tagResults são os chunks utilizáveis que a busca de uma tag trouxe.
 type tagResults struct {
 	tag    string
 	chunks []RetrievedChunk
 }
 
-// pickSpread escolhe até `needed` chunks em rodízio entre as tags: uma vaga da primeira tag,
-// uma da segunda, e assim por diante. Em cada vaga o chunk é sorteado entre os da lista da
-// tag que ainda não foram escolhidos, para a mesma tag não trazer sempre o mesmo trecho. Na
-// primeira passada o sorteio só aceita páginas que nenhum chunk escolhido ocupa, para dois
-// desafios não virarem o mesmo parágrafo; se isso não fechar as vagas (documento pequeno),
-// uma segunda passada aceita repetir a página, ainda em rodízio entre as tags.
 func pickSpread(perTag []tagResults, needed int) []foundChunk {
 	taken := make(map[string]bool)
 	pages := make(map[string]bool)
@@ -362,16 +325,12 @@ func pickSpread(perTag []tagResults, needed int) []foundChunk {
 	return found
 }
 
-// SelectedSlot é uma vaga do firing já com o chunk foco escolhido e a tag que o encontrou.
 type SelectedSlot struct {
 	ChallengerIndex int
 	Chunk           RetrievedChunk
 	Tag             string
 }
 
-// assignSlots distribui os chunks encontrados pelas vagas dos desafios, na ordem dos desafios.
-// Se houver menos chunks do que vagas (um documento pequeno, por exemplo), os já escolhidos se
-// repetem em rodízio, para cada desafio ainda vir com a quantidade de itens configurada.
 func assignSlots(challengers []model.Challenger, chunks []foundChunk) []SelectedSlot {
 	if len(chunks) == 0 {
 		return nil
@@ -389,8 +348,6 @@ func assignSlots(challengers []model.Challenger, chunks []foundChunk) []Selected
 	return selected
 }
 
-// loadSupportChunks completa o mapa com os vizinhos dos chunks foco, usados como apoio. Os
-// vizinhos são opcionais: uma falha ao buscá-los só tira o apoio dos slots.
 func (s *RAGService) loadSupportChunks(ctx context.Context, selected []SelectedSlot, available map[string]RetrievedChunk) {
 	seen := make(map[string]bool)
 	var neighbors []string
@@ -420,8 +377,6 @@ type challengerSlot struct {
 	slot            GenerationSlot
 }
 
-// buildGenerationSlots transforma as vagas escolhidas em slots do prompt, com o vizinho como
-// apoio. O apoio nunca é o chunk foco de outra vaga.
 func buildGenerationSlots(selected []SelectedSlot, available map[string]RetrievedChunk) []challengerSlot {
 	focusKeys := make(map[string]bool, len(selected))
 	for _, slot := range selected {
@@ -446,7 +401,6 @@ func buildGenerationSlots(selected []SelectedSlot, available map[string]Retrieve
 	return slots
 }
 
-// groupGenerationSlots agrupa os slots por desafio, mantendo a ordem.
 func groupGenerationSlots(slots []challengerSlot) map[int][]GenerationSlot {
 	grouped := make(map[int][]GenerationSlot)
 	for _, slot := range slots {
@@ -455,7 +409,6 @@ func groupGenerationSlots(slots []challengerSlot) map[int][]GenerationSlot {
 	return grouped
 }
 
-// Limiares do filtro de chunk foco. Ainda não foram calibrados com documentos reais.
 const (
 	minFocusRunes       = 200
 	minFocusLetterRatio = 0.6
@@ -463,9 +416,6 @@ const (
 	maxFocusDotLeaders  = 3
 )
 
-// isUsableFocus descarta chunks que provavelmente não geram uma boa pergunta: pouco texto
-// útil (cabeçalhos, itens soltos), sumários com linhas pontilhadas e trechos quase todos
-// numéricos (tabelas).
 func isUsableFocus(content string) bool {
 	trimmed := strings.TrimSpace(content)
 	if len([]rune(trimmed)) < minFocusRunes {

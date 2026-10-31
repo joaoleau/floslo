@@ -34,9 +34,6 @@ const (
 
 const defaultMaxUploadSizeMB = 50
 
-// Limites de tags. TAG_MAX_LENGTH tem o mesmo nome e o mesmo padrão no processor (api/processor):
-// tag maior que isso é cortada aqui numa edição de tags. MAX_TAGS_PER_OBJECT deve ser maior ou igual
-// a TAG_REFINER_MAX_TAGS do processor, senão a primeira edição corta as tags que ele salvou.
 const (
 	defaultTagMaxLength     = 32
 	defaultMaxTagsPerObject = 300
@@ -83,10 +80,6 @@ func NewConfig(ctx context.Context) (*Config, error) {
 		return nil, fmt.Errorf("VECTOR_INDEX_NAME environment variable is required")
 	}
 
-	// Opcional aqui de propósito: NewConfig é compartilhado por todas as Lambdas (API e
-	// RAG), mas só a API manda e-mail -- a RAG não declara essa variável no template.yml
-	// e não deveria precisar dela pra subir. Quem realmente precisa do valor (a
-	// construção do EmailService, só em cmd/api) valida isso na hora de usar.
 	sesSenderEmail := os.Getenv(SESSenderEmail)
 
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)

@@ -1,8 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-
 Description: Floslo API
-
 Globals:
   Function:
     Runtime: provided.al2023
@@ -10,69 +8,44 @@ Globals:
     MemorySize: 128
     Architectures:
       - x86_64
-
 Resources:
-
-  #########################################################
-  # DYNAMO
-  #########################################################
-
   FlosloTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: floslo
       BillingMode: PAY_PER_REQUEST
-
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S
-
         - AttributeName: SK
           AttributeType: S
-
         - AttributeName: GSI1PK
           AttributeType: S
-
         - AttributeName: GSI1SK
           AttributeType: S
-
       KeySchema:
         - AttributeName: PK
           KeyType: HASH
-
         - AttributeName: SK
           KeyType: RANGE
-
       GlobalSecondaryIndexes:
         - IndexName: GSI1
-
           KeySchema:
             - AttributeName: GSI1PK
               KeyType: HASH
-
             - AttributeName: GSI1SK
               KeyType: RANGE
-
           Projection:
             ProjectionType: ALL
-
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
-
-  #########################################################
-  # S3 OBJECTS
-  #########################################################
-
   FlosloBucket:
     Type: AWS::S3::Bucket
-
     DependsOn:
       - FlosloObjectQueuePolicy
-
     Properties:
       BucketName: floslo-us-east-1-tenants
-
       NotificationConfiguration:
         QueueConfigurations:
           - Event: s3:ObjectCreated:*
@@ -82,60 +55,36 @@ Resources:
                 Rules:
                   - Name: suffix
                     Value: .pdf
-
-  #########################################################
-  # S3 VECTOR BUCKET
-  #########################################################
-
   FlosloVectorBucket:
     Type: AWS::S3Vectors::VectorBucket
     Properties:
       VectorBucketName: floslo-us-east-1-vectors
-
-  #########################################################
-  # SQS OBJECT PROCESSING
-  #########################################################
-
   FlosloObjectQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: floslo-object-processing
       VisibilityTimeout: 300
       MessageRetentionPeriod: 1209600
-
   FlosloObjectQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
       Queues:
         - !Ref FlosloObjectQueue
-
       PolicyDocument:
         Version: "2012-10-17"
-
         Statement:
           - Effect: Allow
-
             Principal:
               Service: s3.amazonaws.com
-
             Action:
               - sqs:SendMessage
-
             Resource: !GetAtt FlosloObjectQueue.Arn
-
-  #########################################################
-  # VECTOR INDEX
-  #########################################################
-
   FlosloVectorIndex:
     Type: AWS::S3Vectors::Index
-
     DependsOn:
       - FlosloVectorBucket
-
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
-
     Properties:
       IndexName: floslo-index-v2
       DataType: float32
@@ -148,55 +97,37 @@ Resources:
           - page
           - chunk_index
           - language
-
-  #########################################################
-  # API
-  #########################################################
-
   FlosloApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
-
-  #########################################################
-  # API LAMBDA
-  #########################################################
-
   FlosloFunction:
     Type: AWS::Serverless::Function
-
     Metadata:
       BuildMethod: go1.x
-
     Properties:
       CodeUri: cmd/api/
       Handler: bootstrap
       FunctionName: floslo-api
-
       Policies:
         - DynamoDBCrudPolicy:
             TableName: floslo
-
         - S3CrudPolicy:
             BucketName: floslo-us-east-1-tenants
-
         - Statement:
             - Effect: Allow
               Action:
                 - ssm:GetParameter
               Resource:
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lambda/floslo/*
-
             - Effect: Allow
               Action:
                 - s3vectors:DeleteVectors
               Resource: !GetAtt FlosloVectorIndex.IndexArn
-
             - Effect: Allow
               Action:
                 - ses:SendEmail
               Resource: arn:aws:ses:us-east-1:980135808459:identity/floslo.com.br
-
       Environment:
         Variables:
           DYNAMO_TABLE: floslo
@@ -210,7 +141,6 @@ Resources:
           MAX_TAGS_PER_OBJECT: "300"
           MAX_UPLOAD_SIZE_MB: "50"
           SES_SENDER_EMAIL: "no-reply@floslo.com.br"
-
       Events:
         Proxy:
           Type: HttpApi
@@ -218,51 +148,38 @@ Resources:
             ApiId: !Ref FlosloApi
             Path: /api/{proxy+}
             Method: ANY
-
-  #########################################################
-  # RAG LAMBDA
-  #########################################################
-
   FlosloRAGFunction:
     Type: AWS::Serverless::Function
-
     Metadata:
       BuildMethod: go1.x
-
     Properties:
       CodeUri: cmd/rag/
       Handler: bootstrap
       FunctionName: floslo-rag
-
       Policies:
         - DynamoDBReadPolicy:
             TableName: floslo
-
         - Statement:
             - Effect: Allow
               Action:
                 - dynamodb:UpdateItem
               Resource: !GetAtt FlosloTable.Arn
-
             - Effect: Allow
               Action:
                 - ssm:GetParameter
               Resource:
                 - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/lambda/floslo/*
-
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
               Resource:
                 - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
                 - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
-
             - Effect: Allow
               Action:
                 - s3vectors:QueryVectors
                 - s3vectors:GetVectors
               Resource: !GetAtt FlosloVectorIndex.IndexArn
-
       Environment:
         Variables:
           DYNAMO_TABLE: floslo
@@ -272,7 +189,6 @@ Resources:
           VECTOR_INDEX_NAME: floslo-index-v2
           EMBEDDING_MODEL_ID: amazon.titan-embed-text-v2:0
           GENERATE_MODEL_ID: amazon.nova-lite-v1:0
-
       Events:
         Proxy:
           Type: HttpApi
@@ -280,14 +196,8 @@ Resources:
             ApiId: !Ref FlosloApi
             Path: /rag/{proxy+}
             Method: ANY
-
-  #########################################################
-  # OBJECT PROCESSOR
-  #########################################################
-
   FlosloObjectProcessorFunction:
     Type: AWS::Serverless::Function
-
     Properties:
       Runtime: python3.14
       CodeUri: processor/
@@ -295,38 +205,31 @@ Resources:
       FunctionName: floslo-object-processor
       Timeout: 300
       MemorySize: 1024
-
       Policies:
         - S3ReadPolicy:
             BucketName: floslo-us-east-1-tenants
-
         - SQSPollerPolicy:
             QueueName: !GetAtt FlosloObjectQueue.QueueName
-
         - Statement:
             - Effect: Allow
               Action:
                 - s3:DeleteObject
               Resource: arn:aws:s3:::floslo-us-east-1-tenants/*
-
             - Effect: Allow
               Action:
                 - dynamodb:PutItem
               Resource: !GetAtt FlosloTable.Arn
-
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
               Resource:
                 - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
                 - !Sub arn:aws:bedrock:${AWS::Region}::foundation-model/amazon.nova-lite-v1:0
-
             - Effect: Allow
               Action:
                 - s3vectors:PutVectors
                 - s3vectors:DeleteVectors
               Resource: !GetAtt FlosloVectorIndex.IndexArn
-
       Environment:
         Variables:
           BUCKET_NAME: floslo-us-east-1-tenants
@@ -343,16 +246,13 @@ Resources:
           TAG_MAX_LENGTH: "32"
           TAG_REFINER_MODEL_ID: amazon.nova-lite-v1:0
           YAKE_MAX_KEYWORDS: "300"
-
       Events:
         ObjectQueue:
           Type: SQS
-
           Properties:
             Queue: !GetAtt FlosloObjectQueue.Arn
             BatchSize: 5
             MaximumBatchingWindowInSeconds: 10
-
 Outputs:
   ApiUrl:
     Value: !Sub https://${FlosloApi}.execute-api.${AWS::Region}.amazonaws.com

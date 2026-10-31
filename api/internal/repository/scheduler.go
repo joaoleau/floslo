@@ -15,10 +15,6 @@ import (
 	"github.com/joaoleau/floslo/internal/model"
 )
 
-// ErrSchedulerNotFound deixa "não encontrei o agendador" distinguível de qualquer outro
-// erro de infra -- quem chama (ex.: limpeza de vínculos ao excluir um objeto) precisa
-// tratar diferente um agendador já excluído (ok, ignora) de uma falha real do Dynamo
-// (deve propagar).
 var ErrSchedulerNotFound = errors.New("scheduler not found")
 
 type SchedulerRepository struct {
@@ -159,12 +155,6 @@ func (r *SchedulerRepository) UpdateScheduler(ctx context.Context, scheduler *mo
 	return &updatedScheduler, nil
 }
 
-// RemoveObjectId tira um objectId de object_ids sem tocar no resto do agendador --
-// usado na exclusão de um objeto, pra limpar toda referência a ele. Se o agendador já
-// não existe (ErrSchedulerNotFound) ou já não referencia esse objeto, não faz nada e
-// retorna sem erro: nenhum dos dois casos é um problema real pra quem chamou. O retorno
-// é quantos object_ids sobraram, pra quem chamou saber se o agendador ficou vazio sem
-// precisar buscá-lo de novo.
 func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string, schedulerId string, objectId string) (int, error) {
 	scheduler, err := r.GetSchedulerById(ctx, userId, schedulerId)
 	if err != nil {
@@ -214,11 +204,6 @@ func (r *SchedulerRepository) RemoveObjectId(ctx context.Context, userId string,
 	return len(updatedIds), nil
 }
 
-// Disable liga enabled=false sem mexer em mais nada do agendador -- usado quando o
-// último objeto vinculado a ele é excluído. O alarme já agendado no aparelho não sabe
-// disso na hora (só é apagado no próximo sync do app), então RetrieveAndGenerate tolera
-// um agendador sem objetos e devolve sem desafios em vez de erro, pra esse disparo
-// pendente não quebrar. Se o agendador já não existe, não é erro: nada a desabilitar.
 func (r *SchedulerRepository) Disable(ctx context.Context, userId string, schedulerId string) error {
 	key, err := attributevalue.MarshalMap(map[string]string{
 		"PK": "USER#" + userId,

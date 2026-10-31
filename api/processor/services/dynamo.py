@@ -58,10 +58,6 @@ class DynamoService:
             "created_at": record.created_at if record.created_at else datetime.now(UTC).isoformat(),
             "vector_ids": record.vector_ids
         }
-        # ttl and error_message are only ever set on the "failed" transition (and
-        # error_message only when the failure has a specific, known cause). put_item
-        # replaces the whole item, so leaving these keys out on other writes is enough
-        # to ensure those states never carry a stale value from a previous write.
         if record.ttl is not None:
             item["ttl"] = record.ttl
 
@@ -118,7 +114,7 @@ class DynamoService:
                     "SK": {"S": self._build_sk(object_id)}
                 }
             )
-            logger.info(f"Successfully deleted object metadata for object_id={object_id}") # Corrigido: usando object_id
+            logger.info(f"Successfully deleted object metadata for object_id={object_id}")
         except Exception:
             logger.exception(f"Failed deleting object metadata for object_id={object_id}")
             raise

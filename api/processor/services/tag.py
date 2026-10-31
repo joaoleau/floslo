@@ -30,10 +30,6 @@ class TagExtractionResult:
 
 @dataclass(slots=True)
 class TagServiceData:
-    # Máximo de candidatas que o YAKE devolve para o documento inteiro, as de melhor nota.
-    # Variável YAKE_MAX_KEYWORDS. Não há corte por nota: ela muda com o tamanho e o estilo do
-    # texto, então um valor fixo cortava quase tudo em um documento e nada em outro. Quem
-    # separa candidata boa de ruim é o refinador.
     max_keywords: int = 300
     keyword_ngram_size: int = 3
     min_text_length: int = 50
